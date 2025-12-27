@@ -22,8 +22,8 @@ public class Variables {
     sim = Sim;
   }
   
-  QnactrSimulation sim;  
-  
+  QnactrSimulation sim;
+
 //TODO // public IAnimatorRuntime Animator;
 	public Animator_Module animatorModule = new Animator_Module();
 //TODO // public MAAD.Animator3D.Animator3D Animator3D;

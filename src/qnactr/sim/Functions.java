@@ -5,6 +5,7 @@
 
 package qnactr.sim;
 
+import agents.cb.Agent;
 import gov.nasa.xpc.XPlaneConnect;
 import qnactr.objectDesigner.*;
 
@@ -5102,7 +5103,6 @@ return return_string;
 	      //have the content (function parameters) like    1 ( + 1 1 )
 	      switch ( function_name ){
 	        //the following functions apply to 0 and only 0 parameters
-	        
 	        case "get-clock-time":
 	        {
 	          if ( content_list.size() != 0 ) {
@@ -5171,6 +5171,7 @@ return return_string;
 	        case "remove-quotation-marks":
 	        case "unity-tangtang-update-status":
 	        case "x-plane-getdref":
+            case "read_input":
 
 	        { //accept only 1 parameter.
 	          if ( content_list.size() < 1 ) { //nothing there, error
@@ -5262,14 +5263,14 @@ return return_string;
 		                System.out.println("Error! LispFun__Evaluate_A_List " + function_name + "  para_1 must be an int number, not: " + para_1 );
 		                return null;
 		              }
-		              
+
 		              if( sim.vars.world3DTemplate.Method_Object == null || !(sim.vars.world3DTemplate.Method_Object instanceof UnityJavaUdp)) {
 				            System.out.println ("Error! LispFun__Evaluate_A_List. unity-tangtang-get-enemy-distance sim.vars.world3DTemplate.Method_Object == null || !(sim.vars.world3DTemplate.Method_Object is UnityJavaUdp)");
 				            return null;
 				      }
-			          
+
 			          ((UnityJavaUdp)sim.vars.world3DTemplate.Method_Object).sdsend.a1 = Integer.parseInt(para_1);
-			          
+
 		              return null;
 		              //break;
 	            }
@@ -5293,6 +5294,150 @@ return return_string;
 
                       break;
                   }
+                  case "read_input":
+                  {
+                      System.out.println("read_input parameter 1: " + para_1);
+                      Agent agent = Agent.getInstance();
+                      // Map parameter name to agent attribute
+                      switch (para_1) {
+                          case "airspeed":
+                              return String.valueOf(agent.airspeed_i);
+                          case "altitude":
+                              return String.valueOf(agent.altitude_i);
+                          case "pitch":
+                              return String.valueOf(agent.pitch_i);
+                          case "roll":
+                              return String.valueOf(agent.roll_i);
+                          case "heading":
+                              return String.valueOf(agent.heading_i);
+                          case "elevator":
+                              return String.valueOf(agent.elevator_i);
+                          case "rudder":
+                              return String.valueOf(agent.rudder_i);
+                          case "aileron":
+                              return String.valueOf(agent.aileron_i);
+                          case "l_throttle":
+                              return String.valueOf(agent.l_throttle_i);
+                          case "r_throttle":
+                              return String.valueOf(agent.r_throttle_i);
+                          case "slip":
+                              return String.valueOf(agent.slip_i);
+                          case "vertical_speed":
+                              return String.valueOf(agent.vertical_speed_i);
+                          case "flaps":
+                              return String.valueOf(agent.flaps_i);
+                          case "landing_gear":
+                              return String.valueOf(agent.landing_gear_i);
+                          case "spoilers":
+                              return String.valueOf(agent.spoilers_i);
+                          case "parking_brake":
+                              return String.valueOf(agent.parking_brake_i);
+                          case "n1_match_bug":
+                              return String.valueOf(agent.n1_match_bug_i);
+                          case "pax_safety":
+                              return String.valueOf(agent.pax_safety_i);
+                          case "master_warning":
+                              return String.valueOf(agent.master_warning_i);
+                          case "master_caution":
+                              return String.valueOf(agent.master_caution_i);
+                          case "flight_director":
+                              return String.valueOf(agent.flight_director_i);
+                          case "flc_mode":
+                              return String.valueOf(agent.flc_mode_i);
+                          case "heading_mode":
+                              return String.valueOf(agent.heading_mode_i);
+                          case "l_fuel_boost":
+                              return String.valueOf(agent.l_fuel_boost_i);
+                          case "r_fuel_boost":
+                              return String.valueOf(agent.r_fuel_boost_i);
+                          case "test_knob":
+                              return String.valueOf(agent.test_knob_i);
+                          case "heading_sel":
+                              return String.valueOf(agent.heading_sel_i);
+                          case "alt_sel":
+                              return String.valueOf(agent.alt_sel_i);
+                          case "yaw_damper":
+                              return String.valueOf(agent.yaw_damper_i);
+                          case "l_ign_switch":
+                              return String.valueOf(agent.l_ign_switch_i);
+                          case "r_ign_switch":
+                              return String.valueOf(agent.r_ign_switch_i);
+                          case "l_gen_switch":
+                              return String.valueOf(agent.l_gen_switch_i);
+                          case "r_gen_switch":
+                              return String.valueOf(agent.r_gen_switch_i);
+                          case "transfer_knob":
+                              return String.valueOf(agent.transfer_knob_i);
+                          case "e1_n1":
+                              return String.valueOf(agent.e1_n1_i);
+                          case "e2_n1":
+                              return String.valueOf(agent.e2_n1_i);
+                          case "l_engine_fire":
+                              return String.valueOf(agent.l_engine_fire_i);
+                          case "r_engine_fire":
+                              return String.valueOf(agent.r_engine_fire_i);
+                          case "baro_setting":
+                              return String.valueOf(agent.baro_setting_i);
+                          case "cabin_alt":
+                              return String.valueOf(agent.cabin_alt_i);
+                          case "l_gen_load":
+                              return String.valueOf(agent.l_gen_load_i);
+                          case "r_gen_load":
+                              return String.valueOf(agent.r_gen_load_i);
+                          case "pitot_heat":
+                              return String.valueOf(agent.pitot_heat_i);
+                          case "l_eng_ai":
+                              return String.valueOf(agent.l_eng_ai_i);
+                          case "r_eng_ai":
+                              return String.valueOf(agent.r_eng_ai_i);
+                          case "l_windsh_ai":
+                              return String.valueOf(agent.l_windsh_ai_i);
+                          case "r_windsh_ai":
+                              return String.valueOf(agent.r_windsh_ai_i);
+                          case "exterior_lights":
+                              return String.valueOf(agent.exterior_lights_i);
+                          case "anti_coll_lights":
+                              return String.valueOf(agent.anti_coll_lights_i);
+                          case "trim_rudder":
+                              return String.valueOf(agent.trim_rudder_i);
+                          case "l_bottle_arm":
+                              return String.valueOf(agent.l_bottle_arm_i);
+                          case "r_bottle_arm":
+                              return String.valueOf(agent.r_bottle_arm_i);
+                          case "radio_frequency":
+                              return String.valueOf(agent.radio_frequency_i);
+                          case "ATC_msg":
+                              return agent.ATC_msg_i;
+                          case "current_procedure":
+                              return agent.current_procedure_i;
+                          case "current_state":
+                              return agent.current_state_i;
+                          case "next_state":
+                              return agent.next_state_i;
+                          case "previous_state":
+                              return agent.previous_state_i;
+                          case "interaction_message":
+                              return agent.interaction_message_i;
+                          case "chrono_time":
+                              return String.valueOf(agent.chrono_time_i);
+                          case "runway_centerline_deviation":
+                              return String.valueOf(agent.runway_centerline_deviation_i);
+                          case "heading_deviation":
+                              return String.valueOf(agent.heading_deviation_i);
+                          case "lateral_deviation":
+                              return String.valueOf(agent.lateral_deviation_i);
+                          case "birds":
+                              return String.valueOf(agent.birds_i);
+                          case "TARS_speech":
+                              return String.valueOf(agent.TARS_speech_i);
+                          case "TARS_is_speaking":
+                              return String.valueOf(agent.TARS_is_speaking_i);
+                          default:
+                              System.out.println("Warning: Unknown input name: " + para_1);
+                              return_string = "nil";
+                      }
+                  }
+                      break;
 	            default:{
 	              System.out.println("Error! LispFun__Evaluate_A_List has undefined function name inside the 1 parameter number function group: " + function_name);
 	              return null;

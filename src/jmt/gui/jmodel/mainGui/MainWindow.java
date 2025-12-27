@@ -31,8 +31,7 @@ import java.awt.Dimension;
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
 
-import agents.cb.Agent1CB;
-import gov.nasa.xpc.XPlaneConnect;
+import agents.cb.Agent;
 import jmt.framework.gui.components.JMTFrame;
 import jmt.framework.gui.components.JMTMenuBar;
 import jmt.framework.gui.components.JMTToolBar;
@@ -43,15 +42,12 @@ import jmt.gui.jmodel.controller.Mediator;
 
 import org.jgraph.JGraph;
 
-import qnactr.GUI.EntitiesViewer;
 import qnactr.sim.GlobalUtilities;
 import qnactr.sim.QnactrSimulation;
-import qnactr.test.TestGUI;
 
 import com.ingescape.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import gov.nasa.xpc.XPlaneConnect;
 
 /**
  * MainWindow contains the main window of the jmodel project, it implements the
@@ -72,6 +68,7 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
 	 * Added by Berton July 17th to add Ingescape
 	 */
 	private static Logger _logger = LoggerFactory.getLogger(MainWindow.class);
+    private Agent cognitiveAgent;
 
 	/**
 	 *
@@ -156,11 +153,19 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
 		mediator.openModel_simple_test();
 		mediator.startSimulation();
 
-		new Thread(() -> startAgent(this)).start();
-	}
+        // Start agent in a new thread
+        new Thread(() -> {
+            try{
+                Thread.sleep(2000); // wait for 2 seconds to let simulation start
+                Agent.getInstance().start(this);
+                _logger.info("Agent started");
+            } catch (InterruptedException e){
+                _logger.error("Error while starting cognitive agent: {}", e.toString());
+            }
+        }).start();	}
 
 	@Override
-	public void handleAgentEvent(Agent agent, AgentEvent event, String uuid, String name, Object eventData) {
+	public void handleAgentEvent(com.ingescape.Agent agent, AgentEvent event, String uuid, String name, Object eventData) {
 		_logger.debug("**received agent event for {} ({}): {} with data {}", name, uuid, event, eventData);
 	}
 
@@ -205,6 +210,9 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
 	 */
 	@Override
 	protected void doClose() {
+        if (cognitiveAgent != null) {
+            cognitiveAgent.stop();
+        }
 		// Ends simulation process if active
 		mediator.stopSimulation();
 		// Disposes resultsWindow (if present) and mainwindow
@@ -245,136 +253,6 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
 
 	}
 
-	private void startAgent(MainWindow mainWindow) {
-		_logger.info("Start Java app 'IngeScape agent test'");
-		_logger.info("is DEBUG enabled ? {}", _logger.isDebugEnabled());
-
-		//JOptionPane.showMessageDialog(null, "MainWindow.java main", "CAO debug", JOptionPane.ERROR_MESSAGE); // CAO
-
-		//Global globalContext = new Global("ws://132.207.231.96:5625");
-		Global globalContext = new Global("ws://localhost:9009");
-		globalContext.observeWebSocketEvents(mainWindow);
-
-		Agent1CB agentCB = new Agent1CB();
-
-		Agent a = globalContext.agentCreate("Cognitive_Model_Agent");
-		a.observeAgentEvents(mainWindow);
-
-		a.definition.setName("Cognitive_Model");
-		a.definition.setDescription("QN-ACTR model of the Single Pilot");
-		a.definition.setVersion("1.0");
-
-		a.definition.inputCreate("ATC_msg", IopType.IGS_STRING_T);
-		a.definition.inputCreate("CAS_status", IopType.IGS_BOOL_T);
-		a.definition.inputCreate("FADEC_bug", IopType.IGS_BOOL_T);
-		a.definition.inputCreate("N1_E1", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("N1_E2", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("N1_match_bug", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("kias", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("pitch", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("slip/skid", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("v/s", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("alarm", IopType.IGS_STRING_T);
-		a.definition.inputCreate("l/g_status", IopType.IGS_STRING_T);
-		a.definition.inputCreate("flaps_status", IopType.IGS_STRING_T);
-		a.definition.outputCreate("Toggle_Brake", IopType.IGS_IMPULSION_T);
-		a.definition.inputCreate("alt", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("pos_thrust_e1", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("pos_thrus_e2", IopType.IGS_DOUBLE_T);
-		a.definition.inputCreate("light_status", IopType.IGS_BOOL_T);
-		a.definition.inputCreate("chrono_time", IopType.IGS_INTEGER_T);
-
-		a.observeInput("ATC_msg", agentCB);
-		a.observeInput("CAS_status", agentCB);
-		a.observeInput("FADEC_bug", agentCB);
-		a.observeInput("N1_E1", agentCB);
-		a.observeInput("N1_E2", agentCB);
-		a.observeInput("N1_match_bug", agentCB);
-		a.observeInput("kias", agentCB);
-		a.observeInput("pitch", agentCB);
-		a.observeInput("slip/skid", agentCB);
-		a.observeInput("v/s", agentCB);
-		a.observeInput("alarm", agentCB);
-		a.observeInput("l/g_status", agentCB);
-		a.observeInput("flaps_status", agentCB);
-		a.observeInput("Toggle_Brake", agentCB);
-		a.observeInput("alt", agentCB);
-		a.observeInput("pos_thrust_e1", agentCB);
-		a.observeInput("pos_thrus_e2", agentCB);
-		a.observeInput("light_status", agentCB);
-		a.observeInput("chrono_time", agentCB);
-
-		a.definition.outputCreate("park_break", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("thrust", IopType.IGS_DOUBLE_T);
-		a.definition.outputCreate("control", IopType.IGS_DATA_T);
-		a.definition.outputCreate("l/g_toggle", IopType.IGS_DATA_T);
-		a.definition.outputCreate("trim_yaw", IopType.IGS_DOUBLE_T);
-		a.definition.outputCreate("push_m/w", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("fd_to_mode", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("speed_mode_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("heading_mode_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("atc_msg", IopType.IGS_STRING_T);
-		a.definition.outputCreate("crew_msg", IopType.IGS_STRING_T);
-		a.definition.outputCreate("AP_master_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("flaps_lever", IopType.IGS_DOUBLE_T);
-		a.definition.outputCreate("l_throttle", IopType.IGS_DOUBLE_T);
-		a.definition.outputCreate("r_throttle", IopType.IGS_DOUBLE_T);
-		a.definition.outputCreate("chrono_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("eng_fire_switch", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("l_fuel_boost", IopType.IGS_STRING_T);
-		a.definition.outputCreate("r_fuel_boost", IopType.IGS_STRING_T);
-		a.definition.outputCreate("bottle_discharge", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("rotary_test", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("heading_set", IopType.IGS_INTEGER_T);
-		a.definition.outputCreate("flc_set", IopType.IGS_INTEGER_T);
-		a.definition.outputCreate("yaw_damper_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("deice_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("pax_safety_toggle", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("alti_set_std", IopType.IGS_IMPULSION_T);
-		a.definition.outputCreate("l_gen_switch", IopType.IGS_STRING_T);
-		a.definition.outputCreate("r_gen_switch", IopType.IGS_STRING_T);
-		a.definition.outputCreate("l_ign_switch", IopType.IGS_STRING_T);
-		a.definition.outputCreate("r_ign_switch", IopType.IGS_STRING_T);
-		a.definition.outputCreate("fuel_transfer_knob", IopType.IGS_STRING_T);
-
-
-		a.serviceInit("javaCall1", agentCB);
-		a.serviceArgAdd("javaCall1", "kias", IopType.IGS_DOUBLE_T);
-
-		a.start();
-		a.serviceInit("javaCall1", agentCB);
-		a.serviceArgAdd("javaCall1", "kias", IopType.IGS_DOUBLE_T);
-
-		a.start();
-
-		/*
-		try (XPlaneConnect xpc = new XPlaneConnect())
-		{
-			while(true)
-			{
-				try {
-					float[] landingGearStatus = xpc.getDREF("sim/cockpit/switches/gear_handle_status");
-
-					a.outputSetDouble("landingGearStatus", landingGearStatus[0]);
-				}
-				catch (java.io.IOException ex) {
-					_logger.error(ex.getMessage());
-					break;
-				}
-
-				try
-				{
-					Thread.sleep(10000);
-				}
-				catch (InterruptedException ex) {}
-			}
-		}
-		catch (java.net.SocketException ex) {
-			_logger.error(ex.getMessage());
-		}
-		 */
-
-	}
 
 	/**
 	 * Updates this window title adding the file name
