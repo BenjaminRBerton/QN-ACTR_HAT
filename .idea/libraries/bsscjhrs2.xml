@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="bsscjhrs2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/help/jMODEL_en/bsscjhrs.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

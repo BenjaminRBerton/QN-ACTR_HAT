@@ -1,0 +1,316 @@
+0.185	visual-location1	300	100	text1	"o"	3
+0.67	visual-location6	400	300	text6	"o"	3
+1.155	visual-location8	100	200	text8	"o"	3
+1.64	visual-location2	300	200	text2	"o"	3
+2.125	visual-location5	400	200	text5	"o"	3
+2.61	visual-location7	100	100	text7	"o"	3
+3.095	visual-location11	200	200	text11	"o"	3
+3.58	visual-location10	200	100	text10	"o"	3
+4.065	visual-location4	400	100	text4	"o"	3
+4.55	visual-location0	200	300	text0	"0"	3
+5.385	visual-location9	100	300	text9	"o"	3
+5.87	visual-location3	300	300	text3	"o"	3
+10.085	visual-location15	300	300	text15	"o"	3
+10.22	visual-location19	100	100	text19	"o"	3
+10.705	visual-location22	200	100	text22	"o"	3
+11.19	visual-location18	400	300	text18	"o"	3
+11.675	visual-location16	400	100	text16	"o"	3
+12.16	visual-location13	300	100	text13	"o"	3
+12.645	visual-location23	200	200	text23	"o"	3
+13.13	visual-location14	300	200	text14	"o"	3
+13.615	visual-location20	100	200	text20	"o"	3
+14.1	visual-location12	200	300	text12	"0"	3
+14.935	visual-location21	100	300	text21	"o"	3
+15.42	visual-location17	400	200	text17	"o"	3
+20.085	visual-location32	400	200	text32	"o"	3
+20.22	visual-location34	100	100	text34	"o"	3
+20.705	visual-location35	100	200	text35	"o"	3
+21.19	visual-location33	400	300	text33	"o"	3
+21.675	visual-location31	400	100	text31	"o"	3
+22.16	visual-location24	100	300	text24	"0"	3
+23.195	visual-location29	300	200	text29	"o"	3
+23.68	visual-location27	200	300	text27	"o"	3
+24.165	visual-location28	300	100	text28	"o"	3
+24.65	visual-location30	300	300	text30	"o"	3
+25.135	visual-location26	200	200	text26	"o"	3
+25.62	visual-location25	200	100	text25	"o"	3
+30.085	visual-location40	200	100	text40	"o"	3
+30.22	visual-location37	100	100	text37	"o"	3
+30.705	visual-location45	300	300	text45	"o"	3
+31.19	visual-location36	400	300	text36	"0"	3
+32.525	visual-location42	200	300	text42	"o"	3
+33.01	visual-location43	300	100	text43	"o"	3
+33.495	visual-location39	100	300	text39	"o"	3
+33.98	visual-location47	400	200	text47	"o"	3
+34.465	visual-location38	100	200	text38	"o"	3
+34.95	visual-location44	300	200	text44	"o"	3
+35.435	visual-location41	200	200	text41	"o"	3
+35.92	visual-location46	400	100	text46	"o"	3
+40.085	visual-location56	400	100	text56	"o"	3
+40.22	visual-location59	100	100	text59	"o"	3
+40.705	visual-location53	300	100	text53	"o"	3
+41.19	visual-location55	300	300	text55	"o"	3
+41.675	visual-location49	100	300	text49	"o"	3
+42.16	visual-location48	100	200	text48	"0"	3
+43.003	visual-location60	50	50	text60	"TOR"	5
+43.388	far-point-43.253	
+44.638	far-point-44.503	
+44.773	monitor-zone-left-point-44.603	
+44.923	far-point-44.788	
+46.173	far-point-46.038	
+46.308	monitor-zone-left-mirror-point-46.138	
+46.508	far-point-46.373	
+46.658	far-point-46.523	
+46.808	far-point-46.673	
+46.958	far-point-46.823	
+47.108	far-point-46.973	
+47.258	far-point-47.123	
+47.408	far-point-47.273	
+47.558	far-point-47.423	
+47.708	far-point-47.573	
+47.843	monitor-zone-left-mirror-point-47.673	
+47.993	far-point-47.858	
+48.143	far-point-48.008	
+48.293	far-point-48.158	
+48.443	far-point-48.308	
+48.593	far-point-48.458	
+48.743	far-point-48.608	
+48.893	far-point-48.758	
+49.043	far-point-48.908	
+49.193	far-point-49.058	
+49.343	far-point-49.208	
+49.593	far-point-49.458	
+49.743	far-point-49.608	
+49.893	far-point-49.758	
+50.143	far-point-50.008	
+50.293	far-point-50.158	
+50.428	monitor-zone-left-mirror-point-50.258	
+50.578	far-point-50.443	
+50.728	far-point-50.593	
+50.878	far-point-50.743	
+51.028	far-point-50.893	
+51.278	far-point-51.143	
+51.428	far-point-51.293	
+51.578	far-point-51.443	
+51.728	far-point-51.593	
+51.978	far-point-51.843	
+52.128	far-point-51.993	
+52.263	monitor-zone-left-mirror-point-52.093	
+52.413	far-point-52.278	
+52.563	far-point-52.428	
+52.713	far-point-52.578	
+52.863	far-point-52.728	
+53.013	far-point-52.878	
+53.163	far-point-53.028	
+53.413	far-point-53.278	
+53.563	far-point-53.428	
+53.713	far-point-53.578	
+53.863	far-point-53.728	
+54.013	far-point-53.878	
+54.163	far-point-54.028	
+54.313	far-point-54.178	
+54.463	far-point-54.328	
+54.713	far-point-54.578	
+54.863	far-point-54.728	
+55.013	far-point-54.878	
+55.163	far-point-55.028	
+55.313	far-point-55.178	
+55.448	monitor-zone-left-mirror-point-55.278	
+55.598	far-point-55.463	
+55.748	far-point-55.613	
+55.898	far-point-55.763	
+56.148	far-point-56.013	
+56.298	far-point-56.163	
+56.448	far-point-56.313	
+56.698	far-point-56.563	
+56.848	far-point-56.713	
+56.998	far-point-56.863	
+57.248	far-point-57.113	
+57.398	far-point-57.263	
+57.548	far-point-57.413	
+57.683	monitor-zone-left-mirror-point-57.513	
+57.833	far-point-57.698	
+57.983	far-point-57.848	
+58.133	far-point-57.998	
+58.283	far-point-58.148	
+58.433	far-point-58.298	
+58.583	far-point-58.448	
+58.733	far-point-58.598	
+58.883	far-point-58.748	
+59.133	far-point-58.998	
+59.283	far-point-59.148	
+59.433	far-point-59.298	
+59.583	far-point-59.448	
+59.733	far-point-59.598	
+59.883	far-point-59.748	
+60.133	far-point-59.998	
+60.283	far-point-60.148	
+60.533	far-point-60.398	
+60.683	far-point-60.548	
+60.833	far-point-60.698	
+60.983	far-point-60.848	
+61.233	far-point-61.098	
+61.383	far-point-61.248	
+61.533	far-point-61.398	
+61.783	far-point-61.648	
+61.933	far-point-61.798	
+62.083	far-point-61.948	
+62.233	far-point-62.098	
+62.383	far-point-62.248	
+62.533	far-point-62.398	
+62.783	far-point-62.648	
+62.933	far-point-62.798	
+63.083	far-point-62.948	
+63.233	far-point-63.098	
+63.483	far-point-63.348	
+63.633	far-point-63.498	
+63.783	far-point-63.648	
+63.933	far-point-63.798	
+64.083	far-point-63.948	
+64.233	far-point-64.098	
+64.383	far-point-64.248	
+64.533	far-point-64.398	
+64.683	far-point-64.548	
+64.833	far-point-64.698	
+64.983	far-point-64.848	
+65.133	far-point-64.998	
+65.283	far-point-65.148	
+65.433	far-point-65.298	
+65.583	far-point-65.448	
+65.733	far-point-65.598	
+65.883	far-point-65.748	
+66.033	far-point-65.898	
+66.183	far-point-66.048	
+66.333	far-point-66.198	
+66.483	far-point-66.348	
+66.633	far-point-66.498	
+66.883	far-point-66.748	
+67.033	far-point-66.898	
+67.183	far-point-67.048	
+67.333	far-point-67.198	
+67.483	far-point-67.348	
+67.633	far-point-67.498	
+67.783	far-point-67.648	
+67.933	far-point-67.798	
+68.083	far-point-67.948	
+68.233	far-point-68.098	
+68.383	far-point-68.248	
+68.533	far-point-68.398	
+68.683	far-point-68.548	
+68.833	far-point-68.698	
+68.983	far-point-68.848	
+69.133	far-point-68.998	
+69.283	far-point-69.148	
+69.433	far-point-69.298	
+69.568	monitor-zone-left-mirror-point-69.398	
+69.718	far-point-69.583	
+69.868	far-point-69.733	
+70.018	far-point-69.883	
+70.153	monitor-zone-left-mirror-point-69.983	
+70.303	far-point-70.168	
+70.453	far-point-70.318	
+70.603	far-point-70.468	
+70.753	far-point-70.618	
+70.903	far-point-70.768	
+71.053	far-point-70.918	
+71.203	far-point-71.068	
+71.453	far-point-71.318	
+71.603	far-point-71.468	
+71.753	far-point-71.618	
+71.903	far-point-71.768	
+72.053	far-point-71.918	
+72.203	far-point-72.068	
+72.353	far-point-72.218	
+72.603	far-point-72.468	
+72.753	far-point-72.618	
+72.903	far-point-72.768	
+73.053	far-point-72.918	
+73.203	far-point-73.068	
+73.353	far-point-73.218	
+73.503	far-point-73.368	
+73.753	far-point-73.618	
+73.903	far-point-73.768	
+74.153	far-point-74.018	
+74.303	far-point-74.168	
+74.453	far-point-74.318	
+74.603	far-point-74.468	
+74.753	far-point-74.618	
+74.903	far-point-74.768	
+75.038	monitor-zone-left-mirror-point-74.868	
+75.188	far-point-75.053	
+75.338	far-point-75.203	
+75.488	far-point-75.353	
+75.638	far-point-75.503	
+75.788	far-point-75.653	
+76.038	far-point-75.903	
+76.188	far-point-76.053	
+76.338	far-point-76.203	
+76.488	far-point-76.353	
+76.623	monitor-zone-left-mirror-point-76.453	
+76.773	far-point-76.638	
+76.923	far-point-76.788	
+77.073	far-point-76.938	
+77.223	far-point-77.088	
+77.373	far-point-77.238	
+77.508	monitor-zone-left-mirror-point-77.338	
+77.658	far-point-77.523	
+77.808	far-point-77.673	
+77.958	far-point-77.823	
+78.108	far-point-77.973	
+78.258	far-point-78.123	
+78.408	far-point-78.273	
+78.558	far-point-78.423	
+78.708	far-point-78.573	
+78.858	far-point-78.723	
+79.008	far-point-78.873	
+79.158	far-point-79.023	
+79.308	far-point-79.173	
+79.458	far-point-79.323	
+79.608	far-point-79.473	
+79.758	far-point-79.623	
+79.908	far-point-79.773	
+80.058	far-point-79.923	
+80.208	far-point-80.073	
+80.358	far-point-80.223	
+80.508	far-point-80.373	
+80.658	far-point-80.523	
+80.793	monitor-zone-left-mirror-point-80.623	
+80.943	far-point-80.808	
+81.093	far-point-80.958	
+81.243	far-point-81.108	
+81.393	far-point-81.258	
+81.543	far-point-81.408	
+81.693	far-point-81.558	
+81.843	far-point-81.708	
+81.978	monitor-zone-left-mirror-point-81.808	
+82.128	far-point-81.993	
+82.278	far-point-82.143	
+82.428	far-point-82.293	
+82.578	far-point-82.443	
+82.728	far-point-82.593	
+82.863	monitor-zone-left-mirror-point-82.693	
+83.013	far-point-82.878	
+83.163	far-point-83.028	
+83.313	far-point-83.178	
+83.463	far-point-83.328	
+83.613	far-point-83.478	
+83.763	far-point-83.628	
+83.913	far-point-83.778	
+84.063	far-point-83.928	
+84.213	far-point-84.078	
+84.463	far-point-84.328	
+84.613	far-point-84.478	
+84.863	far-point-84.728	
+85.013	far-point-84.878	
+85.263	far-point-85.128	
+85.413	far-point-85.278	
+85.563	far-point-85.428	
+85.713	far-point-85.578	
+85.863	far-point-85.728	
+86.013	far-point-85.878	
+86.163	far-point-86.028	
+86.313	far-point-86.178	
+86.463	far-point-86.328	
+86.598	monitor-zone-left-mirror-point-86.428	
+86.748	far-point-86.613	
+86.898	far-point-86.763	

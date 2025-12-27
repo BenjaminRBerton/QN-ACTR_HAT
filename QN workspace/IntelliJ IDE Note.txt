@@ -1,0 +1,1 @@
+When using IntelliJ IDE, this QN workspace fold need to be copied and used within QN-ACTR-master\out\production\

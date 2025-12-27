@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="JMT_engine_0.8.0">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/JMT_dist/JMT_engine_0.8.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
