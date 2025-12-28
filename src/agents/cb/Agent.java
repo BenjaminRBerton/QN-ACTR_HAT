@@ -71,11 +71,11 @@ public class Agent implements IopListener, ServiceListener {
 
     // For string inputs
     public volatile String ATC_msg_i = "";
-    public volatile String current_procedure_i = "";
-    public volatile String current_task_object_i = "";
-    public volatile String current_task_value_i = "";
-    public volatile String current_task_autonomy_role_i = "";
-    public volatile String current_task_human_role_i = "";
+    public volatile String current_procedure_i = "IDLE";
+    public volatile String current_task_object_i = "Idle";
+    public volatile String current_task_value_i = "waiting";
+    public volatile String current_task_autonomy_role_i = "na";
+    public volatile String current_task_human_role_i = "na";
     public volatile String next_state_i = "";
     public volatile String previous_state_i = "";
     public volatile String interaction_message_i = "";
