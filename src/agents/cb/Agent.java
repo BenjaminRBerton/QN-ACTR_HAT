@@ -72,7 +72,10 @@ public class Agent implements IopListener, ServiceListener {
     // For string inputs
     public volatile String ATC_msg_i = "";
     public volatile String current_procedure_i = "";
-    public volatile String current_state_i = "";
+    public volatile String current_task_object_i = "";
+    public volatile String current_task_value_i = "";
+    public volatile String current_task_autonomy_role_i = "";
+    public volatile String current_task_human_role_i = "";
     public volatile String next_state_i = "";
     public volatile String previous_state_i = "";
     public volatile String interaction_message_i = "";
@@ -206,7 +209,10 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("radio_frequency", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("ATC_msg", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("current_procedure", IopType.IGS_STRING_T);
-        ingescapeAgent.definition.inputCreate("current_state", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.inputCreate("current_task_object", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.inputCreate("current_task_value", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.inputCreate("current_task_autonomy_role", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.inputCreate("current_task_human_role", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("next_state", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("previous_state", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("interaction_message", IopType.IGS_STRING_T);
@@ -235,7 +241,8 @@ public class Agent implements IopListener, ServiceListener {
                 "l_gen_load", "r_gen_load", "pitot_heat", "l_eng_ai", "r_eng_ai",
                 "l_windsh_ai", "r_windsh_ai", "exterior_lights", "anti_coll_lights",
                 "trim_rudder", "l_bottle_arm", "r_bottle_arm", "radio_frequency",
-                "ATC_msg", "current_procedure", "current_state", "next_state",
+                "ATC_msg", "current_procedure", "current_task_object", "current_task_value",
+                "current_task_autonomy_role", "current_task_human_role","next_state",
                 "previous_state", "interaction_message", "chrono_time",
                 "runway_centerline_deviation", "heading_deviation", "lateral_deviation",
                 "birds", "TARS_speech", "TARS_is_speaking"
@@ -478,8 +485,17 @@ public class Agent implements IopListener, ServiceListener {
                     case "current_procedure":
                         current_procedure_i = inputString;
                         break;
-                    case "current_state":
-                        current_state_i = inputString;
+                    case "current_task_object":
+                        current_task_object_i = inputString;
+                        break;
+                    case "current_task_value":
+                        current_task_value_i = inputString;
+                        break;
+                    case "current_task_autonomy_role":
+                        current_task_autonomy_role_i = inputString;
+                        break;
+                    case "current_task_human_role":
+                        current_task_human_role_i = inputString;
                         break;
                     case "next_state":
                         next_state_i = inputString;

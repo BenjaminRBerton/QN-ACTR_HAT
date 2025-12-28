@@ -5410,8 +5410,15 @@ return return_string;
                               return agent.ATC_msg_i;
                           case "current_procedure":
                               return agent.current_procedure_i;
-                          case "current_state":
-                              return agent.current_state_i;
+                              // TBD : current_state_task_object to retrieve the aircraft component
+                          case "current_task_object":
+                              return agent.current_task_object_i;
+                          case "current_task_value":
+                              return agent.current_task_value_i;
+                          case "current_task_autonomy_role":
+                              return agent.current_task_autonomy_role_i;
+                          case "current_task_human_role":
+                              return agent.current_task_human_role_i;
                           case "next_state":
                               return agent.next_state_i;
                           case "previous_state":
