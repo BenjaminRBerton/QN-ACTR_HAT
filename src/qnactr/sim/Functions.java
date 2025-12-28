@@ -5460,31 +5460,34 @@ return return_string;
                               return_string = String.valueOf(agent.radio_frequency_i);
                               break;
                           case "ATC_msg":
-                              return_string = agent.ATC_msg_i;
+                              return_string = agent.getATCMsg();
                               break;
                           case "current_procedure":
-                              return_string = agent.current_procedure_i;
+                              return_string = agent.getCurrentProcedure();
                               break;
                           case "current_task_object":
-                              return_string = agent.current_task_object_i;
+                              if (agent.getCurrentTaskObject().isBlank()){
+                                  System.out.println("test");
+                              }
+                              return_string = agent.getCurrentTaskObject();
                               break;
                           case "current_task_value":
-                              return_string = agent.current_task_value_i;
+                              return_string = agent.getCurrentTaskValue();
                               break;
                           case "current_task_autonomy_role":
-                              return_string = agent.current_task_autonomy_role_i;
+                              return_string = agent.getCurrentTaskAutonomyRole();
                               break;
                           case "current_task_human_role":
-                              return_string = agent.current_task_human_role_i;
+                              return_string = agent.getCurrentTaskHumanRole();
                               break;
                           case "next_state":
-                              return_string = agent.next_state_i;
+                              return_string = agent.getNextState();
                               break;
                           case "previous_state":
-                              return_string = agent.previous_state_i;
+                              return_string = agent.getPreviousState();
                               break;
                           case "interaction_message":
-                              return_string = agent.interaction_message_i;
+                              return_string = agent.getInteractionMessage();
                               break;
                           case "chrono_time":
                               return_string = String.valueOf(agent.chrono_time_i);
@@ -5512,10 +5515,10 @@ return return_string;
                               return_string = "unknown";
                               break;
                       }
-                      if (return_string == null || return_string.isEmpty() || return_string.isBlank()) {
+                      if (return_string == null || return_string.isBlank()) {
                           return_string = "N-A";
                       }
-                      return_string.replace(" ", "-");
+                      return_string = return_string.replace(" ", "-").toLowerCase();
                       break;
                   }
 	            default:{
