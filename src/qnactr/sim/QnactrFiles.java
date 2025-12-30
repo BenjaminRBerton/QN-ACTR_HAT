@@ -98,6 +98,7 @@ public class QnactrFiles
     Results_trace = new QnactrTxtFile(hmiFolder + "Results/" + "trace.txt");
     Results_mental_workload = new QnactrTxtFile(hmiFolder + "Results/" + "results_mental_workload.txt");
     QN_ACTR_Model_Initialization = new QnactrTxtFile(hmiFolder + "QN_ACTR_Model_Initialization_HAT.lisp");
+    //QN_ACTR_Model_Initialization = new QnactrTxtFile(hmiFolder + "QN_ACTR_Model_Initialization_pretakeoff.txt");
 
     //System.out.println(FILE_NAME_Defaults_ModelParameters + " " + FILE_NAME_Results_trace);
 

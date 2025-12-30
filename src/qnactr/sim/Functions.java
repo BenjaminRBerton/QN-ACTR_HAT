@@ -5296,7 +5296,7 @@ return return_string;
                   }
                   case "read_input":
                   {
-                      System.out.println("read_input parameter 1: " + para_1);
+                      //System.out.println("read_input parameter 1: " + para_1);
                       Agent agent = Agent.getInstance();
                       // Map parameter name to agent attribute
                       switch (para_1) {
@@ -5510,6 +5510,8 @@ return return_string;
                           case "TARS_is_speaking":
                               return_string = String.valueOf(agent.TARS_is_speaking_i);
                               break;
+                          case "ATC_is_speaking":
+                              return_string = String.valueOf(agent.ATC_is_speaking_i);
                           default:
                               System.out.println("Warning: Unknown input name: " + para_1);
                               return_string = "unknown";
@@ -6087,8 +6089,10 @@ return return_string;
 	  
 	  return_string = return_string.toLowerCase();
 	  //substitute back, true to t and false to nil. change boolean keyword from c# to Lisp
-	  if( return_string.equals( "true")) return_string = "t";
-	  else if ( return_string.equals( "false" ) ) return_string = "nil";
+	  //if( return_string.equals( "true")) return_string = "t";
+      // BENJ BERTON --> if a string return nil it is not retrieved by !bind! evaluated in the RHS and the production will NOT fire
+      // I keep false for now
+	  //else if ( return_string.equals( "false" ) ) return_string = "nil";
 	  
 	  
 	  return return_string;

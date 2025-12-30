@@ -1,3 +1,12 @@
 Search for "Modified for QN-Java project" to find every JMT file modified for QN-Java.
 Search for "QN-Java project file" key phrase to find every file created for QN-Java.
 
+Cheatsheet for cognitive modelling:
+Do not use "nil" in strings that you send to the model
+empty strings "" will fail, not in the model but in the Java code that handles the model.
+strings must also be lower case.
+
+For modifying the imaginal buffer, use =imaginal> in the RHS of a production, +imaginal> will replace the chunk
+entirely.
+forbidden names:
+{"nil", "error", "busy", "free", "empty", "full", "lowest", "highest", "current"}

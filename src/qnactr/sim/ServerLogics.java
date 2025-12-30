@@ -5,6 +5,7 @@
 
 package qnactr.sim;
 
+import agents.cb.Agent;
 import gov.nasa.xpc.XPlaneConnect;
 import qnactr.objectDesigner.*;
 
@@ -178,10 +179,8 @@ public class ServerLogics {
             //            JOptionPane.showMessageDialog(null, "Clock: " + SimSystem.clock() + ". Operator ID: " + sim.ID  + "\nEnums has serverName: " + ServerName + ". ServiceStage: " + ServiceStage, "ServerLogics.java" , JOptionPane.INFORMATION_MESSAGE);
             
             //Scenario Events, cast delayed events to the delayed events server
-            
-            
-            
-            
+
+
             
             break;
             
@@ -8332,6 +8331,100 @@ public class ServerLogics {
                       Entity.Trash = true; //do not need to send this to "Control To Display",
                       break;
                     }
+                    case "agent-set-bool":{
+                      String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
+                      String para_2 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-2"); //output value
+
+                      try{
+                          Agent agent = Agent.getInstance();
+                          if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                              agent.outputSetBool(para_1, Boolean.parseBoolean(para_2));
+                          }
+                      } catch (Exception ex) {
+                          System.out.println("Something went wrong with agent set output. (Error message was '" + ex.getMessage() + "'.)");
+                          return null;
+                      }
+                        //output trace
+                      if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                          sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
+                      }
+
+                    }
+                    case "agent-set-int":{
+                      String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
+                      String para_2 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-2"); //output value
+
+                      try{
+                          Agent agent = Agent.getInstance();
+                          if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                              agent.outputSetInteger(para_1, Integer.parseInt( para_2 ) );
+                          }
+                      } catch (Exception ex) {
+                          System.out.println("Something went wrong with agent set output. (Error message was '" + ex.getMessage() + "'.)");
+                          return null;
+                      }
+                        //output trace
+                      if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                          sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
+                      }
+
+                    }
+                    case "agent-set-double":{
+                      String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
+                      String para_2 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-2"); //output value
+
+                      try{
+                          Agent agent = Agent.getInstance();
+                          if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                              agent.outputSetDouble(para_1, Float.parseFloat( para_2 ) );
+                          }
+                      } catch (Exception ex) {
+                          System.out.println("Something went wrong with agent set output. (Error message was '" + ex.getMessage() + "'.)");
+                          return null;
+                      }
+                        //output trace
+                      if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                          sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
+                      }
+
+                    }
+                    case "agent-set-string":{
+                      String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
+                      String para_2 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-2"); //output value
+
+                      try{
+                          Agent agent = Agent.getInstance();
+                          if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                              agent.outputSetString(para_1, para_2);
+                          }
+                      } catch (Exception ex) {
+                          System.out.println("Something went wrong with agent set output. (Error message was '" + ex.getMessage() + "'.)");
+                          return null;
+                      }
+                        //output trace
+                      if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
+                          sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
+                      }
+
+                      Entity.Trash = true; //do not need to send this to "Control To Display",
+                      break;
+                    }
+                      case "agent-set-impulsion":{
+                        String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
+                          try{
+                                Agent agent = Agent.getInstance();
+                                if (para_1.compareTo("nil") != 0) {
+                                    agent.outputSetImpulsion(para_1);
+                                }
+                            } catch (Exception ex) {
+                                System.out.println("Something went wrong with agent set output. (Error message was '" + ex.getMessage() + "'.)");
+                                return null;
+                            }
+                                //output trace
+                            if (para_1.compareTo("nil") != 0) {
+                                sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round(SimSystem.clock(), 3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name + " action done with agent set impulsion " + para_1);
+                            }
+                      }
                     case "x-plane-init-mixture":{
                       try ( XPlaneConnect xpc = new XPlaneConnect()) {
                         xpc.sendDREF("sim/cockpit2/engine/actuators/mixture_ratio",  (float) 1  );
