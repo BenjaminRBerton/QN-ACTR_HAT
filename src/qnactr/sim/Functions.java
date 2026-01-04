@@ -24628,6 +24628,14 @@ If the string is invalid or there is no current model then a warning is printed 
 	    double u_n_without_noise,  noise ;
 	    
 	    //get utility without noise
+          // BENJAMIN BERTON ADD NULL CHECK (it already works when :esc is t)
+          /*
+          if (!sim.vars.utilityModule.U_N_Without_Noise.containsKey(the_rule_name)) {
+              System.out.println("WARNING: UtilityModuleFun__Utility_Update - Rule '" + the_rule_name + "' not found in U_N_Without_Noise. Initializing with default utility: " + sim.vars.utilityModule.iu);
+              sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.utilityModule.U_N_Without_Noise, the_rule_name, Double.toString(sim.vars.utilityModule.iu));
+          }
+           */
+          // BENJAMIN BERTON END ADD NULL CHECK
 	    u_n_without_noise = Double.parseDouble((String)sim.vars.utilityModule.U_N_Without_Noise.get(the_rule_name));
 	    
 	    

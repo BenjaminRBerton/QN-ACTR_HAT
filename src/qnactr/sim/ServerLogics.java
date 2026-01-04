@@ -43,6 +43,8 @@ public class ServerLogics {
   
   public ServerLogics(QnactrSimulation Sim){
     sim = Sim;
+    // Set the simulation instance on the Agent singleton so it can access sim.funs
+    Agent.getInstance().setSimulation(sim);
   }
   
   /**
@@ -644,6 +646,15 @@ public class ServerLogics {
             //System.out.println("Clock " + SimSystem.clock() + ", Event_03_Load_QN_ACTR_Model_Initialization");
             
             sim.funs.ParametersFun__Load_QN_ACTR_Model_Initialization();
+
+            //testing scheduling audio events
+              //sim.funs.DeviceModuleFun__Audio_Display_Prepare_Tone_Sound(440.0, 0.5, "1.0"); //A4, 440Hz, 0.5s duration, ID "1.0"
+              //System.out.println("Preparing audio sound tone...");
+              //sim.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound("hello", "2.0", "external"); //word "hello", ID "2.0"
+              //System.out.println("Preparing audio sound word...");
+              //sim.funs.DeviceModuleFun__Audio_Display_Prepare_Digit_Sound("5", "3.0"); //digit "5", ID "3.0";
+              //System.out.println("Preparing audio sound digit...");
+            //end of testing scheduling audio events
 
           //after setting the :seed parameter, determine whether to randomize the seed for display item randomness.
           if( sim.vars.centralParametersModule.Randomize_Seed_For_Display_Sequence ) {

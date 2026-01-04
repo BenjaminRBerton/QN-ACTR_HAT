@@ -11,6 +11,7 @@ import ch.qos.logback.classic.Level;
 
 import com.ingescape.*;
 import qnactr.sim.QnactrSimulation;
+import jmt.engine.simEngine.SimSystem;
 
 public class Agent implements IopListener, ServiceListener {
     //private static Logger _logger = LoggerFactory.getLogger(Agent.class);
@@ -20,6 +21,7 @@ public class Agent implements IopListener, ServiceListener {
     }
 
     private static Agent instance = null;
+    private QnactrSimulation simulation = null;
 
     // Public accessible attributes that other classes can read
     public volatile float airspeed_i = 0.0f;
@@ -112,6 +114,10 @@ public class Agent implements IopListener, ServiceListener {
             instance = new Agent();
         }
         return instance;
+    }
+
+    public void setSimulation(QnactrSimulation sim) {
+        this.simulation = sim;
     }
 
     // Getter methods for thread-safe string access
@@ -532,6 +538,26 @@ public class Agent implements IopListener, ServiceListener {
                 switch (name) {
                     case "ATC_msg":
                         ATC_msg_i.set(inputString);
+                        if (simulation != null) {
+                            // Split the message into words
+                            String[] words = inputString.trim().split("\\s+");
+
+                            // Define interval between words in seconds (adjust as needed)
+                            double intervalBetweenWords = 1; // 300ms between words
+
+                            // Get current simulation time
+                            double currentTime = SimSystem.clock();
+
+                            // Schedule each word with cumulative onset time
+                            for (int i = 0; i < words.length; i++) {
+                                double onsetTime = currentTime + (i * intervalBetweenWords);
+                                simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
+                                    words[i],
+                                    String.valueOf(onsetTime),
+                                    "ATC"
+                                );
+                            }
+                        }
                         break;
                     case "current_procedure":
                         current_procedure_i.set(inputString);
