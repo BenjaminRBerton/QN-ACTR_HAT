@@ -548,7 +548,7 @@ public class Agent implements IopListener, ServiceListener {
                             String[] words = inputString.trim().split("\\s+");
 
                             // Define interval between words in seconds (adjust as needed)
-                            double intervalBetweenWords = 2; // 1s between words
+                            double intervalBetweenWords = 2.5; // 1s between words
 
                             // Get current simulation time
                             double currentTime = SimSystem.clock();
