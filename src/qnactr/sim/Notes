@@ -10,3 +10,5 @@ For modifying the imaginal buffer, use =imaginal> in the RHS of a production, +i
 entirely.
 forbidden names:
 {"nil", "error", "busy", "free", "empty", "full", "lowest", "highest", "current"}
+
+in a customized manual action, always send at least para-1 and para-2.
