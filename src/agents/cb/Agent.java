@@ -350,11 +350,13 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("master_warning", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("master_caution", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("vocal_command", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.outputCreate("speech_output", IopType.IGS_STRING_T);
         ingescapeAgent.definition.outputCreate("l_eng_fire_switch", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("r_eng_fire_switch", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_approval", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_acknowledge", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_cancelled", IopType.IGS_IMPULSION_T);
+        ingescapeAgent.definition.outputCreate("push_to_talk", IopType.IGS_BOOL_T);
     }
 
     public void outputSetString(String name, String value) {
@@ -540,10 +542,13 @@ public class Agent implements IopListener, ServiceListener {
                         ATC_msg_i.set(inputString);
                         if (simulation != null) {
                             // Split the message into words
+                            inputString = inputString.toLowerCase();
+                            inputString = inputString.replace(",", "");
+                            inputString = inputString.replace(".", "");
                             String[] words = inputString.trim().split("\\s+");
 
                             // Define interval between words in seconds (adjust as needed)
-                            double intervalBetweenWords = 1; // 300ms between words
+                            double intervalBetweenWords = 2; // 1s between words
 
                             // Get current simulation time
                             double currentTime = SimSystem.clock();
@@ -554,7 +559,7 @@ public class Agent implements IopListener, ServiceListener {
                                 simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
                                     words[i],
                                     String.valueOf(onsetTime),
-                                    "ATC"
+                                    "atc"
                                 );
                             }
                         }
