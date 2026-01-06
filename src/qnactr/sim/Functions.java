@@ -414,12 +414,12 @@ public class Functions {
 
 		// really play the sound through loud speaker.
 		String audicon_type = the_audicon_chunk.Chunk_Type; 
-		//System.out.println(audicon_type);
+		System.out.print("audicon-type: " + audicon_type);
 
 		String kind = sim.funs.ChunkFun__Get_Chunk_Slot_Value( the_audicon_chunk, "kind");
-		//System.out.println(  kind );
+		System.out.print(" | kind: " + kind);
 
-		if(kind.equals( "tone")){
+		if(kind.equals("tone")){
 			String frequency_string = sim.funs.ChunkFun__Get_Chunk_Slot_Value(the_audicon_chunk, "content");
 			if( sim.funs.ProgramUtilitiesFun__Is_String_Double ( frequency_string ) == false) System.out.println("Error! AnimatorModuleFun__Add_Audicon has frequency_string not a number but: " + frequency_string);
 			double frequency = Double.parseDouble( frequency_string );
@@ -467,12 +467,13 @@ public class Functions {
 
 		else if (kind.equals( "word" )){
 			String location = sim.funs.ChunkFun__Get_Chunk_Slot_Value( the_audicon_chunk, "location");
-			//System.out.println(location);
+			System.out.print(" | location: " + location);
 			if(location.equals( "external-from-sentence")) {
 				// do not vocalize a word in sentence, because it is vocalized in the sentence as a whole.// for external-from-sentence, it is vocalized as a whole sentence in TaskTemplateFun__Show_Display_Item_Display
 			}
 			else if(sim.vars.animatorModule.Vocalize_Speech){ 
 				String content = sim.funs.ChunkFun__Get_Chunk_Slot_Value(the_audicon_chunk, "content");
+                System.out.println(" | content: " + content);
 				// Sound_Plugin.SelectVoiceForTextToSpeech set in Event_00_Set_QN_Parameters
 			//TODO // Sound_Plugin.SetSpeechRate(0); // int -10 to 10
 			//TODO // Sound_Plugin.TextToSpeech(content);

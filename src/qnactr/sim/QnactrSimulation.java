@@ -50,7 +50,10 @@ public class QnactrSimulation
   
   public static boolean globalVarInitialized = false;
   public static Hashtable<String, NetNode> globalAllNetNodesTable;
-  
+
+  //ben
+  private static final Object entitiesListLock = new Object();
+  //ben
   public static LinkedList<Entity> globalAllEntitiesList = new LinkedList<Entity>();
   public static int entityNumber = 1;
   
@@ -128,9 +131,12 @@ public class QnactrSimulation
 
   
   public static void globalAllEntitiesListAddLast(Entity anEntity){
-    
-    QnactrSimulation.globalAllEntitiesList.addLast( anEntity );
-    
+    //ben
+    synchronized(entitiesListLock){
+      QnactrSimulation.globalAllEntitiesList.addLast( anEntity );
+    }
+    //ben
+
     if(entitiesViewerEnable){
       //here update EntitiesViewer's data model
         newContentPaneEntitiesViewer.updateModelData(QnactrSimulation.globalAllEntitiesList);
@@ -243,9 +249,13 @@ public class QnactrSimulation
   
   public static LinkedList<Entity> getNotEndedGlobalAllEntitiesList(){
     LinkedList<Entity> returnList = new LinkedList<Entity>();
-    for(Entity anEntity : globalAllEntitiesList){
-      if(!anEntity.Trash) returnList.addLast(anEntity);
+    //ben
+    synchronized(entitiesListLock){
+      for(Entity anEntity : globalAllEntitiesList){
+        if(!anEntity.Trash) returnList.addLast(anEntity);
+      }
     }
+    //ben
     return returnList;
   }
   
