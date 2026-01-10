@@ -5488,7 +5488,10 @@ return return_string;
                               return_string = agent.getPreviousState();
                               break;
                           case "interaction_message":
-                              return_string = agent.getInteractionMessage();
+                              return_string = agent.getInteractionMessageField();
+                              break;
+                          case "tars_input":
+                              return_string = agent.getInteractionTarsInput();
                               break;
                           case "chrono_time":
                               return_string = String.valueOf(agent.chrono_time_i);
@@ -5505,14 +5508,9 @@ return return_string;
                           case "birds":
                               return_string = String.valueOf(agent.birds_i);
                               break;
-                          case "TARS_speech":
-                              return_string = String.valueOf(agent.TARS_speech_i);
-                              break;
                           case "TARS_is_speaking":
                               return_string = String.valueOf(agent.TARS_is_speaking_i);
                               break;
-                          case "ATC_is_speaking":
-                              return_string = String.valueOf(agent.ATC_is_speaking_i);
                           default:
                               System.out.println("Warning: Unknown input name: " + para_1);
                               return_string = "unknown";

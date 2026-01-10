@@ -12,6 +12,9 @@ import ch.qos.logback.classic.Level;
 import com.ingescape.*;
 import qnactr.sim.QnactrSimulation;
 import jmt.engine.simEngine.SimSystem;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class Agent implements IopListener, ServiceListener {
     //private static Logger _logger = LoggerFactory.getLogger(Agent.class);
@@ -22,6 +25,7 @@ public class Agent implements IopListener, ServiceListener {
 
     private static Agent instance = null;
     private QnactrSimulation simulation = null;
+    private static final float INTERVAL_BETWEEN_WORDS = 3f; // seconds
 
     // Public accessible attributes that other classes can read
     public volatile float airspeed_i = 0.0f;
@@ -66,12 +70,12 @@ public class Agent implements IopListener, ServiceListener {
     public volatile boolean yaw_damper_i = false;
     public volatile boolean l_ign_switch_i = false;
     public volatile boolean r_ign_switch_i = false;
-    public volatile boolean ATC_is_speaking_i = false;
     public volatile boolean TARS_is_speaking_i = false;
     public volatile boolean birds_i = false;
 
     // For string inputs - using AtomicReference for thread-safe string operations
     private final AtomicReference<String> ATC_msg_i = new AtomicReference<>("");
+    private final AtomicReference<String> TARS_msg_i = new AtomicReference<>("");
     private final AtomicReference<String> current_procedure_i = new AtomicReference<>("IDLE");
     private final AtomicReference<String> current_task_object_i = new AtomicReference<>("Idle");
     private final AtomicReference<String> current_task_value_i = new AtomicReference<>("waiting");
@@ -97,7 +101,6 @@ public class Agent implements IopListener, ServiceListener {
     public volatile int runway_centerline_deviation_i = 0;
     public volatile int heading_deviation_i = 0;
     public volatile int lateral_deviation_i = 0;
-    public volatile int TARS_speech_i = 0;
     public volatile int anti_coll_lights_i = 0;
     public volatile int transfer_knob_i = 0;
     // Add more as needed...
@@ -157,6 +160,45 @@ public class Agent implements IopListener, ServiceListener {
         return interaction_message_i.get();
     }
 
+    /**
+     * Get the "message" field from the interaction message JSON
+     * @return the message content, or empty string if not found or invalid JSON
+     */
+    public String getInteractionMessageField() {
+        return getInteractionMessageField("message");
+    }
+
+    /**
+     * Get the "tars_input" field from the interaction message JSON
+     * @return the tars_input content, or empty string if not found or invalid JSON
+     */
+    public String getInteractionTarsInput() {
+        return getInteractionMessageField("tars_input");
+    }
+
+    /**
+     * Get a specific field from the interaction message JSON
+     * @param fieldName the name of the field to extract ("message" or "tars_input")
+     * @return the field content, or empty string if not found or invalid JSON
+     */
+    private String getInteractionMessageField(String fieldName) {
+        String jsonString = interaction_message_i.get();
+        if (jsonString == null || jsonString.isEmpty()) {
+            return "";
+        }
+
+        try {
+            JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
+            if (jsonObject.has(fieldName)) {
+                return jsonObject.get(fieldName).getAsString();
+            }
+        } catch (Exception e) {
+            // Invalid JSON or field not found, return empty string
+            return "";
+        }
+
+        return "";
+    }
     /**
      * Start the Ingescape agent and register it with the simulation
      * @param mainWindow The main window that implements event listeners
@@ -260,7 +302,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("l_bottle_arm", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("r_bottle_arm", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("radio_frequency", IopType.IGS_DOUBLE_T);
-        ingescapeAgent.definition.inputCreate("ATC_msg", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.inputCreate("ATC_speech", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("current_procedure", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("current_task_object", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("current_task_value", IopType.IGS_STRING_T);
@@ -274,9 +316,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("heading_deviation", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("lateral_deviation", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("birds", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.inputCreate("TARS_speech", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.inputCreate("TARS_speech", IopType.IGS_STRING_T);
         ingescapeAgent.definition.inputCreate("TARS_is_speaking", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.inputCreate("ATC_is_speaking", IopType.IGS_BOOL_T);
     }
 
     /**
@@ -295,11 +336,11 @@ public class Agent implements IopListener, ServiceListener {
                 "l_gen_load", "r_gen_load", "pitot_heat", "l_eng_ai", "r_eng_ai",
                 "l_windsh_ai", "r_windsh_ai", "exterior_lights", "anti_coll_lights",
                 "trim_rudder", "l_bottle_arm", "r_bottle_arm", "radio_frequency",
-                "ATC_msg", "current_procedure", "current_task_object", "current_task_value",
+                "ATC_speech", "current_procedure", "current_task_object", "current_task_value",
                 "current_task_autonomy_role", "current_task_human_role","next_state",
                 "previous_state", "interaction_message", "chrono_time",
                 "runway_centerline_deviation", "heading_deviation", "lateral_deviation",
-                "birds", "TARS_speech", "TARS_is_speaking", "ATC_is_speaking"
+                "birds", "TARS_speech", "TARS_is_speaking"
         };
 
         for (String name : inputNames) {
@@ -530,15 +571,12 @@ public class Agent implements IopListener, ServiceListener {
                 case "TARS_is_speaking":
                     TARS_is_speaking_i = inputBool;
                     break;
-                case "ATC_is_speaking":
-                    ATC_is_speaking_i = inputBool;
-                    break;
             }
         }
         else if (iop == Iop.IGS_INPUT_T && type == IopType.IGS_STRING_T) {
                 String inputString = (String) value;
                 switch (name) {
-                    case "ATC_msg":
+                    case "ATC_speech":
                         ATC_msg_i.set(inputString);
                         if (simulation != null) {
                             // Split the message into words
@@ -547,15 +585,12 @@ public class Agent implements IopListener, ServiceListener {
                             inputString = inputString.replace(".", "");
                             String[] words = inputString.trim().split("\\s+");
 
-                            // Define interval between words in seconds (adjust as needed)
-                            double intervalBetweenWords = 2.5; // 1s between words
-
                             // Get current simulation time
                             double currentTime = SimSystem.clock();
 
                             // Schedule each word with cumulative onset time
                             for (int i = 0; i < words.length; i++) {
-                                double onsetTime = currentTime + (i * intervalBetweenWords);
+                                double onsetTime = currentTime + (i * INTERVAL_BETWEEN_WORDS);
                                 simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
                                     words[i],
                                     String.valueOf(onsetTime),
@@ -564,6 +599,29 @@ public class Agent implements IopListener, ServiceListener {
                             }
                         }
                         break;
+                        case "TARS_speech":
+                            TARS_msg_i.set(inputString);
+                            if (simulation != null) {
+                                // Split the message into words
+                                inputString = inputString.toLowerCase();
+                                inputString = inputString.replace(",", "");
+                                inputString = inputString.replace(".", "");
+                                String[] words = inputString.trim().split("\\s+");
+
+                                // Get current simulation time
+                                double currentTime = SimSystem.clock();
+
+                                // Schedule each word with cumulative onset time
+                                for (int i = 0; i < words.length; i++) {
+                                    double onsetTime = currentTime + (i * INTERVAL_BETWEEN_WORDS);
+                                    simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
+                                            words[i],
+                                            String.valueOf(onsetTime),
+                                            "tars"
+                                    );
+                                }
+                            }
+                            break;
                     case "current_procedure":
                         current_procedure_i.set(inputString);
                         break;
@@ -604,9 +662,6 @@ public class Agent implements IopListener, ServiceListener {
                         break;
                     case "lateral_deviation":
                         lateral_deviation_i = inputInt;
-                        break;
-                    case "TARS_speech":
-                        TARS_speech_i = inputInt;
                         break;
                     case "pax_safety":
                         pax_safety_i = inputInt;

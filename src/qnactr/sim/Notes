@@ -12,3 +12,7 @@ forbidden names:
 {"nil", "error", "busy", "free", "empty", "full", "lowest", "highest", "current"}
 
 in a customized manual action, always send at least para-1 and para-2.
+
+Need to be careful there seems to be a problem with ?aural> state free
+because evaluating it on the LHS doesn't prevent from attending a new sound
+while the previous was not yet recoded.
