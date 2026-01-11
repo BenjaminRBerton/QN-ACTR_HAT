@@ -1,5 +1,0 @@
-org.freehep.graphicsio.exportchooser.ImageIOExportFileType
-org.freehep.graphicsio.gif.GIFExportFileType
-org.freehep.graphicsio.raw.RawExportFileType
-org.freehep.graphicsio.ppm.PPMExportFileType
-
