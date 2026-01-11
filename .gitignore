@@ -1,4 +1,10 @@
-out
+!out
 !out/production/
+!out/production/QN workspace/
+!out/production/QN workspace/**
+
+out/*
+!out/production/
+out/production/*
 !out/production/QN workspace/
 *.log
