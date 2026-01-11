@@ -1,0 +1,358 @@
+;; QN_ACTR_Model_Initialization piloting test XPlane
+;; QN-ACTR, Sample piloting model 
+;; For questions and comments, please send to Shi Cao (shi.cao@uwaterloo.ca).
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Task definition ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+(use_world3d_template   
+	:method    	pilotingxplane    
+)
+
+(use_predefined_model_setup		model_pilot_xplane)
+;; the model will be connected with XPlane
+
+
+; visual representation of the C172 control panel
+(use_task_dbt_template   
+	:method						discrete_display_feedback_two_stages_method
+	:response_terminates_display			nil
+	:reset_all_modules_before_each_trial		nil
+	:auto_compute_default_reaction_time		nil
+	:auto_compute_default_response_correctness	nil	
+)
+
+(add_trials_from_discrete_display_feedback_two_stages_method
+	:add_number_of_blocks_per_day			1
+	:add_number_of_trials_per_block			1
+
+	:number_of_responses_per_trial			1	
+	:display_and_response_duration			(-1.0)  ;; (-1.0) by default, meaning keep displaying without time limit.
+
+
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("outside")			;; represent outside of aircraft
+	:display_item_screen_location_x			(20)
+	:display_item_screen_location_y			(20)
+	)
+
+
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("airspeed")
+	:display_item_screen_location_x			(810)
+	:display_item_screen_location_y			(95)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("attitude")
+	:display_item_screen_location_x			(1000)
+	:display_item_screen_location_y			(95)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("altimeter")
+	:display_item_screen_location_x			(1190)
+	:display_item_screen_location_y			(95)
+	)
+	
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("vertical_speed")
+	:display_item_screen_location_x			(810)
+	:display_item_screen_location_y			(285)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("heading")
+	:display_item_screen_location_x			(1000)
+	:display_item_screen_location_y			(285)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("oil_fuel_rpm")
+	:display_item_screen_location_x			(1190)
+	:display_item_screen_location_y			(285)
+	)
+	
+
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("ignition")
+	:display_item_screen_location_x			(160)
+	:display_item_screen_location_y			(520)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("throttle")
+	:display_item_screen_location_x			(1840)
+	:display_item_screen_location_y			(920)
+	)
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("mixture")
+	:display_item_screen_location_x			(1920)
+	:display_item_screen_location_y			(920)
+	)
+
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a1"  )				;Master L
+	:display_item_screen_location_x  (320)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a2"  )				;Master R
+	:display_item_screen_location_x  (350)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a3"  )				;Avionics
+	:display_item_screen_location_x  (380)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a4"  )				;Fuel Pump
+	:display_item_screen_location_x  (410)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a5"  )				;De-Ice
+	:display_item_screen_location_x  (440)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a6"  )				;Pitot Heat
+	:display_item_screen_location_x  (470)
+	:display_item_screen_location_y  (490) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a7"  )				;Cowl
+	:display_item_screen_location_x  (290)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a8"  )				;Panel
+	:display_item_screen_location_x  (320)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a9"  )				;Beacon
+	:display_item_screen_location_x  (350)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a10"  )				;Nav.
+	:display_item_screen_location_x  (380)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a11"  )				;Strobe
+	:display_item_screen_location_x  (410)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a12"  )				;Taxi
+	:display_item_screen_location_x  (440)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+	( :item_type   display_item_visual_text_button
+	:visual_text   	(  "a13"  )				;Landing
+	:display_item_screen_location_x  (470)
+	:display_item_screen_location_y  (550) 	
+	:display_item_width		(20)
+	:display_item_height		(30)
+	)
+
+	( 
+	:item_type					display_item_visual_text
+	:visual_text					("checklist")
+	:display_item_screen_location_x			(1600)
+	:display_item_screen_location_y			(500)
+	)
+
+)
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Mind definition ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+; simplified procedure for C172SP in X-Plane
+; piloting aircraft 
+; different tasks represented by different chunk types, e.g., checklist-procedure, manual-flight-control
+
+
+;;;;;;;;;;; PARAMETERS
+
+(sgp	
+	:visual-attention-latency	0.085	;This parameter specifies how long a visual attention shift will take in seconds.  The default value is .085.
+	:imaginal-delay			0.2	;a non-negative number	The imaginal-delay parameter controls how long it takes a request or modification request to the imaginal buffer to complete.  It can be set to a non-negative time (in seconds) and defaults to .2.
+)
+
+
+
+
+
+;;;;;;;;;;; CHUNKS
+
+(chunk-type  checklist-procedure			
+	procedure-name
+	step			
+	phase
+
+)
+
+(chunk-type  checklist-item-representation
+	item-name
+)
+
+(chunk-type  aircraft-component-status-representation
+	aircraft-component-name
+	status				
+)
+
+
+
+(chunk-type  pilot-control		;; control pitch, yaw, roll while flying	
+	perceived-pitch-old
+	perceived-yaw-old
+	perceived-roll-old
+	time-old
+	pitch-controller-value
+	yaw-controller-value
+	roll-controller-value
+	step			
+)
+
+
+
+
+(add-dm	(pilot-goal 
+		isa 		pilot-control
+		perceived-pitch-old	0
+		perceived-yaw-old	0
+		perceived-roll-old	0
+		time-old		0
+		pitch-controller-value	0
+		yaw-controller-value	0
+		roll-controller-value	0
+		step			1
+		)
+)
+
+(goal-focus pilot-goal)
+
+
+
+
+;;;;;;;;;;; PRODUCTION RULES
+
+(p pilot-control-attend-outside		;; visual flight rules VFR, see outside, control pitch, yaw, roll
+   =goal>
+      isa 	pilot-control
+      step 	1
+==>
+ +visual-location>
+  isa		visual-location
+  screen-x	20			; representing outside
+  screen-y	20
+
+   =goal>
+      step 2	
+)
+
+(p pilot-control-perceive-attitude
+   =goal>
+      isa 	pilot-control
+      step 	2
+   =visual-location>
+!bind! =time (get-clock-time)     ;; the short-cut way  
+!bind! =p (x-plane-getdref  sim/cockpit2/gauges/indicators/pitch_electric_deg_pilot)
+!bind! =y (x-plane-getdref  sim/cockpit2/gauges/indicators/heading_vacuum_deg_mag_pilot)	;heading is yaw
+!bind! =r (x-plane-getdref  sim/cockpit2/gauges/indicators/roll_electric_deg_pilot)
+==>	
+   =goal>
+	perceived-pitch-old	=p
+	perceived-yaw-old	=y
+	perceived-roll-old	=r
+	time-old		=time	
+	step	3
+   +visual-location>
+      isa  visual-location-world3d-piloting
+      kind outside
+)
+
+
+(p pilot-control-action
+   =goal>
+      	isa 	pilot-control
+      	step 	3
+	perceived-pitch-old	=p-old
+	perceived-yaw-old	=y-old
+	perceived-roll-old	=r-old
+	time-old		=time-old
+	pitch-controller-value	=p-control-old
+	yaw-controller-value	=y-control-old
+	roll-controller-value	=r-control-old		
+ +visual-location>
+  isa		visual-location
+  screen-x	20			; representing outside
+  screen-y	20
+
+   ?manual>
+      state   free
+!bind! =time (get-clock-time)     ;; the short-cut way  
+!bind! =p (x-plane-getdref  sim/cockpit2/gauges/indicators/pitch_electric_deg_pilot)
+!bind! =y (x-plane-getdref  sim/cockpit2/gauges/indicators/heading_vacuum_deg_mag_pilot)	;heading is yaw
+!bind! =r (x-plane-getdref  sim/cockpit2/gauges/indicators/roll_electric_deg_pilot)
+
+==>
+
+!bind! =p-control  (x-plane-do-pitch-control =p-old  =p   =time-old  =time	=p-control-old	0.0)		; the last parameter is a dummy, place holder.
+!bind! =y-control  (x-plane-do-yaw-control   =y-old  =y   =time-old  =time	=y-control-old	0.0)
+!bind! =r-control  (x-plane-do-roll-control  =r-old  =r   =time-old  =time	=r-control-old	0.0)
+      
+   =goal>
+      	isa 	pilot-control
+      	step 	1
+	pitch-controller-value	=p-control
+	yaw-controller-value	=y-control
+	roll-controller-value	=r-control	
+    +manual>
+     isa 			customized-manual-action		
+     name			x-plane-button-action
+     preparation-duration	0.050
+     initiation-duration	0.050
+     execution-duration	    	0.050                 
+     finish-duration		0.0
+	;; this manual action is just for making the manual module busy for the duration.
+
+)
+
+
