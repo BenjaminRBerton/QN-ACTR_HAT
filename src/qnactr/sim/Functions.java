@@ -5442,8 +5442,8 @@ return return_string;
                           case "r_windsh_ai":
                               return_string = String.valueOf(agent.r_windsh_ai_i);
                               break;
-                          case "exterior_lights":
-                              return_string = String.valueOf(agent.exterior_lights_i);
+                          case "landing_lights":
+                              return_string = String.valueOf(agent.landing_lights_i);
                               break;
                           case "anti_coll_lights":
                               return_string = String.valueOf(agent.anti_coll_lights_i);

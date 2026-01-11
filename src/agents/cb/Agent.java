@@ -60,7 +60,6 @@ public class Agent implements IopListener, ServiceListener {
     public volatile boolean r_eng_ai_i = false;
     public volatile boolean l_windsh_ai_i = false;
     public volatile boolean r_windsh_ai_i = false;
-    public volatile boolean exterior_lights_i = false;
     public volatile boolean l_engine_fire_i = false;
     public volatile boolean r_engine_fire_i = false;
     public volatile boolean parking_brake_i = true;
@@ -72,6 +71,7 @@ public class Agent implements IopListener, ServiceListener {
     public volatile boolean r_ign_switch_i = false;
     public volatile boolean TARS_is_speaking_i = false;
     public volatile boolean birds_i = false;
+    public volatile boolean anti_coll_lights_i = false;
 
     // For string inputs - using AtomicReference for thread-safe string operations
     private final AtomicReference<String> ATC_msg_i = new AtomicReference<>("");
@@ -101,8 +101,8 @@ public class Agent implements IopListener, ServiceListener {
     public volatile int runway_centerline_deviation_i = 0;
     public volatile int heading_deviation_i = 0;
     public volatile int lateral_deviation_i = 0;
-    public volatile int anti_coll_lights_i = 0;
     public volatile int transfer_knob_i = 0;
+    public volatile int landing_lights_i = 0;
     // Add more as needed...
 
     private com.ingescape.Agent ingescapeAgent;
@@ -299,8 +299,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("r_eng_ai", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("l_windsh_ai", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("r_windsh_ai", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.inputCreate("exterior_lights", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.inputCreate("anti_coll_lights", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.inputCreate("landing_lights", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.inputCreate("anti_coll_lights", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("trim_rudder", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("l_bottle_arm", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("r_bottle_arm", IopType.IGS_BOOL_T);
@@ -337,7 +337,7 @@ public class Agent implements IopListener, ServiceListener {
                 "l_gen_switch", "r_gen_switch", "transfer_knob", "e1_n1", "e2_n1",
                 "l_engine_fire", "r_engine_fire", "baro_setting", "cabin_alt",
                 "l_gen_load", "r_gen_load", "pitot_heat", "l_eng_ai", "r_eng_ai",
-                "l_windsh_ai", "r_windsh_ai", "exterior_lights", "anti_coll_lights",
+                "l_windsh_ai", "r_windsh_ai", "landing_lights", "anti_coll_lights",
                 "trim_rudder", "l_bottle_arm", "r_bottle_arm", "radio_frequency",
                 "ATC_speech", "current_procedure", "current_task_object", "current_task_value",
                 "current_task_autonomy_role", "current_task_human_role","next_state",
@@ -386,8 +386,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("r_engine_anti_ice", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("l_windshield_anti_ice", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("r_windshield_anti_ice", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.outputCreate("exterior_lights", IopType.IGS_INTEGER_T);
-        ingescapeAgent.definition.outputCreate("anti_coll_lights", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("landing_lights", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("anti_coll_lights", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("trim_rudder", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.outputCreate("l_bottle", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("r_bottle", IopType.IGS_IMPULSION_T);
@@ -559,8 +559,8 @@ public class Agent implements IopListener, ServiceListener {
                 case "r_windsh_ai":
                     r_windsh_ai_i = inputBool;
                     break;
-                case "exterior_lights":
-                    exterior_lights_i = inputBool;
+                case "anti_coll_lights":
+                    anti_coll_lights_i = inputBool;
                     break;
                 case "l_bottle_arm":
                     l_bottle_arm_i = inputBool;
@@ -702,8 +702,8 @@ public class Agent implements IopListener, ServiceListener {
                     case "transfer_knob":
                         transfer_knob_i = inputInt;
                         break;
-                    case "anti_coll_lights":
-                        anti_coll_lights_i = inputInt;
+                    case "landing_lights":
+                        landing_lights_i = inputInt;
                         break;
                 }
         }
