@@ -190,7 +190,10 @@ public class Agent implements IopListener, ServiceListener {
         try {
             JsonObject jsonObject = JsonParser.parseString(jsonString).getAsJsonObject();
             if (jsonObject.has(fieldName)) {
-                return jsonObject.get(fieldName).getAsString();
+                String returnString = jsonObject.get(fieldName).getAsString();
+                returnString = returnString.replace(".", ""); // Remove periods
+                returnString = returnString.replace(",", ""); // Remove commas
+                return returnString;
             }
         } catch (Exception e) {
             // Invalid JSON or field not found, return empty string
@@ -379,10 +382,10 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("transfer_knob", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("baro_setting", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("pitot_heat", IopType.IGS_BOOL_T);
-        ingescapeAgent.definition.outputCreate("l_engine_anti_ice", IopType.IGS_INTEGER_T);
-        ingescapeAgent.definition.outputCreate("r_engine_anti_ice", IopType.IGS_INTEGER_T);
-        ingescapeAgent.definition.outputCreate("l_windshield_anti_ice", IopType.IGS_INTEGER_T);
-        ingescapeAgent.definition.outputCreate("r_windshield_anti_ice", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("l_engine_anti_ice", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("r_engine_anti_ice", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("l_windshield_anti_ice", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("r_windshield_anti_ice", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("exterior_lights", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("anti_coll_lights", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("trim_rudder", IopType.IGS_DOUBLE_T);
