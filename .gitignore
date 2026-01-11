@@ -1,2 +1,4 @@
 out
+!out/production/
+!out/production/QN workspace/
 *.log
