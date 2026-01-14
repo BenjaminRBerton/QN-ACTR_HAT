@@ -194,6 +194,12 @@
 	:display_item_screen_location_y			(800)
     )
     (
+    :item_type					display_item_visual_text
+    :visual_text					("AP_ALTITUDE")
+    :display_item_screen_location_x			(1350)
+    :display_item_screen_location_y			(680)
+    )
+    (
 	:item_type					display_item_visual_text
 	:visual_text					("BARO_PRESS")
 	:display_item_screen_location_x			(1350)
@@ -649,6 +655,7 @@
 (chunk-type component
     component-name
     component-status
+    desired-status
 )
 
 (chunk-type  clearance
@@ -670,9 +677,9 @@
 
 (chunk-type word
     value
+    equivalent
     category
 )
-
 
 (chunk-type TARS-status-representation ; representation of the status of TARS visible via the Shared Interface
     tars-component-name
@@ -697,6 +704,10 @@
     wind-speed
 )
 
+(chunk type cleared-altitude
+    altitude
+)
+
 (add-dm
     (start-task
 		isa 			task
@@ -706,25 +717,25 @@
         phase           reading-tars-interface
         stage           1
 	)
-    (takeoff-clearance
-        isa 			clearance
-        procedure       takeoff
-        sender          montreal-tower
-        callsign        c-poly
-        wind            nil
-        runway          06L
-        altitude        nil
-        heading         nil
-        navigation      nil
-        frequency       nil
-        status          pending
-    )
-    ;(current-wind-belief
-     ;   isa                 current-wind
-      ;  speech-value        wind-0-9-0-at-4
-       ; wind-direction      090
-        ;wind-speed          4
+    ;(takeoff-clearance
+        ;isa 			clearance
+        ;procedure       takeoff
+        ;sender          montreal-tower
+        ;callsign        c-poly
+        ;wind            nil
+        ;runway          06L
+        ;altitude        nil
+        ;heading         nil
+        ;navigation      nil
+        ;frequency       nil
+        ;status          pending
     ;)
+    (current-wind-belief
+        isa                 current-wind
+        speech-value        wind-0-9-0-at-4
+        wind-direction      090
+        wind-speed          4
+    )
     (atis-alpha
         isa                 atis-information
         information         alpha
@@ -747,7 +758,7 @@
     (w-zero-six-left isa word value runway-zero-six-left category runway)
     (w-cleared-for-takeoff isa word value cleared-for-takeoff category procedure)
     (w-runway-heading isa word value maintain-runway-heading category heading)
-    (w-to-five-thousand isa word value climb-to-5000ft category altitude)
+    (w-to-five-thousand isa word value climb-to-5000ft equivalent cleared-to-altitude-5000-ft-from-atc category altitude)
     (w-direct-agmeb-then-omeki isa word value proceed-direct-agmeb-then-omeki category navigation)
     (w-on-one-one-eight-decimal-niner isa word value departure-on-one-one-eight-decimal-niner category frequency)
     (w-good-flight isa word value good-flight category ending)
@@ -1379,7 +1390,7 @@
      category    sender
 ==>
     =imaginal>
-    sender   =content
+    sender      =content
     =goal>
      stage       wait
 )
@@ -1452,12 +1463,11 @@
      category       altitude
 ==>
     =imaginal>
-    altitude          =content
+    altitude        =retrieval
     =goal>
      stage          wait
 )
 (spp form-altitude-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
-
 
 (p end-of-communication-go-check-allocation ;end of the clearance
     =goal>
@@ -3034,17 +3044,207 @@
    =goal>
     phase               check-task-on-tars
 )
-
-;try to retrieve if failure then look at ATIS visual memo
-;compare with wind sock OTW
-;verify it is coherent
-;if TARS support then read TARS input verify it is coherent then form crosswind representation
-;then check else if no tars support compute headwind/crosswind component
-;and verify within limits then check
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; END OF WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; Select Altitude - PRESET AS CLEARTED Task ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p retrieve-takeof-clearance
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+==>
+    +retrieval>
+    isa                clearance
+    =goal>
+    stage              2
+)
+
+(p takeoff-clearance-retrieved-successfully-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =retrieval>
+     isa                clearance
+     altitude           =cleared-altitude
+    =imaginal>
+    - tars-input        nil
+    ?retrieval>
+     state           free
+==>
+    =imaginal>
+    +retrieval>
+    =cleared-altitude
+   =goal>
+    stage              3
+)
+
+(p cleared-altitude-retrieved-and-match-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              3
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =imaginal>
+     tars-input         =value
+    =retrieval>
+     isa                word
+     equivalent         =value
+==>
+   =goal>
+    stage               4
+   +imaginal>
+    isa                 component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+
+(p cleared-altitude-retrieved-and-do-not-match-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              3
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =imaginal>
+     tars-input         =value
+    =retrieval>
+     isa                word
+    - equivalent        =value
+==>
+    =goal>
+    stage               4
+   +imaginal>
+    isa                 component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+
+(p takeoff-clearance-not-retrieved-but-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =imaginal>
+    - tars-input        nil
+    ?retrieval>
+     state             error
+==>
+    =goal>
+    stage               4
+    +imaginal>
+    isa                 component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+
+(p look-at-selected-altitude-on-pfd
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              4
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =imaginal>
+     isa                component
+     component-name     selected-altitude
+     desired-status     =value
+   ?imaginal>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa		        visual-location
+    screen-x	    1350			; representing selected altitude on PFD
+    screen-y	    680
+    =goal>
+    stage		    visual-encode-aircraft-component
+)
+
+(p form-select-altitude-preset-as-cleared-representation
+   =goal>
+    isa		        task
+    phase           perform-task
+    stage		    form-representation-aircraft-component
+    task-object	    select-altitude
+    task-value      preset-as-cleared
+   =imaginal>
+    isa                component
+    component-name     selected-altitude
+    desired-status     =value-goal
+    ?imaginal>
+    state        free
+
+!bind! =value (read_input alt_sel)		; hard coded way to get the selected-altitude from X-Plane
+
+==>
+   +imaginal>
+    isa                   component
+    component-name        selected-altitude
+    component-status      =value
+    desired-status        =value-goal
+   =goal>
+    stage		          action
+)
+
+(p select-altitude-preset-as-cleared-take-action
+   =goal>
+    isa		            task
+    phase		        perform-task
+    stage		        action
+    task-object	        select-altitude
+    task-value          preset-as-cleared
+   =imaginal>
+    isa		            component
+    component-name      selected-altitude
+    component-status    =value
+    - desired-status       =value
+   ?manual>
+    state		free
+==>
+    +manual>
+    isa 			        customized-manual-action		; representing hand reach to altitude selector (time duration should be estimated based on human pilot video recordings)
+    name			        agent-set-int
+    preparation-duration	0.050
+    initiation-duration	    0.050
+    execution-duration	    5.0
+    finish-duration		    1.0
+    para-1			        alt_sel
+    para-2			        5000 ; assuming cleared altitude is 5000 feet
+    para-3
+    para-4
+    ; hard coded way to send the updated selected-altitude to X-Plane using agent-set-output action
+    =goal>
+    phase		check-task-on-tars
+)
+
+(p select-altitude-preset-as-cleared-is-already-set
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =imaginal>
+     isa		        component
+     component-name        selected-altitude
+     component-status      =value
+     desired-status        =value
+==>
+    =goal>
+     phase		check-task-on-tars
+)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
