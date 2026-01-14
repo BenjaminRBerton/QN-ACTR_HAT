@@ -838,6 +838,19 @@
    =goal>
 	stage		1
 )
+
+(p x-4-na-task-go-back-to-wait-for-start-command
+   =goal>
+    isa		    task
+    phase		reading-tars-interface
+    stage       4
+   =imaginal>
+    task-value	n-a
+==>
+    =goal>
+    stage		1
+)
+(spp x-4-na-task-go-back-to-wait-for-start-command :u 10) ; need to be higher to capture
 ;; IF TASK NOT CHANGED AND ALLOCATED TO TARS READ AGAIN
 (p x-4-human-not-performer-of-task
    =goal>
@@ -1173,24 +1186,26 @@
 
 (p is-our-callsign
     =goal>
-    stage       check-is-our-callsign
+    stage           check-is-our-callsign
     =imaginal>
-    isa         sound
-    content     =content
+    isa             sound
+    content         =content
     =retrieval>
-    isa         callsign
-    content     =content
+    isa             callsign
+    content         =content
 ==>
     +imaginal>
-    isa         clearance
-    procedure   takeoff
-    callsign    c-poly
+    isa             clearance
+    procedure       takeoff
+    callsign        c-poly
     =goal>
-    isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-    human-role  nil
-    autonomy-role nil
+    isa             task
+    task-object     takeoff-clearance
+    task-value      confirm
+    human-role      nil
+    autonomy-role   nil
+    phase           perform-task
+    stage           wait
 )
 (spp is-our-callsign :u 2)
 
@@ -1226,13 +1241,53 @@
 ==>
     =imaginal>
     =goal>
-    stage       wait
+    stage      start-timing
+)
+
+(p start-timing
+    =goal>
+    isa         task
+    task-object takeoff-clearance
+    task-value  confirm
+    phase       perform-task
+    stage       start-timing
+    =imaginal>
+    isa         clearance
+    procedure   takeoff
+==>
+    =imaginal>
+    +temporal>
+    isa         time
+    ticks       0
+    =goal>
+    stage       waiting
+)
+
+(p atc-not-speaking-end-of-message
+    =goal>
+    isa         task
+    task-object takeoff-clearance
+    task-value  confirm
+    phase       perform-task
+    stage       waiting
+    =imaginal>
+    isa         clearance
+    procedure   takeoff
+   =temporal>
+    isa         time
+    ticks       31
+==>
+    =imaginal>
+    +temporal>
+    isa         clear
+    =goal>
+    stage       end-detected
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL ATTEMPT FOR WORD IN MEMORY;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This production follow up the encode-sound production to check if the message is from ATC
 ; retrieve self callsign from declarative memory if the message comes from ATC
-(p retrieval-attempt-for-word-from-takeoff-clearance
+(p retrieval-attempt-for-word-from-takeoff-clearance-stop-timer
     =goal>
     isa             task
     task-object     takeoff-clearance
@@ -1244,8 +1299,10 @@
      location       atc
     =imaginal>
      isa            clearance
-     procedure     takeoff
+     procedure      takeoff
 ==>
+    +temporal>
+    isa             clear
     =imaginal>
     +retrieval>
      isa         word
@@ -1254,7 +1311,8 @@
     phase       perform-task
      stage       add-to-clearance-representation
 )
-(spp encode-word-from-takeoff-clearance :u 3) ; utility higher than regular encode-word for priority to current task
+(spp retrieval-attempt-for-word-from-takeoff-clearance-stop-timer :u 4) ; utility higher than regular encode-word for priority to current task
+
 ;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL SUCCESS, MAP RETRIEVED WORD TO CLEARANCE SLOT;;;;;;;;;;;;;;;;;;;;
 (p form-sender-representation-from-takeoff-clearance
     =goal>
@@ -1275,25 +1333,6 @@
 )
 (spp form-sender-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
-(p form-wind-representation-from-takeoff-clearance
-    =goal>
-    phase       perform-task
-    stage       add-to-clearance-representation
-    =imaginal>
-        isa         clearance
-        procedure   takeoff
-    =retrieval>
-     isa         word
-     value       =content
-     category    wind
-==>
-    =imaginal>
-     wind       =content
-    =goal>
-     stage       wait
-)
-(spp form-wind-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
-
 (p form-runway-representation-from-takeoff-clearance
     =goal>
     phase       perform-task
@@ -1313,25 +1352,6 @@
 )
 (spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
-(p form-heading-representation-from-takeoff-clearance
-    =goal>
-    phase       perform-task
-    stage       add-to-clearance-representation
-    =imaginal>
-        isa         clearance
-        procedure   takeoff
-    =retrieval>
-     isa         word
-     value       =content
-     category    heading
-==>
-    =imaginal>
-    heading   =content
-    =goal>
-     stage       wait
-)
-(spp form-heading-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
-
 (p form-altitude-representation-from-takeoff-clearance
     =goal>
     phase       perform-task
@@ -1340,73 +1360,47 @@
         isa         clearance
         procedure   takeoff
     =retrieval>
-     isa         word
-     value       =content
-     category    altitude
+     isa            word
+     value          =content
+     category       altitude
 ==>
     =imaginal>
-    altitude   =content
+    altitude          =content
     =goal>
-     stage       wait
+     stage          wait
 )
-(spp form-altitude-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
+(spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
-(p form-frequency-representation-from-takeoff-clearance
+
+(p end-of-communication-go-check-allocation ;end of the clearance
     =goal>
-    phase       perform-task
-    stage       add-to-clearance-representation
+    phase           perform-task
+    stage           end-detected
+    human-role      nil
+    autonomy-role   nil
     =imaginal>
         isa         clearance
         procedure   takeoff
-    =retrieval>
-     isa         word
-     value       =content
-     category    frequency
-==>
-    =imaginal>
-    frequency   =content
-    =goal>
-     stage       wait
-)
-(spp form-frequency-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
-
-(p form-good-flight-representation-from-takeoff-clearance-go-check-allocation ;end of the clearance
-    =goal>
-    phase       perform-task
-    stage       add-to-clearance-representation
-    human-role  nil
-    autonomy-role nil
-    =imaginal>
-        isa         clearance
-        procedure   takeoff
-    =retrieval>
-     isa         word
-     value       =content
-     category    ending
 ==>
     =imaginal>
     =goal>
-     phase       check-allocation ; proceed to encode task allocation information
-     stage       1
+     phase          check-allocation ; proceed to encode task allocation information
+     stage          1
 )
 
-(p form-good-flight-representation-from-takeoff-clearance-and-has-allocation ;end of the clearance
+(p end-of-communication-and-we-have-allocation ;end of the clearance
     =goal>
-    phase       perform-task
-    stage       add-to-clearance-representation
-    - human-role  nil
+    phase           perform-task
+    stage           end-detected
+    - human-role    nil
     - autonomy-role nil
     =imaginal>
         isa         clearance
         procedure   takeoff
-    =retrieval>
-     isa         word
-     value       =content
-     category    ending
 ==>
     =imaginal>
     =goal>
-     stage       start-readback ; proceed to encode task allocation information
+     stage          start-readback ; proceed to encode task allocation information
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH ALLOCATION FOR READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1438,7 +1432,7 @@
     stage           start-readback-push-ptt
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;; READBACK THE CLEARANCE TO ATC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; PTT ON BEFORE READING BACK THE CLEARANCE TO ATC ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p start-readback-push-ptt-on
     =goal>
     isa         task
@@ -1449,11 +1443,10 @@
     =imaginal>
     isa         clearance
     procedure   takeoff
-    wind        =wind
+    sender      =sender
+    callsign    =callsign
     runway      =runway
-    heading     =heading
     altitude    =altitude
-    frequency   =frequency
     ?manual>
     state       free
 ==>
@@ -1471,13 +1464,13 @@
         para-4
     =goal>
     stage                   start-readback-speech
-    !output!   (=wind); debug
+    !output!   (=sender); debug
+    !output!   (=callsign); debug
     !output!   (=runway); debug
-    !output!   (=heading); debug
     !output!   (=altitude); debug
-    !output!   (=frequency); debug
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; READING BACK THE CLEARANCE TO ATC ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p start-readback-sender
     =goal>
     isa         task
@@ -1561,28 +1554,6 @@
     cmd         speak
     string      =runway
     =goal>
-    stage       readback-heading
-)
-
-(p readback-heading
-    =goal>
-    isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-    phase       perform-task
-    stage       readback-heading
-    =imaginal>
-    isa         clearance
-    procedure   takeoff
-    heading     =heading
-    ?vocal>
-    state       free
-==>
-    =imaginal>
-    +vocal>
-    cmd         speak
-    string      =heading
-    =goal>
     stage       readback-climb-to-altitude
 )
 
@@ -1605,31 +1576,10 @@
     cmd         speak
     string      =altitude
     =goal>
-    stage       readback-frequency
-)
-
-(p readback-frequency
-    =goal>
-    isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-    phase       perform-task
-    stage       readback-frequency
-    =imaginal>
-    isa         clearance
-    procedure   takeoff
-    frequency   =frequency
-    ?vocal>
-    state       free
-==>
-    =imaginal>
-    +vocal>
-    cmd         speak
-    string      =frequency
-    =goal>
     stage       ptt-off
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PTT OFF ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p finish-readback
     =goal>
     isa         task
@@ -1685,6 +1635,7 @@
 )
 (spp pitot-heat-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PITOT STATIC SWITCH ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-pitot-static-switch
    =goal>
 	isa		        task
@@ -1726,6 +1677,7 @@
 	stage		action
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; SWITCH THE PITOT HEAT TO ON ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pitot-heat-take-action		;PITOT-HEAT is OFF
    =goal>
 	isa		    task
@@ -1795,6 +1747,7 @@
 )
 (spp engine-anti-ice-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p understand-engine-anti-ice-as-required-tars-recommendation
     =goal>
      isa		        task
@@ -1846,6 +1799,7 @@
      stage		        3
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; CHECK ENVIRONMENT TO DECIDE ACTION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p confirm-visible-moisture-present-condition
     =goal>
      isa		        task
@@ -1865,6 +1819,7 @@
     stage		        3
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-engine-left-anti-ice-switches
    =goal>
     isa		            task
@@ -1885,7 +1840,7 @@
     status          left
 )
 
-(p form-engine-anti-ice-status-representation
+(p form-left-engine-anti-ice-status-representation
    =goal>
     isa		        task
     phase           perform-task
@@ -1904,6 +1859,7 @@
     stage		action-left
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; EXECUTE ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p left-engine-anti-ice-take-action		;ENGINE ANTI-ICE is OFF
    =goal>
     isa		    task
@@ -1964,6 +1920,7 @@
      stage              right-1
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-engine-right-anti-ice-switches
    =goal>
     isa		        task
@@ -2003,6 +1960,7 @@
     stage		action-right
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p engine-right-anti-ice-take-action		;RIGHT ENGINE ANTI-ICE is OFF
    =goal>
     isa		    task
@@ -2065,8 +2023,13 @@
     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
     phase		       check-task-on-tars
 )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; END ENGINE ANTI-ICE Switches - AS REQUIRED task ;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; WINDSHIELD ANTI-ICE Switches - AS REQUIRED task
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; WINDSHIELD ANTI-ICE Switches - AS REQUIRED task ;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p windshield-anti-ice-is-already-on-according-to-tars
     =goal>
      isa		        task
@@ -2085,13 +2048,85 @@
 )
 (spp windshield-anti-ice-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p understand-windshield-anti-ice-as-required-tars-recommendation
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+    ?imaginal>
+    state               free
+    =imaginal>
+     isa		        task
+     tars-input         =tars-input
+==>
+    =goal>
+     stage		        2
+     task-value         =tars-input
+)
+(spp windshield-anti-ice-is-already-on-according-to-tars :u 2)
+
+(p tars-recommend-check-visible-moisture-present-condition-windshield
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    windshield-anti-ice-switches
+     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    ?imaginal>
+    state               free
+==>
+    +visual-location>
+     isa		        visual-location
+     screen-x	        500			; representing a point in the left side of OTW
+     screen-y	        420
+    =goal>
+     stage		        visual-encode-aircraft-component
+)
+
+(p tars-do-not-recommend-check-visible-moisture-present-condition-windshield
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    windshield-anti-ice-switches
+     - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage		        3
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;; CHECK ENVIRONMENT TO DECIDE ACTION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p confirm-visible-moisture-present-condition-windshield
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              form-representation-aircraft-component
+     task-object	    windshield-anti-ice-switches
+     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     status              nil ; not yet set
+    ?imaginal>
+    state               free
+==>
+   +imaginal>
+    isa		            component
+    component-name      visible-moisture-present
+    component-status    true
+   =goal>
+    stage		        3
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-left-windshield-anti-ice-switches
    =goal>
     isa		        task
     phase		    perform-task
-    stage           1
+    stage           3
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
     human-role      =value
     autonomy-role   =value2
     ?imaginal>
@@ -2113,7 +2148,6 @@
     stage		    form-representation-aircraft-component
     status          left
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
     ?imaginal>
     state        free
 !bind! =value (read_input l_windsh_ai)		; hard coded way to get the aircraft-component-status from X-Plane
@@ -2126,6 +2160,7 @@
     stage		action-left
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p left-windshield-anti-ice-take-action		;WINDSHIELD ANTI-ICE is OFF
    =goal>
     isa		    task
@@ -2133,7 +2168,7 @@
     stage		action-left
     status      left
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
+    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
     isa		    component
     component-name		left-windshield-anti-ice-switch
@@ -2154,18 +2189,45 @@
     para-4
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
     =goal>
-    stage          2
-    status         right
+    stage          right-1
 )
 
+(p left-windshield-anti-ice-is-already-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action-left
+     status             left
+     task-object	    windshield-anti-ice-switches
+    =imaginal>
+     isa		        component
+     component-name        left-windshield-anti-ice-switch
+     component-status      true			; true means WINDSHIELD ANTI-ICE is ON
+==>
+    =goal>
+     stage              right-1
+)
+
+(p no-action-recommendation-left-windshield-anti-ice
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action-left
+     status             left
+     task-object	    windshield-anti-ice-switches
+    - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+==>
+    =goal>
+     stage              right-1
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-right-windshield-anti-ice-switches
    =goal>
     isa		        task
     phase		    perform-task
-    stage           2
-    status          right
+    stage           right-1
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
     human-role      =value
     autonomy-role   =value2
     ?imaginal>
@@ -2187,7 +2249,6 @@
     stage		    form-representation-aircraft-component
     status          right
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
     ?imaginal>
     state        free
 !bind! =value (read_input r_windsh_ai)		; hard coded way to get the aircraft-component-status from X-Plane
@@ -2200,6 +2261,7 @@
     stage		action-right
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p right-windshield-anti-ice-take-action		;RIGHT WINDSHIELD ANTI-ICE is OFF
    =goal>
     isa		    task
@@ -2207,7 +2269,7 @@
     stage		action-right
     status      right
     task-object	    windshield-anti-ice-switches
-    task-value      as-required
+    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
     isa		    component
     component-name		right-windshield-anti-ice-switch
@@ -2229,9 +2291,46 @@
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
     =goal>
     phase		check-task-on-tars
+    task-value          as-required ;need to set it back otherwise it will read tars interface as a new task
 )
 
-;; PAX SAFETY Switch - PAX SAFETY task
+(p right-windshield-anti-ice-is-already-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action-right
+     status             right
+     task-object	    windshield-anti-ice-switches
+    =imaginal>
+     isa		        component
+     component-name     right-windshield-anti-ice-switch
+     component-status   true			; true means WINDSHIELD ANTI-ICE is ON
+==>
+    =goal>
+     phase		        check-task-on-tars
+     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
+)
+
+(p no-action-recommendation-right-windshield-anti-ice
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action-right
+     status             right
+     task-object	    windshield-anti-ice-switches
+    - task-value        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+==>
+    =goal>
+    task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
+    phase		       check-task-on-tars
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; END WINDSHIELD ANTI-ICE Switches - AS REQUIRED task ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; PAX SAFETY Switch - PAX SAFETY task ;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pax-safety-is-already-on-according-to-tars
     =goal>
      isa		        task
@@ -2250,6 +2349,7 @@
 )
 (spp pax-safety-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PAX SAFETY SWITCH CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-pax-safety-switch
    =goal>
     isa		        task
@@ -2289,6 +2389,7 @@
     stage		action
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pax-safety-take-action		;PAX SAFETY is OFF
    =goal>
     isa		    task
@@ -2319,7 +2420,27 @@
     phase		check-task-on-tars
 )
 
-;; LANDING LIGHTS Switch - AS DESIRED task
+(p pax-safety-is-already-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action
+     task-object	    pax-safety-switch
+    =imaginal>
+     isa		        component
+     component-name        pax-safety-switch
+     component-status      true			; true means PAX SAFETY is ON
+==>
+    =goal>
+     phase		check-task-on-tars
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; END PAX SAFETY Switch - PAX SAFETY task ;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LANDING LIGHTS Switch - AS DESIRED task ;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p landing-lights-is-already-on-according-to-tars
     =goal>
      isa		        task
@@ -2338,13 +2459,61 @@
 )
 (spp landing-lights-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p understand-landing-lights-as-desired-tars-recommendation
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    landing-light-switch
+     task-value         as-desired
+    ?imaginal>
+    state               free
+    =imaginal>
+     isa		        task
+     tars-input         =tars-input
+==>
+    =goal>
+     stage		        2
+     task-value         =tars-input
+)
+(spp landing-lights-is-already-on-according-to-tars :u 2)
+
+(p tars-recommend-landing-lights-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    landing-light-switch
+     task-value         landing-lights-on
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage		        3
+)
+
+(p tars-do-not-recommend-landing-lights-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    landing-light-switch
+     - task-value       landing-lights-on
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage              3
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-landing-lights-switch
    =goal>
     isa		        task
     phase		    perform-task
-    stage           1
+    stage           3
     task-object	    landing-light-switch
-    task-value      as-desired
     human-role      =value
     autonomy-role   =value2
     ?imaginal>
@@ -2364,7 +2533,6 @@
     phase           perform-task
     stage		    form-representation-aircraft-component
     task-object	    landing-light-switch
-    task-value      as-desired
     ?imaginal>
     state        free
 !bind! =value (read_input landing_lights)		; hard coded way to get the aircraft-component-status from X-Plane
@@ -2377,13 +2545,13 @@
     stage		action
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p landing-lights-take-action		;LANDING LIGHTS is OFF
    =goal>
     isa		    task
     phase		perform-task
     stage		action
     task-object	    landing-light-switch
-    task-value      as-desired
    =imaginal>
     isa		    component
     component-name		landing-lights-switch
@@ -2405,9 +2573,32 @@
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
     =goal>
     phase		check-task-on-tars
+    task-value         as-desired ;need to set it back otherwise it will read tars interface as a new task
 )
 
-;; ANTI-COLL Light Switch - ON task
+(p landing-lights-is-already-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action
+     task-object	    landing-light-switch
+    =imaginal>
+     isa		        component
+     component-name        landing-lights-switch
+     component-status      true			; true means LANDING LIGHTS is ON
+==>
+    =goal>
+     phase		check-task-on-tars
+     task-value         as-desired ;need to set it back otherwise it will read tars interface as a new task
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; END OF LANDING LIGHTS - AS DESIRED task ;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; ANTI-COLL Light Switch - ON task ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p anti-coll-light-is-already-on-according-to-tars
     =goal>
      isa		        task
@@ -2426,6 +2617,7 @@
 )
 (spp anti-coll-light-is-already-on-according-to-tars :u 2)
 
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-anti-coll-light-switch
    =goal>
     isa		        task
@@ -2465,6 +2657,7 @@
     stage		action
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p anti-coll-light-take-action		;ANTI-COLL LIGHT is OFF
    =goal>
     isa		    task
@@ -2495,7 +2688,28 @@
     phase		check-task-on-tars
 )
 
-; EICAS - Checked task
+(p anti-coll-light-is-already-on
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action
+     task-object	    anti-coll-light-switch
+    =imaginal>
+     isa		        component
+     component-name        anti-coll-light-switch
+     component-status      true			; true means ANTI-COLL LIGHT is ON
+==>
+    =goal>
+     phase		check-task-on-tars
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; END OF ANTI-COLL LIGHT - ON task ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;; EICAS - Checked task ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE EICAS CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-eicas
    =goal>
     isa		        task
@@ -2533,7 +2747,7 @@
    =goal>
     stage		action
 )
-
+;;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p eicas-is-clear
    =goal>
     isa		    task
@@ -2551,6 +2765,9 @@
     =goal>
     phase		check-task-on-tars
 )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; END OF EICAS - Checked task ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2587,3 +2804,6 @@
     status      checked
     stage       1
 )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; END OF GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

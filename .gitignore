@@ -1,2 +1,8 @@
-out/*
-*.log
+out/
+freehep-vectorgraphics/
+ingescape_java_src_jar/
+help/
+help_src/
+jwatFormats/
+jSIM.log.*
+*.log*

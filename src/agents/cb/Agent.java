@@ -25,7 +25,7 @@ public class Agent implements IopListener, ServiceListener {
 
     private static Agent instance = null;
     private QnactrSimulation simulation = null;
-    private static final float INTERVAL_BETWEEN_WORDS = 3f; // seconds
+    private static final float INTERVAL_BETWEEN_WORDS = 2f; // seconds
 
     // Public accessible attributes that other classes can read
     public volatile float airspeed_i = 0.0f;
@@ -580,6 +580,9 @@ public class Agent implements IopListener, ServiceListener {
                 String inputString = (String) value;
                 switch (name) {
                     case "ATC_speech":
+                        if (inputString.isEmpty()){
+                            break;
+                        }
                         ATC_msg_i.set(inputString);
                         if (simulation != null) {
                             // Split the message into words
@@ -603,6 +606,9 @@ public class Agent implements IopListener, ServiceListener {
                         }
                         break;
                         case "TARS_speech":
+                            if (inputString.isEmpty()){
+                                break;
+                            }
                             TARS_msg_i.set(inputString);
                             if (simulation != null) {
                                 // Split the message into words

@@ -16,3 +16,11 @@ in a customized manual action, always send at least para-1 and para-2.
 Need to be careful there seems to be a problem with ?aural> state free
 because evaluating it on the LHS doesn't prevent from attending a new sound
 while the previous was not yet recoded.
+
+There is no implementation of the modification request to the imaginal buffer *imaginal> which means
+that only =imaginal> can be used but it is not taking into account process time and workload.
+
+How to model low-workload situations, for instance I need to detect a new task (thus a new label
+on the interface) and my solution right now is to have a continuous visual polling of the label which
+loads the visual and imaginal modules, but I think the model should not continuously read, I am tempted
+to use the temporal module, but I prefer to ask the question beforehand.

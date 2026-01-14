@@ -833,6 +833,8 @@ public class Functions {
 
 		
 		if(sim.vars.animatorModule.Vocalize_Speech){
+            Agent agent = Agent.getInstance();
+            agent.outputSetString("speech_output", the_content);
 		  System.out.println("TODO Sound_Plugin AnimatorModuleFun__Produce_Speech");
 		  
 		//TODO // Sound_Plugin.SelectVoiceForTextToSpeech("Microsoft Server Speech Text to Speech Voice (en-GB, Hazel)");   // (en-US, ZiraPro)

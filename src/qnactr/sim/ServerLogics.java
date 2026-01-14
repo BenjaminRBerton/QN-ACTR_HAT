@@ -5611,7 +5611,7 @@ public class ServerLogics {
               // set time to randomized increment time
               // targeting.lisp:238
               
-              System.out.println("Temporal Module Timing effect has for Increment Temporal, tick = : " + tick);
+              //System.out.println("Temporal Module Timing effect has for Increment Temporal, tick = : " + tick);
               
               return tick;
             }
