@@ -468,6 +468,12 @@
 	:display_item_screen_location_x			(500)
 	:display_item_screen_location_y			(420)
     )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("WIND-SOCK")
+	:display_item_screen_location_x			(760)
+	:display_item_screen_location_y			(450)
+    )
     ;; TARS INTERFACE
     (
 	:item_type					display_item_visual_text
@@ -578,6 +584,16 @@
     :display_item_width		                (40)
     :display_item_height		            (40)
     )
+    ;ATIS note
+    (
+    :item_type					display_item_visual_text_button
+    :visual_text					("ATIS_NOTE")
+    :display_item_screen_location_x			(800)
+    :display_item_screen_location_y			(1600)
+    :display_item_width		                (40)
+    :display_item_height		            (40)
+    )
+
 	;(
 	;:item_type					display_item_visual_text
 	;:visual_text					("airspeed")
@@ -663,6 +679,24 @@
     status
 )
 
+(chunk-type atis-information
+    information
+    time
+    wind
+    visibility
+    temperature
+    dewpoint
+    altimeter-setting
+    runway-surface
+    runway-in-use
+)
+
+(chunk-type current-wind
+    speech-value
+    wind-direction
+    wind-speed
+)
+
 (add-dm
     (start-task
 		isa 			task
@@ -685,13 +719,31 @@
         frequency       nil
         status          pending
     )
+    ;(current-wind-belief
+     ;   isa                 current-wind
+      ;  speech-value        wind-0-9-0-at-4
+       ; wind-direction      090
+        ;wind-speed          4
+    ;)
+    (atis-alpha
+        isa                 atis-information
+        information         alpha
+        time                1500
+        wind                current-wind-belief
+        visibility          one-sm
+        temperature         five
+        dewpoint            four
+        altimeter-setting   29.92
+        runway-surface      dry
+        runway-in-use       zero-six-left
+    )
     (self-callsign
         isa             callsign
         content         c-poly
     )
     (w-cpoly isa word value c-poly category callsign)
     (w-montreal-tower isa word value montreal-tower category sender)
-    (w-zero-niner-zero isa word value wind-zero-niner-zero-at-four category wind)
+    (w-zero-niner-zero isa word value wind-0-9-0-at-4 category wind)
     (w-zero-six-left isa word value runway-zero-six-left category runway)
     (w-cleared-for-takeoff isa word value cleared-for-takeoff category procedure)
     (w-runway-heading isa word value maintain-runway-heading category heading)
@@ -1352,6 +1404,41 @@
 )
 (spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
+(p form-wind-representation-from-takeoff-clearance
+    =goal>
+    phase       perform-task
+    stage       add-to-clearance-representation
+    =imaginal>
+        isa         clearance
+        procedure   takeoff
+    =retrieval>
+     isa            word
+     value          =content
+     category       wind
+==>
+    =imaginal>
+    wind            =content
+    =goal>
+     stage          update-wind-belief
+)
+(spp form-wind-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
+
+(p update-wind-belief-from-takeoff-clearance
+    =goal>
+    phase       perform-task
+    stage       update-wind-belief
+    =imaginal>
+        isa         clearance
+        procedure   takeoff
+        wind        =value
+==>
+    =imaginal>
+    +retrieval>
+    isa             current-wind
+    =goal>
+     stage          wait
+)
+
 (p form-altitude-representation-from-takeoff-clearance
     =goal>
     phase       perform-task
@@ -1369,7 +1456,7 @@
     =goal>
      stage          wait
 )
-(spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
+(spp form-altitude-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
 
 (p end-of-communication-go-check-allocation ;end of the clearance
@@ -2767,6 +2854,195 @@
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; END OF EICAS - Checked task ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;; WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;; RETRIEVE THE WINDS CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p retrieve-current-wind-belief
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    winds
+     task-value         check
+    ?imaginal>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                current-wind
+    =goal>
+    stage              2
+)
+
+(p retrieve-current-wind-belief-success-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    winds
+     task-value         check
+    =imaginal>
+    tars-input         =value
+    =retrieval>
+     isa                current-wind
+     wind-direction     =wind-direction
+     wind-speed         =wind-speed
+==>
+   +imaginal>
+    isa                 current-wind
+    wind-direction      =wind-direction
+    wind-speed          =wind-speed
+   =goal>
+    tars-input         =value
+    stage               compare
+)
+
+(p wind-comparison-match ;assumed to always match for now
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              compare
+     task-object	    winds
+     task-value         check
+    - tars-input         nil
+    =imaginal>
+     isa                current-wind
+==>
+   =goal>
+    phase               check-task-on-tars
+)
+
+(p retrieve-current-wind-belief-success-no-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    winds
+     task-value         check
+    =imaginal>
+    tars-input          nil
+    =retrieval>
+     isa                current-wind
+     wind-direction     =wind-direction
+     wind-speed         =wind-speed
+==>
+   +imaginal>
+    isa                 current-wind
+    wind-direction      =wind-direction
+    wind-speed          =wind-speed
+   =goal>
+    phase               check-task-on-tars
+)
+
+(p retrieve-current-wind-belief-failure-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    winds
+     task-value         check
+     ?retrieval>
+     state             error
+    =imaginal>
+    tars-input         =value
+==>
+   =goal>
+    tars-input         =value
+    stage               check-atis
+)
+
+(p check-atis-for-wind-information
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              check-atis
+     task-object	    winds
+     task-value         check
+==>
+    +visual-location>
+    isa		        visual-location
+    screen-x	    1600			; representing ATIS visual memo location
+    screen-y	    920
+    =goal>
+    stage		    visual-encode-aircraft-component
+)
+
+(p form-atis-wind-status-representation
+   =goal>
+    isa		        task
+    phase           perform-task
+    stage		    form-representation-aircraft-component
+    task-object	    winds
+    task-value      check
+    ?imaginal>
+    state           free
+==>
+   +imaginal>
+    isa                   current-wind
+    wind-direction        090         ; assumed ATIS wind direction
+    wind-speed            4           ; assumed ATIS wind speed
+   =goal>
+    stage		          check-windsock
+)
+
+(p check-windsock-for-wind-information
+    =goal>
+     isa		        task
+     phase		        perform-task
+     task-object	    winds
+     task-value         check
+     stage              check-windsock
+    ?imaginal>
+     state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa		        visual-location
+    screen-x	    760			; representing windsock OTW location
+    screen-y	    450
+    =goal>
+    stage		    verify-coherence
+)
+
+(p verify-wind-information-coherence-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              verify-coherence
+     task-object	    winds
+     task-value         check
+     - tars-input       nil
+    ?imaginal>
+    state               free
+==>
+   =goal>
+    stage               compare
+)
+
+(p verify-wind-information-coherence-no-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              verify-coherence
+     task-object	    winds
+     task-value         check
+     tars-input         nil
+==>
+   =goal>
+    phase               check-task-on-tars
+)
+
+;try to retrieve if failure then look at ATIS visual memo
+;compare with wind sock OTW
+;verify it is coherent
+;if TARS support then read TARS input verify it is coherent then form crosswind representation
+;then check else if no tars support compute headwind/crosswind component
+;and verify within limits then check
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; END OF WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 

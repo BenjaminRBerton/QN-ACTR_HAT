@@ -25,7 +25,7 @@ public class Agent implements IopListener, ServiceListener {
 
     private static Agent instance = null;
     private QnactrSimulation simulation = null;
-    private static final float INTERVAL_BETWEEN_WORDS = 2f; // seconds
+    private static final float INTERVAL_BETWEEN_WORDS = 2.25f; // seconds
 
     // Public accessible attributes that other classes can read
     public volatile float airspeed_i = 0.0f;
