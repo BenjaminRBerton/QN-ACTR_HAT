@@ -630,7 +630,7 @@
     :act            t	; enable the activation trace
 	:visual-attention-latency	0.085	;This parameter specifies how long a visual attention shift will take in seconds.  The default value is .085.
 	:imaginal-delay			0.2	;a non-negative number	The imaginal-delay parameter controls how long it takes a request or modification request to the imaginal buffer to complete.  It can be set to a non-negative time (in seconds) and defaults to .2.
-    :ul             nil    ; disable the utility learning mechanism
+    :ul             t    ; disable the utility learning mechanism
 )
 
 
@@ -650,9 +650,10 @@
     human-role
     autonomy-role
     tars-input
+    crosscheck
 )
 
-(chunk-type component
+(chunk-type aircraft-component
     component-name
     component-status
     desired-status
@@ -704,7 +705,7 @@
     wind-speed
 )
 
-(chunk type cleared-altitude
+(chunk-type cleared-altitude
     altitude
 )
 
@@ -717,19 +718,6 @@
         phase           reading-tars-interface
         stage           1
 	)
-    ;(takeoff-clearance
-        ;isa 			clearance
-        ;procedure       takeoff
-        ;sender          montreal-tower
-        ;callsign        c-poly
-        ;wind            nil
-        ;runway          06L
-        ;altitude        nil
-        ;heading         nil
-        ;navigation      nil
-        ;frequency       nil
-        ;status          pending
-    ;)
     (current-wind-belief
         isa                 current-wind
         speech-value        wind-0-9-0-at-4
@@ -788,13 +776,13 @@
    +aural>
      event          =aural-location
    =goal>
-    phase           encode-sound
+    stage           encode-sound
 )
 (spp detected-sound :u 1) ; is a salient production
 ; encode sound and location of sound into imaginal buffer
 (p encode-sound
    =goal>
-    phase   encode-sound
+    stage   encode-sound
    =aural>
      isa     sound
      content   =content
@@ -808,6 +796,19 @@
      !output!   (=content); debug
     =goal>
     stage        sound-encoded
+)
+
+(p sound-encoded-from-tars
+   =goal>
+    stage       sound-encoded
+   =imaginal>
+     isa         sound
+     location    tars
+     content     =content
+==>
+    !output!    (=content); debug
+    =goal>
+     stage       1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;
@@ -996,7 +997,7 @@
     stage           1
     status          nil
 )
-(spp x-4-not-waiting-new-task-both :u 4) ; need to be higher to capture both in priority
+(spp x-4-not-waiting-new-task-both :u 10) ; need to be higher to capture both in priority
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK READING TARS INTERFACE for new task;;;;;;;
@@ -1107,9 +1108,48 @@
 ==>
    =goal>
     autonomy-role	=value
-    phase           check-tars-input
-	stage		    1
+	stage		    7
 )
+
+(p x-7-decide-crosscheck
+    =goal>
+     isa		        task
+     phase              check-allocation
+     stage              7
+    - autonomy-role     n-a
+==>
+    =goal>
+     crosscheck        yes
+     phase             check-tars-input
+     stage             1
+)
+
+(p x-7-no-crosscheck
+    =goal>
+     isa		        task
+     phase              check-allocation
+     stage              7
+    - autonomy-role      n-a
+==>
+    =goal>
+     crosscheck        no
+     phase             check-tars-input
+     stage             1
+)
+;(spp x-7-no-crosscheck :reward 2) ;
+
+(p tars-n-a-allocation-go-to-perform-task
+    =goal>
+     isa		        task
+     phase              check-allocation
+     stage              7
+    autonomy-role      n-a
+==>
+    =goal>
+     phase             perform-task
+     stage             1
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; END BLOCK CHECK ALLOCATION ON TARS INTERFACE FOR TASK;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1120,7 +1160,7 @@
 (p x-a-visually-encode-aircraft-component	;phase a. all steps can share this production rule for phase a
    =goal>
 	isa		    task
-    phase        perform-task
+    ;phase       perform-task
 	stage		visual-encode-aircraft-component
    =visual-location>
    ?visual>
@@ -1138,39 +1178,38 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p x-1-visually-attend-tars-input-supporter ;if TARS is supporter
     =goal>
-     isa		    task
-     autonomy-role  supporter
-     phase           check-tars-input
-     stage          1
+     isa		        task
+     - autonomy-role    n-a
+     phase              check-tars-input
+     stage              1
     ?visual>
-    state		free
+    state		        free
 ==>
     +visual-location>
-     isa		visual-location
-     screen-x	440			; representing TARS input box x-coordinate on TARS interface
-     screen-y	1250
+     isa		        visual-location
+     screen-x	        440			; representing TARS input box x-coordinate on TARS interface
+     screen-y	        1250
     =goal>
-     stage        2
+     stage              2
 )
 
 (p x-1-skip-tars-input-because-tars-is-not-supporter ;if TARS is not supporter
     =goal>
      isa		        task
-     - autonomy-role    supporter
+     autonomy-role    n-a
      phase              check-tars-input
      stage              1
     ?visual>
     state		        free
 ==>
     =goal>
-     phase               perform-task
+     phase              perform-task
      stage              1
 )
 
 (p x-2-visually-encode-tars-input
     =goal>
      isa		    task
-     autonomy-role  supporter
      phase          check-tars-input
      stage          2
     =visual-location>
@@ -1187,19 +1226,28 @@
 (p x-3-form-tars-input-representation
     =goal>
      isa		        task
-     autonomy-role      supporter
      phase              check-tars-input
      stage              3
+    task-object       =value_obj
+    task-value        =value_val
+    crosscheck        =value_crosscheck
     =visual>
     ?imaginal>
     state		        free
+
 !bind! =value (read_input tars_input)	; hard coded way to get the TARS input from TARS interface
+
 ==>
-    =imaginal>
-     tars-input         =value
+    ;=imaginal>
+     ;tars-input         =value
     =goal>
     phase               perform-task
-    stage              1
+    stage               1
+    tars-input          =value
+    !output!             (tars-input =value); debug
+    !output!             (task-object =value_obj); debug
+    !output!             (task-value =value_val); debug debug
+    !output!             (crosscheck =value_crosscheck); debug
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BLOCK CHECK TARS INPUT IN INTERACTION PANEL FOR SUPPORT;;
@@ -1355,7 +1403,7 @@
     isa             task
     task-object     takeoff-clearance
     task-value      confirm
-    phase           encode-sound
+    stage           encode-sound
     =aural>
      isa            sound
      content        =content
@@ -1714,30 +1762,74 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PITOT-STATIC Switch - PITOT STATIC TASK ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p pitot-heat-is-already-on-according-to-tars
+(p pitot-heat-tars-input-is-on-and-trusted
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    pitot-static-switch
      task-value         pitot-static
+     crosscheck         no
+     tars-input         pitot-heat-is-on
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         pitot-heat-is-on
 ==>
     =goal>
-     phase		check-task-on-tars
+     phase		        check-task-on-tars
 )
-(spp pitot-heat-is-already-on-according-to-tars :u 2)
+(spp pitot-heat-tars-input-trusted :reward 2); TARS has been trusted, no crosscheck ==> is reinforced
+
+(p pitot-heat-tars-input-is-on-and-distrust
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     crosscheck         yes
+     tars-input         pitot-heat-is-on
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage              2
+)
+
+(p pitot-heat-tars-input-is-off
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-off
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage		        2
+)
+
+(p no-tars-input-on-pitot-heat
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+    tars-input          nil
+==>
+    =goal>
+    stage               2
+)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PITOT STATIC SWITCH ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-pitot-static-switch
    =goal>
 	isa		        task
 	phase		    perform-task
-    stage           1
+    stage           2
 	task-object	    pitot-static-switch
     task-value      pitot-static
     human-role      =value
@@ -1753,26 +1845,103 @@
     stage		    visual-encode-aircraft-component
 )
 
-(p form-pitot-heat-status-representation
+(p form-pitot-heat-status-representation-has-tars-input
    =goal>
-	isa		    task
-    phase        perform-task
+	isa		        task
+    phase           perform-task
+	stage		    form-representation-aircraft-component
     task-object	    pitot-static-switch
     task-value      pitot-static
-	stage		form-representation-aircraft-component
+    - tars-input      nil
     ?imaginal>
-    state        free
-
+    state           free
 !bind! =value (read_input pitot_heat)		; hard coded way to get the aircraft-component-status from X-Plane
-
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
 	component-name        pitot-switch
 	component-status      =value
    =goal>
-	stage		action
+	stage		          verify-tars-input
 )
+
+(p form-pitot-heat-status-representation-no-tars-input
+   =goal>
+    isa		        task
+    phase           perform-task
+    task-object	    pitot-static-switch
+    task-value      pitot-static
+    stage		    form-representation-aircraft-component
+    tars-input       nil
+    ?imaginal>
+    state           free
+!bind! =value (read_input pitot_heat)		; hard coded way to get the aircraft-component-status from X-Plane
+==>
+   +imaginal>
+    isa                   aircraft-component
+    component-name        pitot-switch
+    component-status      =value
+   =goal>
+    stage		          action
+)
+
+(p pitot-heat-status-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-on
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   true			; true means tars was reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp pitot-heat-status-correspond-to-tars-input :reward -2) ;it took unnecessary time to check TARS input
+
+(p pitot-heat-status-does-not-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-on
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   false			; true means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp pitot-heat-status-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
+;trusted in the future
+
+(p pitot-heat-status-correspond-to-tars-input-off
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-off
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   false			; false means tars was reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH THE PITOT HEAT TO ON ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pitot-heat-take-action		;PITOT-HEAT is OFF
@@ -1783,7 +1952,7 @@
     task-object	    pitot-static-switch
     task-value      pitot-static
    =imaginal>
-	isa		    component
+	isa		    aircraft-component
 	component-name		pitot-switch
 	- component-status				    true			; true means PITOT-HEAT is ON
    ?manual>
@@ -1815,7 +1984,7 @@
     task-object	            pitot-static-switch
     task-value              pitot-static
    =imaginal>
-	isa				            component
+	isa				            aircraft-component
     component-name		        pitot-switch
     component-status			true			; true means PITOT-HEAT is ON
 ==>
@@ -1833,11 +2002,9 @@
      stage              1
      task-object	    engine-anti-ice-switches
      task-value         as-required
+     tars-input         engine-anti-ice-is-on
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         engine-anti-ice-is-on
 ==>
     =goal>
      phase		check-task-on-tars
@@ -1852,15 +2019,13 @@
      stage              1
      task-object	    engine-anti-ice-switches
      task-value         as-required
+     tars-input         =value
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         =tars-input
 ==>
     =goal>
+     task-value         =value
      stage		        2
-     task-value         =tars-input
 )
 (spp engine-anti-ice-is-already-on-according-to-tars :u 2)
 
@@ -1909,7 +2074,7 @@
     state               free
 ==>
    +imaginal>
-    isa		            component
+    isa		            aircraft-component
     component-name      visible-moisture-present
     component-status    true
    =goal>
@@ -1949,7 +2114,7 @@
 !bind! =value (read_input l_eng_ai)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        left-engine-anti-ice-switch
     component-status      =value
    =goal>
@@ -1966,7 +2131,7 @@
     task-object	    engine-anti-ice-switches
     task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		left-engine-anti-ice-switch
     - component-status				    true			; true means ENGINE ANTI-ICE is ON
    ?manual>
@@ -1996,7 +2161,7 @@
      status             left
      task-object	    engine-anti-ice-switches
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        left-engine-anti-ice-switch
      component-status      true			; true means ENGINE ANTI-ICE is ON
 ==>
@@ -2050,7 +2215,7 @@
 !bind! =value (read_input r_eng_ai)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        right-engine-anti-ice-switch
     component-status      =value
    =goal>
@@ -2067,7 +2232,7 @@
     task-object	    engine-anti-ice-switches
     task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		right-engine-anti-ice-switch
     - component-status				    true			; true means ENGINE ANTI-ICE is ON
    ?manual>
@@ -2098,7 +2263,7 @@
      status             right
      task-object	    engine-anti-ice-switches
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name     right-engine-anti-ice-switch
      component-status   true			; true means ENGINE ANTI-ICE is ON
 ==>
@@ -2133,12 +2298,9 @@
      phase		        perform-task
      stage              1
      task-object	    windshield-anti-ice-switches
-     task-value         as-required
+     tars-input         windshield-anti-ice-is-on
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         windshield-anti-ice-is-on
 ==>
     =goal>
      phase		check-task-on-tars
@@ -2152,12 +2314,9 @@
      phase		        perform-task
      stage              1
      task-object	    windshield-anti-ice-switches
-     task-value         as-required
+     tars-input         =tars-input
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         =tars-input
 ==>
     =goal>
      stage		        2
@@ -2210,7 +2369,7 @@
     state               free
 ==>
    +imaginal>
-    isa		            component
+    isa		            aircraft-component
     component-name      visible-moisture-present
     component-status    true
    =goal>
@@ -2250,7 +2409,7 @@
 !bind! =value (read_input l_windsh_ai)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
     +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        left-windshield-anti-ice-switch
     component-status      =value
    =goal>
@@ -2267,7 +2426,7 @@
     task-object	    windshield-anti-ice-switches
     task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		left-windshield-anti-ice-switch
     - component-status				    true			; true means WINDSHIELD ANTI-ICE is ON
    ?manual>
@@ -2297,7 +2456,7 @@
      status             left
      task-object	    windshield-anti-ice-switches
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        left-windshield-anti-ice-switch
      component-status      true			; true means WINDSHIELD ANTI-ICE is ON
 ==>
@@ -2351,7 +2510,7 @@
 !bind! =value (read_input r_windsh_ai)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        right-windshield-anti-ice-switch
     component-status      =value
    =goal>
@@ -2368,7 +2527,7 @@
     task-object	    windshield-anti-ice-switches
     task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		right-windshield-anti-ice-switch
     - component-status				    true			; true means WINDSHIELD ANTI-ICE is ON
    ?manual>
@@ -2399,7 +2558,7 @@
      status             right
      task-object	    windshield-anti-ice-switches
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name     right-windshield-anti-ice-switch
      component-status   true			; true means WINDSHIELD ANTI-ICE is ON
 ==>
@@ -2428,30 +2587,74 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; PAX SAFETY Switch - PAX SAFETY task ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p pax-safety-is-already-on-according-to-tars
+(p pax-safety-tars-input-is-on-and-trusted
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    pax-safety-switch
      task-value         pax-safety
+     crosscheck         no
+     tars-input         pax-safety-switch-is-on
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         pax-safety-switch-is-on
 ==>
     =goal>
      phase		check-task-on-tars
 )
-(spp pax-safety-is-already-on-according-to-tars :u 2)
+(spp pax-safety-tars-input-is-on-and-trusted :reward 2); TARS has been trusted, no crosscheck ==> is reinforced
+
+(p pax-safety-tars-input-is-on-and-distrust
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     crosscheck         yes
+     tars-input         pax-safety-switch-is-on
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage               2
+)
+
+(p pax-safety-tars-input-is-off
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         pax-safety-switch-is-off
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    stage               2
+)
+
+(p no-tars-input-on-pax-safety
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input          nil
+==>
+    =goal>
+    stage               2
+)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PAX SAFETY SWITCH CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-pax-safety-switch
    =goal>
     isa		        task
     phase		    perform-task
-    stage           1
+    stage           2
     task-object	    pax-safety-switch
     task-value      pax-safety
     human-role      =value
@@ -2467,23 +2670,101 @@
     stage		    visual-encode-aircraft-component
 )
 
-(p form-pax-safety-status-representation
+(p form-pax-safety-status-representation-has-tars-input
    =goal>
     isa		        task
     phase           perform-task
     stage		    form-representation-aircraft-component
     task-object	    pax-safety-switch
     task-value      pax-safety
+    - tars-input      nil
     ?imaginal>
     state        free
 !bind! =value (read_input pax_safety)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        pax-safety-switch
     component-status      =value
    =goal>
-    stage		action
+    stage		          verify-tars-input
+)
+
+(p form-pax-safety-status-representation-no-tars-input
+   =goal>
+    isa		        task
+    phase           perform-task
+    task-object	    pax-safety-switch
+    task-value      pax-safety
+    stage		    form-representation-aircraft-component
+    tars-input       nil
+    ?imaginal>
+    state           free
+!bind! =value (read_input pax_safety)		; hard coded way to get the aircraft-component-status from X-Plane
+==>
+    +imaginal>
+    isa                   aircraft-component
+    component-name        pax-safety-switch
+    component-status      =value
+   =goal>
+    stage		          action
+)
+
+(p pax-safety-status-on-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         pax-safety-switch-is-on
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pax-safety-switch
+     component-status   2			; true means tars was reliable
+==>
+    =imaginal>
+    =goal>
+     phase               check-task-on-tars
+)
+(spp pax-safety-status-on-correspond-to-tars-input :reward -2) ;it took unnecessary time to check TARS input
+
+(p pax-safety-status-does-not-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         pax-safety-switch-is-on
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pax-safety-switch
+     - component-status   2			; true means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp pax-safety-status-on-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
+;trusted in the future
+
+(p pax-safety-status-correspond-to-tars-input-off
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         pax-safety-switch-is-off
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pax-safety-switch
+     - component-status   2			; false means tars was reliable
+==>
+    =imaginal>
+    =goal>
+    stage               action
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2495,21 +2776,21 @@
     task-object	    pax-safety-switch
     task-value      pax-safety
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		pax-safety-switch
-    - component-status				    true			; true means PAX SAFETY is ON
+    - component-status  2			; true means PAX SAFETY is ON
    ?manual>
     state		free
 ==>
    +manual>
     isa 			customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
-    name			agent-set-bool
+    name			agent-set-int
     preparation-duration	0.050
     initiation-duration	0.050
     execution-duration	1.0
     finish-duration		1.0
     para-1			pax_safety
-    para-2			true
+    para-2			2
     para-3
     para-4
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
@@ -2524,9 +2805,9 @@
      stage              action
      task-object	    pax-safety-switch
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        pax-safety-switch
-     component-status      true			; true means PAX SAFETY is ON
+     component-status      2			; true means PAX SAFETY is ON
 ==>
     =goal>
      phase		check-task-on-tars
@@ -2545,11 +2826,9 @@
      stage              1
      task-object	    landing-light-switch
      task-value         as-desired
+     tars-input         landing-lights-is-on
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         landing-lights-is-on
 ==>
     =goal>
      phase		check-task-on-tars
@@ -2564,15 +2843,13 @@
      stage              1
      task-object	    landing-light-switch
      task-value         as-desired
+     tars-input         =tars-input
     ?imaginal>
     state               free
-    =imaginal>
-     isa		        task
-     tars-input         =tars-input
 ==>
     =goal>
-     stage		        2
      task-value         =tars-input
+     stage		        2
 )
 (spp landing-lights-is-already-on-according-to-tars :u 2)
 
@@ -2582,7 +2859,7 @@
      phase		        perform-task
      stage              2
      task-object	    landing-light-switch
-     task-value         landing-lights-on
+     task-value         on-an-active-runway-to-enhance-visibility:-landing-lights-on
     ?imaginal>
     state               free
 ==>
@@ -2596,12 +2873,13 @@
      phase		        perform-task
      stage              2
      task-object	    landing-light-switch
-     - task-value       landing-lights-on
+     - task-value       on-an-active-runway-to-enhance-visibility:-landing-lights-on
     ?imaginal>
     state               free
 ==>
     =goal>
-     stage              3
+     phase		        check-task-on-tars
+     task-value         as-desired ;need to set it back otherwise it will read tars interface as a new task
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2635,7 +2913,7 @@
 !bind! =value (read_input landing_lights)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
     +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        landing-lights-switch
     component-status      =value
    =goal>
@@ -2650,9 +2928,9 @@
     stage		action
     task-object	    landing-light-switch
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		landing-lights-switch
-    - component-status				    true			; true means LANDING LIGHTS is ON
+    - component-status				    2			; 2 means LANDING LIGHTS is ON
    ?manual>
     state		free
 ==>
@@ -2680,9 +2958,9 @@
      stage              action
      task-object	    landing-light-switch
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        landing-lights-switch
-     component-status      true			; true means LANDING LIGHTS is ON
+     component-status      2			; true means LANDING LIGHTS is ON
 ==>
     =goal>
      phase		check-task-on-tars
@@ -2747,7 +3025,7 @@
 !bind! =value (read_input anti_coll_lights)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        anti-coll-light-switch
     component-status      =value
    =goal>
@@ -2763,7 +3041,7 @@
     task-object	    anti-coll-light-switch
     task-value      on
    =imaginal>
-    isa		    component
+    isa		    aircraft-component
     component-name		anti-coll-light-switch
     - component-status				    true			; true means ANTI-COLL LIGHT is ON
    ?manual>
@@ -2792,7 +3070,7 @@
      stage              action
      task-object	    anti-coll-light-switch
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        anti-coll-light-switch
      component-status      true			; true means ANTI-COLL LIGHT is ON
 ==>
@@ -2835,27 +3113,27 @@
     task-object	    eicas
     task-value      checked
     ?imaginal>
-    state        free
+    state           free
 ==>
    +imaginal>
-    isa                   component
-    component-name        eicas
-    component-status      clear
+    isa                 aircraft-component
+    component-name      eicas
+    component-status    no-alert
    =goal>
     stage		action
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p eicas-is-clear
    =goal>
-    isa		    task
-    phase		perform-task
-    stage		action
+    isa		        task
+    phase		    perform-task
+    stage		    action
     task-object	    eicas
     task-value      checked
    =imaginal>
-    isa		    component
+    isa		        aircraft-component
     component-name		eicas
-    component-status    clear
+    component-status    no-alert
    ?manual>
     state		free
 ==>
@@ -3103,7 +3381,7 @@
    =goal>
     stage               4
    +imaginal>
-    isa                 component
+    isa                 aircraft-component
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
@@ -3124,7 +3402,7 @@
     =goal>
     stage               4
    +imaginal>
-    isa                 component
+    isa                 aircraft-component
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
@@ -3144,7 +3422,7 @@
     =goal>
     stage               4
     +imaginal>
-    isa                 component
+    isa                 aircraft-component
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
@@ -3157,7 +3435,7 @@
      task-object	    select-altitude
      task-value         preset-as-cleared
     =imaginal>
-     isa                component
+     isa                aircraft-component
      component-name     selected-altitude
      desired-status     =value
    ?imaginal>
@@ -3180,7 +3458,7 @@
     task-object	    select-altitude
     task-value      preset-as-cleared
    =imaginal>
-    isa                component
+    isa                aircraft-component
     component-name     selected-altitude
     desired-status     =value-goal
     ?imaginal>
@@ -3190,7 +3468,7 @@
 
 ==>
    +imaginal>
-    isa                   component
+    isa                   aircraft-component
     component-name        selected-altitude
     component-status      =value
     desired-status        =value-goal
@@ -3206,7 +3484,7 @@
     task-object	        select-altitude
     task-value          preset-as-cleared
    =imaginal>
-    isa		            component
+    isa		            aircraft-component
     component-name      selected-altitude
     component-status    =value
     - desired-status       =value
@@ -3237,7 +3515,7 @@
      task-object	    select-altitude
      task-value         preset-as-cleared
     =imaginal>
-     isa		        component
+     isa		        aircraft-component
      component-name        selected-altitude
      component-status      =value
      desired-status        =value
@@ -3265,20 +3543,20 @@
     state       free
 ==>
     +manual>
-    isa         customized-manual-action
-    name        agent-set-impulsion
-    preparation-duration 0.050
-    initiation-duration  0.050
-    execution-duration   0.050
-    finish-duration      0.050
-    para-1               task_check
-    para-2               impulsion
-    para-3
-    para-4
+        isa                     customized-manual-action
+        name                    agent-set-impulsion
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  task_check
+        para-2                  impulsion
+        para-3
+        para-4
     =goal>
-    phase       reading-tars-interface
-    status      checked
-    stage       1
+        phase                   reading-tars-interface
+        status                  checked
+        stage                   1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;; END OF GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;

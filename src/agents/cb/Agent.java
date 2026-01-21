@@ -218,6 +218,7 @@ public class Agent implements IopListener, ServiceListener {
         try {
             // Create global context
             globalContext = new Global("ws://localhost:9009");
+            //globalContext = new Global("ws://192.168.0.13:9009");
             globalContext.observeWebSocketEvents(mainWindow);
 
             // Create the Ingescape agent
@@ -366,7 +367,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("r_throttle", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.outputCreate("flaps", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.outputCreate("landing_gear", IopType.IGS_DOUBLE_T);
-        ingescapeAgent.definition.outputCreate("pax_safety", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("pax_safety", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("flight_director", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("speed_mode_toggle", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("heading_mode_toggle", IopType.IGS_IMPULSION_T);
@@ -401,6 +402,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("task_check", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_cancel", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("push_to_talk", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("production_selected", IopType.IGS_STRING_T);
     }
 
     public void outputSetString(String name, String value) {
@@ -613,7 +615,9 @@ public class Agent implements IopListener, ServiceListener {
                             if (simulation != null) {
                                 // Split the message into words
                                 inputString = inputString.toLowerCase();
+                                inputString = inputString.replace(" ", "-");
                                 inputString = inputString.replace(",", "");
+                                inputString = inputString.replace("\"", "");
                                 inputString = inputString.replace(".", "");
                                 String[] words = inputString.trim().split("\\s+");
 

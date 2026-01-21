@@ -8435,6 +8435,7 @@ public class ServerLogics {
                             if (para_1.compareTo("nil") != 0) {
                                 sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round(SimSystem.clock(), 3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name + " action done with agent set impulsion " + para_1);
                             }
+                            break;
                       }
                     case "x-plane-init-mixture":{
                       try ( XPlaneConnect xpc = new XPlaneConnect()) {

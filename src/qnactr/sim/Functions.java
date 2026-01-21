@@ -46,8 +46,19 @@ import jmt.engine.NodeSections.Queue;
  */
 public class Functions {
   
-  QnactrSimulation sim;  
-  
+  QnactrSimulation sim;
+
+  private transient Agent agent;
+
+  private Agent agent(){
+      Agent a = agent;
+      if(a == null){
+          a = Agent.getInstance();
+          agent = a;
+      }
+      return a;
+  }
+
   public Functions(QnactrSimulation Sim){
     sim = Sim;
   }
@@ -833,8 +844,7 @@ public class Functions {
 
 		
 		if(sim.vars.animatorModule.Vocalize_Speech){
-            Agent agent = Agent.getInstance();
-            agent.outputSetString("speech_output", the_content);
+            agent().outputSetString("speech_output", the_content);
 		  System.out.println("TODO Sound_Plugin AnimatorModuleFun__Produce_Speech");
 		  
 		//TODO // Sound_Plugin.SelectVoiceForTextToSpeech("Microsoft Server Speech Text to Speech Voice (en-GB, Hazel)");   // (en-US, ZiraPro)
@@ -5300,218 +5310,217 @@ return return_string;
                   case "read_input":
                   {
                       //System.out.println("read_input parameter 1: " + para_1);
-                      Agent agent = Agent.getInstance();
                       // Map parameter name to agent attribute
                       switch (para_1) {
                           case "airspeed":
-                              return_string = String.valueOf(agent.airspeed_i);
+                              return_string = String.valueOf(agent().airspeed_i);
                               break;
                           case "altitude":
-                              return_string = String.valueOf(agent.altitude_i);
+                              return_string = String.valueOf(agent().altitude_i);
                               break;
                           case "pitch":
-                              return_string = String.valueOf(agent.pitch_i);
+                              return_string = String.valueOf(agent().pitch_i);
                               break;
                           case "roll":
-                              return_string = String.valueOf(agent.roll_i);
+                              return_string = String.valueOf(agent().roll_i);
                               break;
                           case "heading":
-                              return_string = String.valueOf(agent.heading_i);
+                              return_string = String.valueOf(agent().heading_i);
                               break;
                           case "elevator":
-                              return_string = String.valueOf(agent.elevator_i);
+                              return_string = String.valueOf(agent().elevator_i);
                               break;
                           case "rudder":
-                              return_string = String.valueOf(agent.rudder_i);
+                              return_string = String.valueOf(agent().rudder_i);
                               break;
                           case "aileron":
-                              return_string = String.valueOf(agent.aileron_i);
+                              return_string = String.valueOf(agent().aileron_i);
                               break;
                           case "l_throttle":
-                              return_string = String.valueOf(agent.l_throttle_i);
+                              return_string = String.valueOf(agent().l_throttle_i);
                               break;
                           case "r_throttle":
-                              return_string = String.valueOf(agent.r_throttle_i);
+                              return_string = String.valueOf(agent().r_throttle_i);
                               break;
                           case "slip":
-                              return_string = String.valueOf(agent.slip_i);
+                              return_string = String.valueOf(agent().slip_i);
                               break;
                           case "vertical_speed":
-                              return_string = String.valueOf(agent.vertical_speed_i);
+                              return_string = String.valueOf(agent().vertical_speed_i);
                               break;
                           case "flaps":
-                              return_string = String.valueOf(agent.flaps_i);
+                              return_string = String.valueOf(agent().flaps_i);
                               break;
                           case "landing_gear":
-                              return_string = String.valueOf(agent.landing_gear_i);
+                              return_string = String.valueOf(agent().landing_gear_i);
                               break;
                           case "spoilers":
-                              return_string = String.valueOf(agent.spoilers_i);
+                              return_string = String.valueOf(agent().spoilers_i);
                               break;
                           case "parking_brake":
-                              return_string = String.valueOf(agent.parking_brake_i);
+                              return_string = String.valueOf(agent().parking_brake_i);
                               break;
                           case "n1_match_bug":
-                              return_string = String.valueOf(agent.n1_match_bug_i);
+                              return_string = String.valueOf(agent().n1_match_bug_i);
                               break;
                           case "pax_safety":
-                              return_string = String.valueOf(agent.pax_safety_i);
+                              return_string = String.valueOf(agent().pax_safety_i);
                               break;
                           case "master_warning":
-                              return_string = String.valueOf(agent.master_warning_i);
+                              return_string = String.valueOf(agent().master_warning_i);
                               break;
                           case "master_caution":
-                              return_string = String.valueOf(agent.master_caution_i);
+                              return_string = String.valueOf(agent().master_caution_i);
                               break;
                           case "flight_director":
-                              return_string = String.valueOf(agent.flight_director_i);
+                              return_string = String.valueOf(agent().flight_director_i);
                               break;
                           case "flc_mode":
-                              return_string = String.valueOf(agent.flc_mode_i);
+                              return_string = String.valueOf(agent().flc_mode_i);
                               break;
                           case "heading_mode":
-                              return_string = String.valueOf(agent.heading_mode_i);
+                              return_string = String.valueOf(agent().heading_mode_i);
                               break;
                           case "l_fuel_boost":
-                              return_string = String.valueOf(agent.l_fuel_boost_i);
+                              return_string = String.valueOf(agent().l_fuel_boost_i);
                               break;
                           case "r_fuel_boost":
-                              return_string = String.valueOf(agent.r_fuel_boost_i);
+                              return_string = String.valueOf(agent().r_fuel_boost_i);
                               break;
                           case "test_knob":
-                              return_string = String.valueOf(agent.test_knob_i);
+                              return_string = String.valueOf(agent().test_knob_i);
                               break;
                           case "heading_sel":
-                              return_string = String.valueOf(agent.heading_sel_i);
+                              return_string = String.valueOf(agent().heading_sel_i);
                               break;
                           case "alt_sel":
-                              return_string = String.valueOf(agent.alt_sel_i);
+                              return_string = String.valueOf(agent().alt_sel_i);
                               break;
                           case "yaw_damper":
-                              return_string = String.valueOf(agent.yaw_damper_i);
+                              return_string = String.valueOf(agent().yaw_damper_i);
                               break;
                           case "l_ign_switch":
-                              return_string = String.valueOf(agent.l_ign_switch_i);
+                              return_string = String.valueOf(agent().l_ign_switch_i);
                               break;
                           case "r_ign_switch":
-                              return_string = String.valueOf(agent.r_ign_switch_i);
+                              return_string = String.valueOf(agent().r_ign_switch_i);
                               break;
                           case "l_gen_switch":
-                              return_string = String.valueOf(agent.l_gen_switch_i);
+                              return_string = String.valueOf(agent().l_gen_switch_i);
                               break;
                           case "r_gen_switch":
-                              return_string = String.valueOf(agent.r_gen_switch_i);
+                              return_string = String.valueOf(agent().r_gen_switch_i);
                               break;
                           case "transfer_knob":
-                              return_string = String.valueOf(agent.transfer_knob_i);
+                              return_string = String.valueOf(agent().transfer_knob_i);
                               break;
                           case "e1_n1":
-                              return_string = String.valueOf(agent.e1_n1_i);
+                              return_string = String.valueOf(agent().e1_n1_i);
                               break;
                           case "e2_n1":
-                              return_string = String.valueOf(agent.e2_n1_i);
+                              return_string = String.valueOf(agent().e2_n1_i);
                               break;
                           case "l_engine_fire":
-                              return_string = String.valueOf(agent.l_engine_fire_i);
+                              return_string = String.valueOf(agent().l_engine_fire_i);
                               break;
                           case "r_engine_fire":
-                              return_string = String.valueOf(agent.r_engine_fire_i);
+                              return_string = String.valueOf(agent().r_engine_fire_i);
                               break;
                           case "baro_setting":
-                              return_string = String.valueOf(agent.baro_setting_i);
+                              return_string = String.valueOf(agent().baro_setting_i);
                               break;
                           case "cabin_alt":
-                              return_string = String.valueOf(agent.cabin_alt_i);
+                              return_string = String.valueOf(agent().cabin_alt_i);
                               break;
                           case "l_gen_load":
-                              return_string = String.valueOf(agent.l_gen_load_i);
+                              return_string = String.valueOf(agent().l_gen_load_i);
                               break;
                           case "r_gen_load":
-                              return_string = String.valueOf(agent.r_gen_load_i);
+                              return_string = String.valueOf(agent().r_gen_load_i);
                               break;
                           case "pitot_heat":
-                              return_string = String.valueOf(agent.pitot_heat_i);
+                              return_string = String.valueOf(agent().pitot_heat_i);
                               break;
                           case "l_eng_ai":
-                              return_string = String.valueOf(agent.l_eng_ai_i);
+                              return_string = String.valueOf(agent().l_eng_ai_i);
                               break;
                           case "r_eng_ai":
-                              return_string = String.valueOf(agent.r_eng_ai_i);
+                              return_string = String.valueOf(agent().r_eng_ai_i);
                               break;
                           case "l_windsh_ai":
-                              return_string = String.valueOf(agent.l_windsh_ai_i);
+                              return_string = String.valueOf(agent().l_windsh_ai_i);
                               break;
                           case "r_windsh_ai":
-                              return_string = String.valueOf(agent.r_windsh_ai_i);
+                              return_string = String.valueOf(agent().r_windsh_ai_i);
                               break;
                           case "landing_lights":
-                              return_string = String.valueOf(agent.landing_lights_i);
+                              return_string = String.valueOf(agent().landing_lights_i);
                               break;
                           case "anti_coll_lights":
-                              return_string = String.valueOf(agent.anti_coll_lights_i);
+                              return_string = String.valueOf(agent().anti_coll_lights_i);
                               break;
                           case "trim_rudder":
-                              return_string = String.valueOf(agent.trim_rudder_i);
+                              return_string = String.valueOf(agent().trim_rudder_i);
                               break;
                           case "l_bottle_arm":
-                              return_string = String.valueOf(agent.l_bottle_arm_i);
+                              return_string = String.valueOf(agent().l_bottle_arm_i);
                               break;
                           case "r_bottle_arm":
-                              return_string = String.valueOf(agent.r_bottle_arm_i);
+                              return_string = String.valueOf(agent().r_bottle_arm_i);
                               break;
                           case "radio_frequency":
-                              return_string = String.valueOf(agent.radio_frequency_i);
+                              return_string = String.valueOf(agent().radio_frequency_i);
                               break;
                           case "ATC_msg":
-                              return_string = agent.getATCMsg();
+                              return_string = agent().getATCMsg();
                               break;
                           case "current_procedure":
-                              return_string = agent.getCurrentProcedure();
+                              return_string = agent().getCurrentProcedure();
                               break;
                           case "current_task_object":
-                              if (agent.getCurrentTaskObject().isBlank()){
+                              if (agent().getCurrentTaskObject().isBlank()){
                                   System.out.println("warning: current_task_object_is_blank");
                               }
-                              return_string = agent.getCurrentTaskObject();
+                              return_string = agent().getCurrentTaskObject();
                               break;
                           case "current_task_value":
-                              return_string = agent.getCurrentTaskValue();
+                              return_string = agent().getCurrentTaskValue();
                               break;
                           case "current_task_autonomy_role":
-                              return_string = agent.getCurrentTaskAutonomyRole();
+                              return_string = agent().getCurrentTaskAutonomyRole();
                               break;
                           case "current_task_human_role":
-                              return_string = agent.getCurrentTaskHumanRole();
+                              return_string = agent().getCurrentTaskHumanRole();
                               break;
                           case "next_state":
-                              return_string = agent.getNextState();
+                              return_string = agent().getNextState();
                               break;
                           case "previous_state":
-                              return_string = agent.getPreviousState();
+                              return_string = agent().getPreviousState();
                               break;
                           case "interaction_message":
-                              return_string = agent.getInteractionMessageField();
+                              return_string = agent().getInteractionMessageField();
                               break;
                           case "tars_input":
-                              return_string = agent.getInteractionTarsInput();
+                              return_string = agent().getInteractionTarsInput();
                               break;
                           case "chrono_time":
-                              return_string = String.valueOf(agent.chrono_time_i);
+                              return_string = String.valueOf(agent().chrono_time_i);
                               break;
                           case "runway_centerline_deviation":
-                              return_string = String.valueOf(agent.runway_centerline_deviation_i);
+                              return_string = String.valueOf(agent().runway_centerline_deviation_i);
                               break;
                           case "heading_deviation":
-                              return_string = String.valueOf(agent.heading_deviation_i);
+                              return_string = String.valueOf(agent().heading_deviation_i);
                               break;
                           case "lateral_deviation":
-                              return_string = String.valueOf(agent.lateral_deviation_i);
+                              return_string = String.valueOf(agent().lateral_deviation_i);
                               break;
                           case "birds":
-                              return_string = String.valueOf(agent.birds_i);
+                              return_string = String.valueOf(agent().birds_i);
                               break;
                           case "TARS_is_speaking":
-                              return_string = String.valueOf(agent.TARS_is_speaking_i);
+                              return_string = String.valueOf(agent().TARS_is_speaking_i);
                               break;
                           default:
                               System.out.println("Warning: Unknown input name: " + para_1);
@@ -16776,6 +16785,9 @@ return return_string;
 	  }
 	  else{ // there is a rule selected
 	    sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(), 3) + "\t" + "PROCEDURAL" + "\t" + "PRODUCTION-SELECTED " + the_rule_name);
+        //Benjamin output to ingescape for telemetry
+          agent().outputSetString("production_selected", the_rule_name);
+
 	    Enumeration enum_condition_item = Collections.enumeration(the_rule.Condition);
 	    while(enum_condition_item.hasMoreElements()){
 	      Production_Rule_Condition_Action_Item currentItem = (Production_Rule_Condition_Action_Item)enum_condition_item.nextElement();

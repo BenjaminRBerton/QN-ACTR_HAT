@@ -17,6 +17,9 @@ Need to be careful there seems to be a problem with ?aural> state free
 because evaluating it on the LHS doesn't prevent from attending a new sound
 while the previous was not yet recoded.
 
+ingescape bug when the platform is on another computer, the callback are not registered except if line 16789 of function.java
+is uncommented...
+
 There is no implementation of the modification request to the imaginal buffer *imaginal> which means
 that only =imaginal> can be used but it is not taking into account process time and workload.
 
