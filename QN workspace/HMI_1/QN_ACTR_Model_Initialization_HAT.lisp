@@ -964,24 +964,62 @@
 	stage		1
 )
 
-(p x-4-na-task-go-back-to-wait-for-start-command
+(p x-4-not-wait-task
    =goal>
     isa		    task
     phase		reading-tars-interface
     stage       4
+   =imaginal>
+    - task-value	waiting
+==>
+    =imaginal>
+    =goal>
+    stage		5
+)
+
+(p x-5-na-value-task-go-back-to-wait-for-start-command
+   =goal>
+    isa		    task
+    phase		reading-tars-interface
+    stage       5
    =imaginal>
     task-value	n-a
 ==>
     =goal>
     stage		1
 )
-(spp x-4-na-task-go-back-to-wait-for-start-command :u 10) ; need to be higher to capture
+
+(p x-5-na-object-task-go-back-to-wait-for-start-command
+   =goal>
+    isa		    task
+    phase		reading-tars-interface
+    stage       5
+   =imaginal>
+    task-object	n-a
+==>
+    =goal>
+    stage		1
+)
+
+(p x-5-not-n-a-task-continue
+    =goal>
+     isa		    task
+     phase		reading-tars-interface
+     stage       5
+    =imaginal>
+     - task-object	n-a
+     - task-value	n-a
+==>
+    =goal>
+     stage		6
+    =imaginal>
+)
 ;; IF TASK NOT CHANGED AND ALLOCATED TO TARS READ AGAIN
-(p x-4-human-not-performer-of-task
+(p x-6-human-not-performer-of-task
    =goal>
     isa		        task
     phase           reading-tars-interface
-    stage		    4
+    stage		    6
     status          wait-teammate
     task-object     =value_obj
     task-value      =value_val
@@ -997,14 +1035,14 @@
 ;; ELSE IF NOT TASK WAITING AND THE TASK REPRESENTATION FORMED IS DIFFERENT FROM GOAL
 ;; THEN PROCEED TO NEXT STEPS TO READ TASK ALLOCATION INFORMATION
 ; visually attend to current task human role on TARS interface
-(p x-4-not-waiting-new-task-value
+(p x-6-not-waiting-new-task-value
     =imaginal>
     task-value      =value_val
     - task-value    waiting
    =goal>
-	isa		    task
-    phase       reading-tars-interface
-	stage		4
+	isa		        task
+    phase           reading-tars-interface
+	stage		    6
     - task-value   =value_val
 ==>
    =imaginal>
@@ -1017,14 +1055,14 @@
     status          nil
 )
 
-(p x-4-not-waiting-new-task-object ; alternative version to capture both task-object and task-value changes
+(p x-6-not-waiting-new-task-object ; alternative version to capture both task-object and task-value changes
     =imaginal>
     - task-value    waiting
     task-object	    =value_obj
    =goal>
-    isa		    task
-    phase       reading-tars-interface
-    stage		4
+    isa		        task
+    phase           reading-tars-interface
+    stage		    6
     - task-object   =value_obj
 ==>
     =imaginal>
@@ -1037,14 +1075,14 @@
     status          nil
 )
 
-(p x-4-not-waiting-new-task-both ; alternative version to capture both task-object and task-value changes
+(p x-6-not-waiting-new-task-both ; alternative version to capture both task-object and task-value changes
     =imaginal>
     task-object	    =value_obj
     task-value      =value_val
    =goal>
-    isa		    task
-    phase       reading-tars-interface
-    stage		4
+    isa		        task
+    phase           reading-tars-interface
+    stage		    6
     - task-object   =value_obj
     - task-value    =value_val
 ==>
@@ -1058,7 +1096,7 @@
     stage           1
     status          nil
 )
-(spp x-4-not-waiting-new-task-both :u 10) ; need to be higher to capture both in priority
+(spp x-6-not-waiting-new-task-both :u 100) ; need to be higher to capture both in priority
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK READING TARS INTERFACE for new task;;;;;;;
@@ -1986,7 +2024,7 @@
 (spp pitot-heat-status-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p pitot-heat-status-correspond-to-tars-input-off
+(p pitot-heat-status-correspond-to-tars-input-off-and-crossheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -1994,6 +2032,7 @@
      task-object	    pitot-static-switch
      task-value         pitot-static
      tars-input         pitot-heat-is-off
+     crosscheck         yes
     =imaginal>
      isa		        aircraft-component
      component-name		pitot-switch
@@ -2003,6 +2042,27 @@
     =goal>
      stage               action
 )
+(spp pitot-heat-status-correspond-to-tars-input-off-and-crossheck :reward -2)
+
+(p pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-off
+     crosscheck         no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   false			; true means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck :reward 2)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH THE PITOT HEAT TO ON ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2823,7 +2883,7 @@
 (spp pax-safety-status-on-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p pax-safety-status-correspond-to-tars-input-off
+(p pax-safety-status-correspond-to-tars-input-off-and-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -2831,6 +2891,7 @@
      task-object	    pax-safety-switch
      task-value         pax-safety
      tars-input         pax-safety-switch-is-off
+     crosscheck         yes
     =imaginal>
      isa		        aircraft-component
      component-name		pax-safety-switch
@@ -2840,6 +2901,27 @@
     =goal>
     stage               action
 )
+(spp pax-safety-status-correspond-to-tars-input-off-and-crosscheck :reward -2)
+
+(p pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         pax-safety-switch-is-off
+     crosscheck         no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pax-safety-switch
+     component-status   2			; false means tars was reliable
+==>
+    =imaginal>
+    =goal>
+     stage              action
+)
+(spp pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck :reward 2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pax-safety-take-action		;PAX SAFETY is OFF
@@ -3219,7 +3301,7 @@
 (spp anti-coll-light-status-on-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p anti-coll-light-status-correspond-to-tars-input-off
+(p anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -3227,6 +3309,7 @@
      task-object	    anti-coll-light-switch
      task-value         on
      tars-input         anti-collision-lights-are-off
+     crosscheck         yes
     =imaginal>
      isa		        aircraft-component
      component-name		anti-coll-light-switch
@@ -3236,7 +3319,27 @@
     =goal>
     stage               action
 )
+(spp anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck :reward -2)
 
+(p anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    anti-coll-light-switch
+     task-value         on
+     tars-input         anti-collision-lights-are-off
+     crosscheck         no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		anti-coll-light-switch
+     - component-status   true			; false means tars was reliable
+==>
+    =imaginal>
+    =goal>
+    stage               action
+)
+(spp anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck :reward 2)
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p anti-coll-light-take-action		;ANTI-COLL LIGHT is OFF
    =goal>
@@ -3538,7 +3641,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;; Select Altitude - PRESET AS CLEARTED Task ;;;;;;;;;;;;;
+;;;;;; Select Altitude - PRESET AS CLEARED Task ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p retrieve-takeof-clearance
     =goal>
@@ -3740,11 +3843,215 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p check-1-visually-attend-current-task-object
+   =goal>
+	isa		    task
+	phase		check-task-on-tars
+    stage       1
+   ?visual>
+	state		free
+   ?imaginal>
+	state		free
+   ?manual>
+	state		free
+   ?vocal>
+    state		free
+==>
+   +visual-location>
+	isa		visual-location
+	screen-x	350			; representing current task label x-coordinate on TARS interface in the scene
+	screen-y	990         ; representing current task label y-coordinate on TARS interface in the scene
+   =goal>
+	stage		2
+)
+;; visually encode current task on TARS interface
+(p check-2-visually-encode-task-object-item
+   =goal>
+	isa		    task
+	phase		check-task-on-tars
+    stage       2
+   =visual-location>
+   ?visual>
+	state		free
+==>
+   +visual>
+	isa		move-attention
+	screen-pos	=visual-location
+   =goal>
+	stage		3
+)
+;; form task item representation in imaginal buffer
+(p check-3-form-task-object-item-representation
+   =goal>
+	isa		    task
+	phase		check-task-on-tars
+    stage       3
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+	state		free
+!bind! =value (read_input current_task_object)		; hard coded way to get the checklist item from TARS interface
+==>
+   +imaginal>
+	isa		    task
+	task-object	=value ; is getting the value from agent.current_task_object
+   =goal>
+	stage		check-2-1
+)
+
+(p check-2-1-visually-attend-current-task-value
+   =goal>
+    isa		    task
+    phase		check-task-on-tars
+    stage       check-2-1
+   ?visual>
+    state		free
+   ?imaginal>
+    state		free
+   ?manual>
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	350			; representing current task value label x-coordinate on TARS interface in the scene
+    screen-y	1010        ; representing current task value label y-coordinate on TARS interface in the scene
+   =goal>
+    stage		check-2-2
+)
+;; visually encode current task value on TARS interface
+(p 2-2-visually-encode-task-value-item
+   =goal>
+    isa		    task
+    phase		check-task-on-tars
+    stage       check-2-2
+   =visual-location>
+   ?visual>
+    state		free
+==>
+   +visual>
+    isa		move-attention
+    screen-pos	=visual-location
+   =goal>
+    stage		check-2-3
+)
+;; form task value item representation in imaginal buffer
+(p 2-3-form-task-value-item-representation
+   =goal>
+    isa		    task
+    phase		check-task-on-tars
+    stage       check-2-3
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+    state		free
+   =imaginal>
+    task-object	=value_obj
+!bind! =value (read_input current_task_value)		; hard coded way to get the checklist item from TARS interface
+==>
+   +imaginal>
+    isa		    task
+    task-object	=value_obj ; is getting the value from imaginal buffer
+    task-value	=value ; is getting the value from agent.current_task_value
+   =goal>
+    stage		4
+)
+
+(p task-was-autochecked-new-task-object
+    =goal>
+    isa             task
+    phase           check-task-on-tars
+    stage           4
+    task-object     =task-object
+    task-value      =task-value
+    human-role      =human-role
+    autonomy-role   =autonomy-role
+    tars-input      =tars-input
+    crosscheck      =crosscheck
+   ?imaginal>
+    state           free
+    =imaginal>
+   - task-object    =task-object
+==>
+    =goal>
+    phase           reading-tars-interface
+    stage           1
+    status          checked
+    +imaginal>
+    isa             task
+    task-object     =task-object
+    task-value      =task-value
+    human-role      =human-role
+    autonomy-role   =autonomy-role
+    tars-input      =tars-input
+    crosscheck      =crosscheck
+    status          checked
+    !output! (task-object =task-object)
+    !output! (task-value =task-value)
+    !output! (status =status)
+    !output! (human-role =human-role)
+    !output! (autonomy-role =autonomy-role)
+    !output! (tars-input =tars-input)
+    !output! (crosscheck =crosscheck)
+)
+
+(p task-was-autochecked-new-task-value
+    =goal>
+    isa             task
+    phase           check-task-on-tars
+    stage           4
+    task-value     =task-value
+    task-object    =task-object
+    human-role      =human-role
+    autonomy-role   =autonomy-role
+    tars-input      =tars-input
+    crosscheck      =crosscheck
+   ?imaginal>
+    state           free
+    =imaginal>
+   - task-value     =task-value
+==>
+    =goal>
+    phase           reading-tars-interface
+    stage           1
+    status          checked
+    +imaginal>
+    isa             task
+    task-object     =task-object
+    task-value      =task-value
+    human-role      =human-role
+    autonomy-role   =autonomy-role
+    tars-input      =tars-input
+    crosscheck      =crosscheck
+    status          checked
+    !output! (task-object =task-object)
+    !output! (task-value =task-value)
+    !output! (status =status)
+    !output! (human-role =human-role)
+    !output! (autonomy-role =autonomy-role)
+    !output! (tars-input =tars-input)
+    !output! (crosscheck =crosscheck)
+)
+
+(p task-was-not-autochecked-no-change
+    =goal>
+    isa             task
+    phase           check-task-on-tars
+    stage           4
+    task-object     =task-object
+    task-value      =task-value
+   ?imaginal>
+    state           free
+    =imaginal>
+     task-object    =task-object
+     task-value     =task-value
+==>
+    =goal>
+    stage           5
+)
+
 (p check-task-on-tars
     =goal>
     isa         task
     phase       check-task-on-tars
-    stage       1
+    stage       5
     ?imaginal>
     state       free
     ?visual>
@@ -3768,14 +4075,14 @@
         para-3
         para-4
     =goal>
-        stage                   2
+        stage                   6
 )
 
 (p subvocalize-check-task-on-tars
     =goal>
     isa         task
     phase       check-task-on-tars
-    stage       2
+    stage       6
    ?vocal>
     state       free
    ?manual>
@@ -3783,11 +4090,48 @@
 ==>
     +vocal>
     cmd         subvocalize
-    string      check
+    string      check-task-on-tars-interface
     =goal>
-    phase       reading-tars-interface
+    stage       7
     status      checked
-    stage       1
+)
+
+(p form-task-done
+    =goal>
+    isa             task
+    phase           check-task-on-tars
+    stage           7
+    task-object     =task-object
+    task-value      =task-value
+    status          =status
+    human-role      =human-role
+    autonomy-role   =autonomy-role
+    tars-input      =tars-input
+    crosscheck      =crosscheck
+   ?imaginal>
+    state           free
+   ?manual>
+    state           free
+==>
+   +imaginal>
+    isa            task
+    task-object    =task-object
+    task-value     =task-value
+    status         =status
+    human-role     =human-role
+    autonomy-role  =autonomy-role
+    tars-input     =tars-input
+    crosscheck     =crosscheck
+    =goal>
+    phase          reading-tars-interface
+    stage          1
+    !output! (task-object =task-object)
+    !output! (task-value =task-value)
+    !output! (status =status)
+    !output! (human-role =human-role)
+    !output! (autonomy-role =autonomy-role)
+    !output! (tars-input =tars-input)
+    !output! (crosscheck =crosscheck)
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;; END OF GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;

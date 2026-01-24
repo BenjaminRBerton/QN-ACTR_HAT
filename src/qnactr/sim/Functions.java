@@ -5479,7 +5479,7 @@ return return_string;
                               break;
                           case "current_task_object":
                               if (agent().getCurrentTaskObject().isBlank()){
-                                  System.out.println("warning: current_task_object_is_blank");
+                                  //System.out.println("warning: current_task_object_is_blank");
                               }
                               return_string = agent().getCurrentTaskObject();
                               break;
