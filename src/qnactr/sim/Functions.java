@@ -6,6 +6,7 @@
 package qnactr.sim;
 
 import agents.cb.Agent;
+import seev.seev;
 import gov.nasa.xpc.XPlaneConnect;
 import qnactr.objectDesigner.*;
 
@@ -5185,6 +5186,7 @@ return return_string;
 	        case "unity-tangtang-update-status":
 	        case "x-plane-getdref":
             case "read_input":
+            case "seev_get_next_aoi":
 
 	        { //accept only 1 parameter.
 	          if ( content_list.size() < 1 ) { //nothing there, error
@@ -5533,6 +5535,19 @@ return return_string;
                       return_string = return_string.replace(" ", "-").toLowerCase();
                       break;
                   }
+                  case "seev_get_next_aoi": {
+                      if (Objects.equals(para_1, "x")) {
+                          // This draws a NEW AOI and caches it
+                          return_string = String.valueOf(seev.drawRandomAOI_X());
+                      } else if (Objects.equals(para_1, "y")) {
+                          // This uses the CACHED AOI from the last X call
+                          return_string = String.valueOf(seev.getFromCachedAOI_Y());
+                      } else {
+                          return_string = seev.drawRandomAOI();
+                      }
+                      break;
+                  }
+
 	            default:{
 	              System.out.println("Error! LispFun__Evaluate_A_List has undefined function name inside the 1 parameter number function group: " + function_name);
 	              return null;
