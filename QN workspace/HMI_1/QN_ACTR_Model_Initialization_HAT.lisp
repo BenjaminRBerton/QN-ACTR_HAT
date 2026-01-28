@@ -372,7 +372,7 @@
     )
     (
 	:item_type					display_item_visual_text_button
-	:visual_text					("L_TRHOTTLE")
+	:visual_text					("L_THROTTLE")
 	:display_item_screen_location_x			(2020)
 	:display_item_screen_location_y			(1330)
     :display_item_width		                (20)
@@ -394,7 +394,7 @@
     :display_item_width		                (20)
     :display_item_height		            (20)
     )
-    ;;Navigation Display
+    ;;Navigation Display ND nd
     (
 	:item_type					display_item_visual_text
 	:visual_text					("N1%")
@@ -623,6 +623,7 @@
 	:visual-attention-latency	0.085	;This parameter specifies how long a visual attention shift will take in seconds.  The default value is .085.
 	:imaginal-delay			0.2	;a non-negative number	The imaginal-delay parameter controls how long it takes a request or modification request to the imaginal buffer to complete.  It can be set to a non-negative time (in seconds) and defaults to .2.
     :ul             t    ; disable the utility learning mechanism
+    :alpha          0.2
 )
 
 
@@ -651,6 +652,36 @@
     desired-status
 )
 
+(chunk-type aviate-situation
+    pitch
+    roll
+    slip
+    altitude
+    airspeed
+    vertical-speed
+)
+
+(chunk-type navigate-situation
+    lateral-deviation
+    heading-deviation
+)
+
+(chunk-type eicas-situation
+    e1-n1
+    e2-n1
+    cas
+)
+
+(chunk-type throttle-situation
+    left-throttle-position
+    right-throttle-position
+)
+
+(chunk-type outside-world-situation
+    birds
+    runway-centerline-deviation
+)
+
 (chunk-type  clearance
     procedure
     sender
@@ -666,6 +697,10 @@
 
 (chunk-type callsign
     content
+)
+
+(chunk-type aoi
+    name
 )
 
 (chunk-type word
@@ -707,7 +742,7 @@
         procedure       IDLE
 		task-object	    Idle
         task-value      Waiting
-        phase           reading-tars-interface
+        phase           attend-aoi
         stage           1
 	)
     (current-wind-belief
@@ -755,6 +790,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; process incoming aural information except from self, can happen at any time
 (p detected-sound
    =aural-location>
@@ -764,6 +800,8 @@
      state          free
    ?retrieval>
      state          free
+   ?imaginal>
+     state          free
    ==>
    +aural>
      event          =aural-location
@@ -771,6 +809,7 @@
     stage           encode-sound
 )
 (spp detected-sound :u 1) ; is a salient production
+
 ; encode sound and location of sound into imaginal buffer
 (p sound-from-self-resume-task
     =goal>
@@ -783,24 +822,25 @@
     =goal>
     stage       1
 )
-(spp sound-from-self-resume-task :u 10) ; need to be higher to capture
+(spp sound-from-self-resume-task :u 100) ; need to be higher to capture
+;(spp sound-from-self-resume-task :fixed-utility t)
 
 (p encode-sound
+   ?imaginal>
+    state       free
    =goal>
     stage   encode-sound
    =aural>
      isa     sound
      content   =content
      location  =location
-   ==>
+==>
    +imaginal>
      isa        sound
      content    =content
      location   =location
-     !output!   (=location); debug
-     !output!   (=content); debug
     =goal>
-    stage        sound-encoded
+     stage        sound-encoded
 )
 
 (p sound-encoded-from-tars
@@ -815,67 +855,758 @@
     =goal>
      stage       1
 )
+
+(p sound-encoded-from-atc-not-performer
+   =goal>
+    stage           sound-encoded
+    task-object   takeoff-clearance
+    - human-role    performer
+    ?imaginal>
+        state       free
+   =imaginal>
+     isa         sound
+     location    atc
+     content     =content
+==>
+    !output!    (=content); debug
+    =goal>
+     stage       1
+)
+
+(p sound-encoded-from-atc-not-in-atc-task
+   =goal>
+    stage           sound-encoded
+    - task-object   takeoff-clearance
+    ?imaginal>
+    state           free
+   =imaginal>
+     isa         sound
+     location    atc
+     content     =content
+==>
+    !output!    (=content); debug
+    =goal>
+     stage       1
+)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; READING TARS INTERFACE TO GET CURRENT TASK TO PERFORM;;;;
+;;;;;;; SEEV ATTEND TO AoI SWITCH BLOCK ;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; visually attend to current task on TARS interface
-(p x-1-visually-attend-current-task-object
+(p get-where-should-i-look-next
+    =goal>
+     isa        task
+     phase      attend-aoi
+     stage      1
+    ?visual>
+     state      free
+    ?imaginal>
+     state      free
+    ?manual>
+    state       free
+    ?vocal>
+    state       free
+    !bind! =aoi_x (seev_get_next_aoi x)
+    !bind! =aoi_y (seev_get_next_aoi y)
+==>
+    +visual-location>
+     isa        visual-location
+     screen-x   =aoi_x
+     screen-y   =aoi_y
+    =goal>
+     stage      2
+    !output!    (=aoi_x) ; debug
+    !output!    (=aoi_y) ; debug
+)
+
+(p attend-to-next-aoi
+    =goal>
+     isa        task
+     phase      attend-aoi
+     stage      2
+    =visual-location>
+    ?visual>
+     state      free
+==>
+    +visual>
+     isa        move-attention
+     screen-pos =visual-location
+    =goal>
+     stage      3
+)
+
+(p encode-aoi-information
+    =goal>
+     isa        task
+     phase      attend-aoi
+     stage      3
+    =visual>
+    value       =value
+    ?imaginal>
+     state      free
+==>
+    =goal>
+    phase       attending-aoi
+    stage       1
+    +imaginal>
+     isa        aoi
+     name       =value
+    !output!    (=value) ; debug
+)
+
+(p attending-aoi-imaginal-empty
+    =goal>
+     isa		 task
+     phase       attending-aoi
+     stage       1
+    ?imaginal>
+     buffer      empty
+     state       free
+==>
+    =goal>
+    phase       attend-aoi
+    stage       1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; END SEEV ATTEND TO AoI SWITCH BLOCK ;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; AoI PFD - construct Aviate Situation-Awareness;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p x-3-form-pfd-aoi-representation
    =goal>
-	isa		    task
-	phase		reading-tars-interface
+    isa		    task
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "PITCH"
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+    state		free
+!bind! =value (read_input pitch)		; hard coded way to get the checklist item from PFD AoI
+==>
+   +imaginal>
+    isa		    aviate-situation
+    pitch       =value ; is getting the value from agent.pfd_pitch
+   =goal>
+    phase       read-pfd
+    stage		1
+)
+
+(p resume-read-pfd-task
+    =goal>
+    phase       read-pfd
+    stage       1
+    ?imaginal>
+    buffer      empty
+    state       free
+!bind! =value_pitch (read_input pitch)		; hard coded way to get the checklist item from PFD AoI
+==>
+    +imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch ; is getting the value from imaginal buffer
+)
+
+(p visually-attend-pfd-roll
+   =goal>
+    isa		    task
+    phase		read-pfd
     stage       1
    ?visual>
-	state		free
+    state		free
    ?imaginal>
-	state		free
-   ?manual>
-	state		free
-   ?vocal>
+    state		free
+    - buffer    empty
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1200			; representing roll label x-coordinate on PFD AoI in the scene
+    screen-y	750         ; representing roll label y-coordinate on PFD AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-pfd-roll-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch
+    roll            nil
+    slip            nil
+    altitude        nil
+    airspeed        nil
+    vertical-speed  nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input roll)		; hard coded way to get the checklist item from PFD AoI
+==>
+   +imaginal>
+    isa		    aviate-situation
+    pitch       =value_pitch ; is getting the value from imaginal buffer
+    roll        =value ; is getting the value from agent.pfd_roll
+    =goal>
+    stage		2
+)
+
+(p visually-attend-pfd-slip
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       2
+   ?visual>
+    state		free
+   ?imaginal>
     state		free
 ==>
-   +visual-location>
-	isa		visual-location
-	screen-x	350			; representing current task label x-coordinate on TARS interface in the scene
-	screen-y	990         ; representing current task label y-coordinate on TARS interface in the scene
+    +visual-location>
+    isa		visual-location
+    screen-x	1260			; representing slip label x-coordinate on PFD AoI in the scene
+    screen-y	690         ; representing slip label y-coordinate on PFD AoI in the scene
    =goal>
-	stage		2
+    stage       visual-encode-aircraft-component
 )
-;; visually encode current task on TARS interface
-(p x-2-visually-encode-task-object-item
+
+(p form-pfd-slip-aoi-representation
    =goal>
-	isa		    task
-	phase		reading-tars-interface
-    stage       2
-   =visual-location>
-   ?visual>
-	state		free
+    isa		    task
+    phase		read-pfd
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch
+    roll        =value_roll
+    slip            nil
+    altitude        nil
+    airspeed        nil
+    vertical-speed  nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input slip)		; hard coded way to get the checklist item from PFD AoI
 ==>
-   +visual>
-	isa		move-attention
-	screen-pos	=visual-location
-   =goal>
-	stage		3
+   +imaginal>
+    isa		    aviate-situation
+    pitch       =value_pitch ; is getting the value from imaginal buffer
+    roll        =value_roll ; is getting the value from imaginal buffer
+    slip        =value ; is getting the value from agent.pfd_slip
+    =goal>
+    stage        3
 )
+
+(p visually-attend-pfd-altitude
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       3
+   ?visual>
+    state		free
+   ?imaginal>
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1350			; representing altitude label x-coordinate on PFD AoI in the scene
+    screen-y	750         ; representing altitude label y-coordinate on PFD AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-pfd-altitude-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch
+    roll        =value_roll
+    slip        =value_slip
+    altitude        nil
+    airspeed        nil
+    vertical-speed  nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input altitude)		; hard coded way to get the checklist item from PFD AoI
+==>
+   +imaginal>
+    isa		    aviate-situation
+    pitch       =value_pitch ; is getting the value from imaginal buffer
+    roll        =value_roll ; is getting the value from imaginal buffer
+    slip        =value_slip ; is getting the value from imaginal buffer
+    altitude    =value ; is getting the value from agent.pfd_altitude
+    =goal>
+    stage       4
+)
+
+(p visually-attend-pfd-airspeed
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       4
+   ?visual>
+    state		free
+   ?imaginal>
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1170			; representing airspeed label x-coordinate on PFD AoI in the scene
+    screen-y	750         ; representing airspeed label y-coordinate on PFD AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-pfd-airspeed-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-pfd
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch
+    roll        =value_roll
+    slip        =value_slip
+    altitude    =value_altitude
+    airspeed        nil
+    vertical-speed  nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input airspeed)		; hard coded way to get the checklist item from PFD AoI
+==>
+   +imaginal>
+    isa		    aviate-situation
+    pitch       =value_pitch ; is getting the value from imaginal buffer
+    roll        =value_roll ; is getting the value from imaginal buffer
+    slip        =value_slip ; is getting the value from imaginal buffer
+    altitude    =value_altitude ; is getting the value from imaginal buffer
+    airspeed    =value ; is getting the value from agent.pfd_airspeed
+    =goal>
+    phase       attend-aoi
+    stage		1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; End of AoI PFD - construct Aviate Situation-Awareness ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; AoI ND - construct Navigate Situation-Awareness ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p x-3-form-nd-aoi-representation
+   =goal>
+    isa		    task
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "LATERAL_DEVIATION"
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+    state		free
+!bind! =value (read_input lateral_deviation)		; hard coded way to get the checklist item from ND AoI
+==>
+    +imaginal>
+    isa		    navigate-situation
+    lateral-deviation       =value ; is getting the value from agent.nd_lateral_deviation
+   =goal>
+    phase       read-nd
+    stage		1
+)
+
+(p resume-read-nd-task
+    =goal>
+    phase       read-nd
+    stage       1
+    ?imaginal>
+    buffer      empty
+    state       free
+!bind! =value_lateral_deviation (read_input lateral_deviation)		; hard coded way to get the checklist item from ND AoI
+==>
+    +imaginal>
+    isa         navigate-situation
+    lateral-deviation       =value_lateral_deviation ; is getting the value from imaginal buffer
+)
+
+(p visually-attend-nd-heading-deviation
+   =goal>
+    isa		    task
+    phase		read-nd
+    stage       1
+   ?visual>
+    state		free
+   ?imaginal>
+    - buffer    empty
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1880			; representing heading deviation label x-coordinate on ND AoI in the scene
+    screen-y	850         ; representing heading deviation label y-coordinate on ND AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-nd-heading-deviation-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-nd
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         navigate-situation
+    lateral-deviation       =value_lateral_deviation
+    heading-deviation       nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input heading_deviation)		; hard coded way to get the checklist item from ND AoI
+==>
+   +imaginal>
+    isa		    navigate-situation
+    lateral-deviation       =value_lateral_deviation ; is getting the value from imaginal buffer
+    heading-deviation       =value ; is getting the value from agent.nd_heading_deviation
+    =goal>
+    phase       attend-aoi
+    stage		1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; end of AoI ND - construct Navigate Situation-Awareness ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; AoI E/WD - construct eicas situation ;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p x-3-form-eicas-aoi-representation
+   =goal>
+    isa		    task
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "CAS"
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+    state		free
+==>
+    +imaginal>
+     isa		    eicas-situation
+     cas            clear ; is getting the value from agent.eicas_cas
+    =goal>
+     phase       read-eicas
+     stage		1
+)
+
+(p resume-read-eicas-task
+    =goal>
+    phase       read-eicas
+    stage       1
+    ?imaginal>
+    buffer      empty
+    state       free
+==>
+    +imaginal>
+    isa         eicas-situation
+    cas         clear ; is getting the value from imaginal buffer
+)
+
+(p visually-attend-eicas-n1-percent
+   =goal>
+    isa		    task
+    phase		read-eicas
+    stage       1
+   ?visual>
+    state		free
+   ?imaginal>
+    - buffer    empty
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1600			; representing n1 percent label x-coordinate on E/WD AoI in the scene
+    screen-y	760         ; representing n1 percent label y-coordinate on E/WD AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-eicas-e1-n1-percent-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-eicas
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         eicas-situation
+    cas         =value_cas
+    e1-n1      nil
+    e2-n1      nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input e1_n1)		; hard coded way to get the checklist item from E/WD AoI
+==>
+   +imaginal>
+    isa		    eicas-situation
+    cas         =value_cas ; is getting the value from imaginal buffer
+    e1-n1  =value ; is getting the value from agent.eicas_n1_percent
+    =goal>
+    stage		2
+)
+
+(p visually-attend-eicas-e2-n1-percent
+   =goal>
+    isa		    task
+    phase		read-eicas
+    stage       2
+   ?visual>
+    state		free
+   ?imaginal>
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1630			; representing n2 percent label x-coordinate on E/WD AoI in the scene
+    screen-y	760         ; representing n2 percent label y-coordinate on E/WD AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-eicas-e2-n1-percent-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-eicas
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         eicas-situation
+    cas         =value_cas
+    e1-n1  =value_n1_percent
+    e2-n1      nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input e2_n1)		; hard coded way to get the checklist item from E/WD AoI
+==>
+   +imaginal>
+    isa		    eicas-situation
+    cas         =value_cas ; is getting the value from imaginal buffer
+    e1-n1  =value_n1_percent ; is getting the value from imaginal buffer
+    e2-n1  =value ; is getting the value from agent.eicas_n2_percent
+    =goal>
+    phase       attend-aoi
+    stage		1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; end of AoI E/WD - construct eicas situation ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; AoI Central Console - construct throttle situation;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p x-3-form-central-console-aoi-representation
+   =goal>
+    isa		    task
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "L_THROTTLE"
+    =visual>					; assume the model has read the checklist item properly
+    ?imaginal>
+    state		free
+!bind! =value (read_input l_throttle)		; hard coded way to get the checklist item from Central Console AoI
+==>
+   +imaginal>
+   isa            throttle-situation
+    left-throttle-position    =value ; is getting the value from agent.cc_left_throttle
+    =goal>
+    phase       read-central-console
+    stage		1
+)
+
+(p resume-read-central-console-task
+    =goal>
+    phase       read-central-console
+    stage       1
+    ?imaginal>
+    buffer      empty
+    state       free
+!bind! =value_left_throttle (read_input l_throttle)		; hard coded way to get the checklist item from Central Console AoI
+==>
+    +imaginal>
+    isa         throttle-situation
+    left-throttle-position    =value_left_throttle ; is getting the value from imaginal buffer
+)
+
+(p visually-attend-central-console-right-throttle
+   =goal>
+    isa		    task
+    phase		read-central-console
+    stage       1
+   ?visual>
+    state		free
+   ?imaginal>
+    - buffer    empty
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	2170			; representing right throttle label x-coordinate on Central Console AoI in the scene
+    screen-y	1340         ; representing right throttle label y-coordinate on Central Console AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-central-console-right-throttle-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-central-console
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         throttle-situation
+    left-throttle-position    =value_left_throttle
+    right-throttle-position   nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input r_throttle)		; hard coded way to get the checklist item from Central Console AoI
+==>
+   +imaginal>
+    isa		    throttle-situation
+    left-throttle-position    =value_left_throttle ; is getting the value from imaginal buffer
+    right-throttle-position   =value ; is getting the value from agent.cc_right_throttle
+    =goal>
+    phase       attend-aoi
+    stage		1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; end of AoI Central Console - construct throttle situation;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; AoI Outside the Window - construct Outside S-A ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p x-3-form-outside-window-aoi-representation
+   =goal>
+    isa		    task
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "RUNWAY_CENTERLINE_DEVIATION"
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+    state		free
+!bind! =value (read_input runway_centerline_deviation)		; hard coded way to get the checklist item from Outside the Window AoI
+==>
+   +imaginal>
+    isa		    outside-world-situation
+    runway-centerline-deviation       =value ; is getting the value from agent.outside_runway_centerline_deviation
+   =goal>
+    phase       read-outside-window
+    stage		1
+)
+
+(p resume-read-outside-window-task
+    =goal>
+    phase       read-outside-window
+    stage       1
+    ?imaginal>
+    buffer      empty
+    state       free
+!bind! =value_runway_centerline_deviation (read_input runway_centerline_deviation)		; hard coded way to get the checklist item from Outside the Window AoI
+==>
+    +imaginal>
+    isa         outside-world-situation
+    runway-centerline-deviation       =value_runway_centerline_deviation ; is getting the value from imaginal buffer
+)
+
+(p visually-attend-outside-window-birds
+   =goal>
+    isa		    task
+    phase		read-outside-window
+    stage       1
+   ?visual>
+    state		free
+   ?imaginal>
+    - buffer    empty
+    state		free
+==>
+    +visual-location>
+    isa		visual-location
+    screen-x	1120			; representing birds label x-coordinate on Outside the Window AoI in the scene
+    screen-y	370         ; representing birds label y-coordinate on Outside the Window AoI in the scene
+   =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-outside-window-birds-aoi-representation
+   =goal>
+    isa		    task
+    phase		read-outside-window
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         outside-world-situation
+    runway-centerline-deviation       =value_runway_centerline_deviation
+    birds            nil
+   ?imaginal>
+    state		free
+!bind! =value (read_input birds)		; hard coded way to get the checklist item from Outside the Window AoI
+==>
+   +imaginal>
+    isa		    outside-world-situation
+    runway-centerline-deviation       =value_runway_centerline_deviation ; is getting the value from imaginal buffer
+    birds       =value ; is getting the value from agent.outside_birds
+    =goal>
+    phase       attend-aoi
+    stage		1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; end of AoI Outside the Window - construct Outside S-A ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; AoI TARS INTERFACE - GET CURRENT TASK TO PERFORM;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; visually attend to current task on TARS interface
 ;; form task item representation in imaginal buffer
-(p x-3-form-task-object-item-representation
+(p 3-form-task-object-item-representation
    =goal>
 	isa		    task
-	phase		reading-tars-interface
-    stage       3
+    phase       attending-aoi
+    stage       1
+   =imaginal>
+    isa         aoi
+    name        "CURRENT_TASK_OBJECT"
    =visual>					; assume the model has read the checklist item properly
    ?imaginal>
 	state		free
+
 !bind! =value (read_input current_task_object)		; hard coded way to get the checklist item from TARS interface
+
 ==>
    +imaginal>
 	isa		    task
 	task-object	=value ; is getting the value from agent.current_task_object
    =goal>
+    phase       reading-tars-interface
 	stage		2-1
+)
+
+(p resume-task-has-read-task-object-from-tars
+   =goal>
+    isa		        task
+    task-object     =value_obj
+    phase		    reading-tars-interface
+    stage           1
+   ?imaginal>
+    state		    free
+
+!bind! =value (read_input current_task_object)		; hard coded way to get the checklist item from TARS interface
+
+==>
+    +imaginal>
+    isa		        task
+    task-object	    =value
+    =goal>
+    stage           2-1
 )
 
 (p 2-1-visually-attend-current-task-value
@@ -935,7 +1666,7 @@
 )
 
 ;; IF THE READ TASK HASN'T CHANGED YET AND IT HAS BEEN CHECKED READ AGAIN
-(p x-4-same-task-stage-checked
+(p t-i-x-4-same-task-stage-checked
    =goal>
     isa		        task
     phase		    reading-tars-interface
@@ -949,10 +1680,11 @@
     task-value      =value_val
 ==>
     =goal>
+    phase           attend-aoi
      stage          1
 )
-;; IF WE'RE STILL IN (IDLE - WAIT) GO BACK TO P1 AND READ TARS INTERFACE AGAIN
-(p x-4-wait-task-go-back-to-wait-for-start-command
+;; IF WE'RE STILL IN (IDLE - WAIT) GO BACK TO IDLE
+(p x-4-wait-task-go-back-to-attend-aoi
    =goal>
 	isa		    task
 	phase		reading-tars-interface
@@ -961,6 +1693,7 @@
 	task-value	waiting
 ==>
    =goal>
+    phase       attend-aoi
 	stage		1
 )
 
@@ -986,6 +1719,7 @@
     task-value	n-a
 ==>
     =goal>
+    phase       attend-aoi
     stage		1
 )
 
@@ -998,6 +1732,7 @@
     task-object	n-a
 ==>
     =goal>
+    phase       attend-aoi
     stage		1
 )
 
@@ -1015,7 +1750,7 @@
     =imaginal>
 )
 ;; IF TASK NOT CHANGED AND ALLOCATED TO TARS READ AGAIN
-(p x-6-human-not-performer-of-task
+(p t-i-x-6-human-not-performer-of-task
    =goal>
     isa		        task
     phase           reading-tars-interface
@@ -1029,6 +1764,7 @@
     task-value      =value_val
 ==>
     =goal>
+    phase           attend-aoi
     stage           1
 )
 
@@ -1097,6 +1833,7 @@
     status          nil
 )
 (spp x-6-not-waiting-new-task-both :u 100) ; need to be higher to capture both in priority
+;(spp x-6-not-waiting-new-task-both :fixed-utility t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK READING TARS INTERFACE for new task;;;;;;;
@@ -1105,7 +1842,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; BLOCK CHECK ALLOCATION ON TARS INTERFACE FOR TASK;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p x-1-visually-attend-current-task-human-role
+(p t-i-x-1-visually-attend-current-task-human-role
    =goal>
 	isa		    task
 	phase		check-allocation
@@ -1126,7 +1863,7 @@
 	stage        2
 )
 ; visually encode current task human role on TARS interface
-(p x-2-visually-encode-allocation-item
+(p t-i-x-2-visually-encode-allocation-item
    =goal>
 	isa		    task
     phase        check-allocation
@@ -1142,7 +1879,7 @@
 	stage        3
 )
 ; form task item allocation human role representation in imaginal buffer
-(p x-3-form-task-item-allocation-human-role-representation
+(p t-i-x-3-form-task-item-allocation-human-role-representation
    =goal>
 	isa		    task
     phase       check-allocation
@@ -1151,13 +1888,13 @@
 !bind! =value (read_input current_task_human_role)	; hard coded way to get the value from TARS interface
 
 ==>
-   =imaginal>
+   ;=imaginal>
    =goal>
 	stage       4
     human-role	=value
 )
 ; visually attend to current task autonomy role on TARS interface
-(p x-4-visually-attend-current-task-autonomy_role
+(p t-i-x-4-visually-attend-current-task-autonomy_role
    =goal>
 	isa		    task
     phase		check-allocation
@@ -1169,16 +1906,16 @@
    ?manual>					; make sure only start a step when no other action is taking place within these modules
 	state		free
 ==>
+    =imaginal>
    +visual-location>
 	isa		    visual-location
 	screen-x	320			; representing current task location on TARS interface
 	screen-y	990
    =goal>
 	stage       5
-    =imaginal>
 )
 ; visually encode current task autonomy role on TARS interface
-(p x-5-visually-encode-allocation-item
+(p t-i-x-5-visually-encode-allocation-item
    =goal>
 	isa		    task
     phase        check-allocation
@@ -1195,7 +1932,7 @@
     =imaginal>
 )
 ; form task item allocation autonomy role representation in imaginal buffer
-(p x-6-form-task-item-allocation-autonomy-role-representation
+(p t-i-x-6-form-task-item-allocation-autonomy-role-representation
    =goal>
 	isa		    task
     phase       check-allocation
@@ -1210,7 +1947,7 @@
 	stage		    7
 )
 
-(p x-7-decide-crosscheck
+(p t-i-x-7-decide-crosscheck
     =goal>
      isa		        task
      phase              check-allocation
@@ -1223,7 +1960,7 @@
      stage             1
 )
 
-(p x-7-no-crosscheck
+(p t-i-x-7-no-crosscheck
     =goal>
      isa		        task
      phase              check-allocation
@@ -1237,7 +1974,7 @@
 )
 ;(spp x-7-no-crosscheck :reward 2) ;
 
-(p tars-n-a-allocation-go-to-perform-task
+(p t-i-tars-n-a-allocation-go-to-perform-task
     =goal>
      isa		        task
      phase              check-allocation
@@ -1245,7 +1982,9 @@
     autonomy-role      n-a
 ==>
     =goal>
+     crosscheck        yes
      phase             perform-task
+    tars-input         nil
      stage             1
 )
 
@@ -1259,7 +1998,6 @@
 (p x-a-visually-encode-aircraft-component	;phase a. all steps can share this production rule for phase a
    =goal>
 	isa		    task
-    ;phase       perform-task
 	stage		visual-encode-aircraft-component
    =visual-location>
    ?visual>
@@ -1275,7 +2013,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; BLOCK CHECK TARS INPUT IN INTERACTION PANEL FOR SUPPORT;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p x-1-visually-attend-tars-input-supporter ;if TARS is supporter
+(p t-i-x-1-visually-attend-tars-input-supporter ;if TARS is supporter
     =goal>
      isa		        task
      - autonomy-role    n-a
@@ -1292,7 +2030,7 @@
      stage              2
 )
 
-(p x-1-skip-tars-input-because-tars-is-not-supporter ;if TARS is not supporter
+(p t-i-x-1-skip-tars-input-because-tars-is-not-supporter ;if TARS is not supporter
     =goal>
      isa		        task
      autonomy-role    n-a
@@ -1306,7 +2044,7 @@
      stage              1
 )
 
-(p x-2-visually-encode-tars-input
+(p t-i-x-2-visually-encode-tars-input
     =goal>
      isa		    task
      phase          check-tars-input
@@ -1322,7 +2060,7 @@
      stage        3
 )
 
-(p x-3-form-tars-input-representation
+(p t-i-x-3-form-tars-input-representation
     =goal>
      isa		        task
      phase              check-tars-input
@@ -1331,14 +2069,10 @@
     task-value        =value_val
     crosscheck        =value_crosscheck
     =visual>
-    ?imaginal>
-    state		        free
 
 !bind! =value (read_input tars_input)	; hard coded way to get the TARS input from TARS interface
 
 ==>
-    ;=imaginal>
-     ;tars-input         =value
     =goal>
     phase               perform-task
     stage               1
@@ -1381,11 +2115,15 @@
 (p retrieve-self-callsign
     =goal>
     stage           sound-encoded
+    human-role      nil
+    autonomy-role   nil
+    task-object     Idle
+    task-value      Waiting
     =imaginal>
      isa            sound
      content        =content
      location       atc
-    ==>
+==>
     =imaginal>
     +retrieval>
      isa         callsign
@@ -1403,19 +2141,21 @@
     =retrieval>
     isa             callsign
     content         =content
+    ;?imaginal>
+    ;state           free
 ==>
-    +imaginal>
-    isa             clearance
-    procedure       takeoff
-    callsign        c-poly
+    ;+imaginal>
+    ;isa             clearance
+    ;procedure       takeoff
+    ;callsign        c-poly
     =goal>
     isa             task
     task-object     takeoff-clearance
     task-value      confirm
     human-role      nil
     autonomy-role   nil
-    phase           perform-task
-    stage           wait
+    phase           check-allocation
+    stage           1
 )
 (spp is-our-callsign :u 2)
 
@@ -1432,7 +2172,7 @@
     =imaginal>
     =goal>
     isa         task
-    phase       reading-tars-interface
+    phase       attend-aoi
     stage       1
 )
 (spp is-not-our-callsign :u 2)
@@ -1494,6 +2234,16 @@
     stage       end-detected
 )
 
+(p stop-runaway-timer-on-new-sound
+   =temporal>
+    isa         time
+    ticks       35
+==>
+    +temporal>
+    isa         clear
+    =goal>
+    stage       1
+)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL ATTEMPT FOR WORD IN MEMORY;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This production follow up the encode-sound production to check if the message is from ATC
 ; retrieve self callsign from declarative memory if the message comes from ATC
@@ -1502,6 +2252,7 @@
     isa             task
     task-object     takeoff-clearance
     task-value      confirm
+    human-role      performer
     stage           encode-sound
     =aural>
      isa            sound
@@ -1616,7 +2367,7 @@
 )
 (spp form-altitude-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
-(p end-of-communication-go-check-allocation ;end of the clearance
+(p t-i-end-of-communication-go-check-allocation ;end of the clearance
     =goal>
     phase           perform-task
     stage           end-detected
@@ -1632,7 +2383,7 @@
      stage          1
 )
 
-(p end-of-communication-and-we-have-allocation ;end of the clearance
+(p t-i-end-of-communication-and-we-have-allocation ;end of the clearance
     =goal>
     phase           perform-task
     stage           end-detected
@@ -1648,7 +2399,7 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH ALLOCATION FOR READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p allocation-to-takeoff-clearance-readback-by-tars
+(p t-i-allocation-to-takeoff-clearance-readback-by-tars
     =goal>
     isa             task
     task-object     takeoff-clearance
@@ -1658,12 +2409,13 @@
     - human-role    performer
 ==>
     =goal>
-    phase           reading-tars-interface ; wait for next task because TARS will perform the readback
+    phase           attend-aoi ; wait for next task because TARS will perform the readback
     stage           1
     status          wait-teammate
 )
+(spp t-i-allocation-to-takeoff-clearance-readback-by-tars :u 5) ; high utility to prioritize this production
 
-(p allocation-to-takeoff-clearance-readback-by-pilot
+(p t-i-allocation-to-takeoff-clearance-readback-by-pilot
     =goal>
     isa             task
     task-object     takeoff-clearance
@@ -1861,7 +2613,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PITOT-STATIC Switch - PITOT STATIC TASK ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p pitot-heat-tars-input-is-on-and-trusted
+(p t-i-pitot-heat-tars-input-is-on-and-trusted
     =goal>
      isa		        task
      phase		        perform-task
@@ -1877,9 +2629,9 @@
      phase		        check-task-on-tars
     stage       1
 )
-(spp pitot-heat-tars-input-trusted :reward 2); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-pitot-heat-tars-input-is-on-and-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
 
-(p pitot-heat-tars-input-is-on-and-distrust
+(p t-i-pitot-heat-tars-input-is-on-and-distrust
     =goal>
      isa		        task
      phase		        perform-task
@@ -1895,7 +2647,7 @@
      stage              2
 )
 
-(p pitot-heat-tars-input-is-off
+(p t-i-pitot-heat-tars-input-is-off
     =goal>
      isa		        task
      phase		        perform-task
@@ -1910,7 +2662,7 @@
      stage		        2
 )
 
-(p no-tars-input-on-pitot-heat
+(p t-i-no-tars-input-on-pitot-heat
     =goal>
      isa		        task
      phase		        perform-task
@@ -1955,12 +2707,14 @@
     - tars-input      nil
     ?imaginal>
     state           free
+
 !bind! =value (read_input pitot_heat)		; hard coded way to get the aircraft-component-status from X-Plane
+
 ==>
    +imaginal>
-    isa                   aircraft-component
-	component-name        pitot-switch
-	component-status      =value
+    isa                aircraft-component
+	component-name     pitot-switch
+	component-status   =value
    =goal>
 	stage		          verify-tars-input
 )
@@ -1985,7 +2739,7 @@
     stage		          action
 )
 
-(p pitot-heat-status-correspond-to-tars-input
+(p t-i-pitot-heat-status-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -1993,6 +2747,7 @@
      task-object	    pitot-static-switch
      task-value         pitot-static
      tars-input         pitot-heat-is-on
+     crosscheck         yes
     =imaginal>
      isa		        aircraft-component
      component-name		pitot-switch
@@ -2002,9 +2757,9 @@
     =goal>
      stage               action
 )
-(spp pitot-heat-status-correspond-to-tars-input :reward -2) ;it took unnecessary time to check TARS input
+(spp t-i-pitot-heat-status-correspond-to-tars-input :reward -1) ;it took unnecessary time to check TARS input
 
-(p pitot-heat-status-does-not-correspond-to-tars-input
+(p t-i-pitot-heat-status-does-not-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -2012,6 +2767,7 @@
      task-object	    pitot-static-switch
      task-value         pitot-static
      tars-input         pitot-heat-is-on
+    crosscheck          yes
     =imaginal>
      isa		        aircraft-component
      component-name		pitot-switch
@@ -2021,10 +2777,69 @@
     =goal>
      stage               action
 )
-(spp pitot-heat-status-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
+(spp t-i-pitot-heat-status-does-not-correspond-to-tars-input :reward 100) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p pitot-heat-status-correspond-to-tars-input-off-and-crossheck
+(p t-i-pitot-heat-status-does-not-correspond-to-tars-input-off
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-off
+     crosscheck         yes
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   true			; false means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp t-i-pitot-heat-status-does-not-correspond-to-tars-input-off :reward 100) ;it was a good idea to check TARS input will be less
+;trusted in the future
+
+(p t-i-pitot-heat-status-does-not-correspond-to-tars-input-off-and-no-crossheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-off
+    crosscheck          no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   true			; true means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+
+(p t-i-pitot-heat-status-does-not-correspond-to-tars-input-on-and-no-crossheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    pitot-static-switch
+     task-value         pitot-static
+     tars-input         pitot-heat-is-on
+    crosscheck          no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		pitot-switch
+     component-status   false			; false means tars was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+
+(p t-i-pitot-heat-status-correspond-to-tars-input-off-and-crossheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -2042,9 +2857,9 @@
     =goal>
      stage               action
 )
-(spp pitot-heat-status-correspond-to-tars-input-off-and-crossheck :reward -2)
+(spp t-i-pitot-heat-status-correspond-to-tars-input-off-and-crossheck :reward -1); it took unnecessary time to check TARS input
 
-(p pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck
+(p t-i-pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -2062,7 +2877,7 @@
     =goal>
      stage               action
 )
-(spp pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck :reward 2)
+(spp t-i-pitot-heat-status-correspond-to-tars-input-off-and-no-crossheck :reward 4)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH THE PITOT HEAT TO ON ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2119,7 +2934,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ENGINE ANTI-ICE Switches - AS REQUIRED task ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p engine-anti-ice-is-already-on-according-to-tars
+(p t-i-engine-anti-ice-is-already-on-according-to-tars
     =goal>
      isa		        task
      phase		        perform-task
@@ -2134,10 +2949,125 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp engine-anti-ice-is-already-on-according-to-tars :u 2)
+(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 2)
+
+(p engine-anti-ice-no-tars-recommendation
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    engine-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               retrieve-atis
+    stage               1
+)
+
+(p retrieve-last-atis-temperature
+    =goal>
+     isa		        task
+     phase		        retrieve-atis
+     stage              1
+    ?imaginal>
+    state               free
+    ?retrieval>
+    state               free
+==>
+   +retrieval>
+    isa		            atis-information
+   =goal>
+    stage               2
+)
+
+(p form-last-atis-temperature-representation
+    =goal>
+     isa		        task
+     phase		        retrieve-atis
+     stage              2
+    =retrieval>
+     isa		        atis-information
+     temperature	    =value
+==>
+   +imaginal>
+    isa                 atis-information
+    temperature         =value
+   =goal>
+    phase               understand-requirement
+    stage		        2
+)
+
+(p last-atis-retrieval-failure
+    =goal>
+     isa		        task
+     phase		        retrieve-atis
+     stage              2
+     ?retrieval>
+     state              error
+==>
+   =goal>
+    phase               understand-requirement
+    stage               2
+    status              atis-retrieval-failure
+)
+
+(p engine-anti-ice-could-not-retrieve-atis
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    engine-anti-ice-switches
+     task-value         as-required
+     status              atis-retrieval-failure
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p temperature-is-5-degrees-take-action
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    engine-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    =imaginal>
+     isa		        atis-information
+     temperature	    five
+==>
+    =goal>
+    phase               perform-task
+    stage               3
+)
+
+(p temperature-is-above-5-degrees-no-action
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    engine-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    =imaginal>
+     isa		        atis-information
+     - temperature	    five
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p understand-engine-anti-ice-as-required-tars-recommendation
+(p t-i-understand-engine-anti-ice-as-required-tars-recommendation
     =goal>
      isa		        task
      phase		        perform-task
@@ -2152,9 +3082,9 @@
      task-value         =value
      stage		        2
 )
-(spp engine-anti-ice-is-already-on-according-to-tars :u 2)
+(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 2)
 
-(p tars-recommend-check-visible-moisture-present-condition
+(p t-i-tars-recommend-check-visible-moisture-present-condition
     =goal>
      isa		        task
      phase		        perform-task
@@ -2172,7 +3102,7 @@
      stage		        visual-encode-aircraft-component
 )
 
-(p tars-do-not-recommend-check-visible-moisture-present-condition
+(p t-i-tars-do-not-recommend-check-visible-moisture-present-condition
     =goal>
      isa		        task
      phase		        perform-task
@@ -2420,7 +3350,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; WINDSHIELD ANTI-ICE Switches - AS REQUIRED task ;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p windshield-anti-ice-is-already-on-according-to-tars
+(p t-i-windshield-anti-ice-is-already-on-according-to-tars
     =goal>
      isa		        task
      phase		        perform-task
@@ -2434,10 +3364,77 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp windshield-anti-ice-is-already-on-according-to-tars :u 2)
+(spp t-i-windshield-anti-ice-is-already-on-according-to-tars :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+
+(p t-i-windshield-anti-ice-no-tars-recommendation
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               retrieve-atis
+    stage               1
+)
+
+(p windshield-anti-ice-could-not-retrieve-atis
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+     status              atis-retrieval-failure
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p temperature-is-5-degrees-take-action-windshield
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    =imaginal>
+     isa		        atis-information
+     temperature	    five
+==>
+    =goal>
+    phase               perform-task
+    stage               3
+)
+
+(p temperature-is-above-5-degrees-no-action-windshield
+    =goal>
+     isa		        task
+     phase		        understand-requirement
+     stage              2
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+     tars-input         nil
+    =imaginal>
+     isa		        atis-information
+     - temperature	    five
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p understand-windshield-anti-ice-as-required-tars-recommendation
+(p t-i-understand-windshield-anti-ice-as-required-tars-recommendation
     =goal>
      isa		        task
      phase		        perform-task
@@ -2451,7 +3448,6 @@
      stage		        2
      task-value         =tars-input
 )
-(spp windshield-anti-ice-is-already-on-according-to-tars :u 2)
 
 (p tars-recommend-check-visible-moisture-present-condition-windshield
     =goal>
@@ -2719,7 +3715,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; PAX SAFETY Switch - PAX SAFETY task ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p pax-safety-tars-input-is-on-and-trusted
+(p t-i-pax-safety-tars-input-is-on-and-trusted
     =goal>
      isa		        task
      phase		        perform-task
@@ -2735,9 +3731,9 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp pax-safety-tars-input-is-on-and-trusted :reward 2); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-pax-safety-tars-input-is-on-and-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
 
-(p pax-safety-tars-input-is-on-and-distrust
+(p t-i-pax-safety-tars-input-is-on-and-distrust
     =goal>
      isa		        task
      phase		        perform-task
@@ -2753,7 +3749,7 @@
      stage               2
 )
 
-(p pax-safety-tars-input-is-off
+(p t-i-pax-safety-tars-input-is-off
     =goal>
      isa		        task
      phase		        perform-task
@@ -2776,6 +3772,19 @@
      task-object	    pax-safety-switch
      task-value         pax-safety
      tars-input          nil
+==>
+    =goal>
+    stage               2
+)
+
+(p n-a-tars-input-on-pax-safety
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    pax-safety-switch
+     task-value         pax-safety
+     tars-input         n-a
 ==>
     =goal>
     stage               2
@@ -2843,7 +3852,7 @@
     stage		          action
 )
 
-(p pax-safety-status-on-correspond-to-tars-input
+(p t-i-pax-safety-status-on-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -2861,9 +3870,9 @@
      phase               check-task-on-tars
     stage       1
 )
-(spp pax-safety-status-on-correspond-to-tars-input :reward -2) ;it took unnecessary time to check TARS input
+(spp t-i-pax-safety-status-on-correspond-to-tars-input :reward -1) ;it took unnecessary time to check TARS input
 
-(p pax-safety-status-does-not-correspond-to-tars-input
+(p t-i-pax-safety-status-does-not-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -2880,10 +3889,10 @@
     =goal>
      stage               action
 )
-(spp pax-safety-status-on-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
+(spp t-i-pax-safety-status-does-not-correspond-to-tars-input :reward 4) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p pax-safety-status-correspond-to-tars-input-off-and-crosscheck
+(p t-i-pax-safety-status-correspond-to-tars-input-off-and-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -2901,9 +3910,9 @@
     =goal>
     stage               action
 )
-(spp pax-safety-status-correspond-to-tars-input-off-and-crosscheck :reward -2)
+(spp t-i-pax-safety-status-correspond-to-tars-input-off-and-crosscheck :reward -1)
 
-(p pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck
+(p t-i-pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -2915,13 +3924,13 @@
     =imaginal>
      isa		        aircraft-component
      component-name		pax-safety-switch
-     component-status   2			; false means tars was reliable
+     - component-status   2			; false means tars was reliable
 ==>
     =imaginal>
     =goal>
      stage              action
 )
-(spp pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck :reward 2)
+(spp t-i-pax-safety-status-correspond-to-tars-input-off-and-no-crosscheck :reward 4)
 
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p pax-safety-take-action		;PAX SAFETY is OFF
@@ -2977,7 +3986,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LANDING LIGHTS Switch - AS DESIRED task ;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p landing-lights-is-already-on-according-to-tars
+(p t-i-landing-lights-is-already-on-according-to-tars
     =goal>
      isa		        task
      phase		        perform-task
@@ -2992,10 +4001,25 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp landing-lights-is-already-on-according-to-tars :u 2)
+(spp t-i-landing-lights-is-already-on-according-to-tars :reward 4)
+
+(p landing-lights-no-tars-recommendation
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    landing-light-switch
+     task-value         as-desired
+     tars-input         nil
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    stage               3
+)
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p understand-landing-lights-as-desired-tars-recommendation
+(p t-i-understand-landing-lights-as-desired-tars-recommendation
     =goal>
      isa		        task
      phase		        perform-task
@@ -3010,9 +4034,8 @@
      task-value         =tars-input
      stage		        2
 )
-(spp landing-lights-is-already-on-according-to-tars :u 2)
 
-(p tars-recommend-landing-lights-on
+(p t-i-tars-recommend-landing-lights-on
     =goal>
      isa		        task
      phase		        perform-task
@@ -3026,7 +4049,7 @@
      stage		        3
 )
 
-(p tars-do-not-recommend-landing-lights-on
+(p t-i-tars-do-not-recommend-landing-lights-on
     =goal>
      isa		        task
      phase		        perform-task
@@ -3136,7 +4159,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;; ANTI-COLL Light Switch - ON task ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p anti-coll-light-is-on-and-trusted
+(p t-i-anti-coll-light-is-on-and-trusted
     =goal>
      isa		        task
      phase		        perform-task
@@ -3152,9 +4175,9 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp anti-coll-light-is-on-and-trusted :reward 2) ; TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-anti-coll-light-is-on-and-trusted :reward 4) ; TARS has been trusted, no crosscheck ==> is reinforced
 
-(p anti-coll-light-is-on-and-distrust
+(p t-i-anti-coll-light-is-on-and-distrust
     =goal>
      isa		        task
      phase		        perform-task
@@ -3261,7 +4284,7 @@
     stage		          action
 )
 
-(p anti-coll-light-status-on-correspond-to-tars-input
+(p t-i-anti-coll-light-status-on-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -3279,9 +4302,9 @@
      phase               check-task-on-tars
     stage       1
 )
-(spp anti-coll-light-status-on-correspond-to-tars-input :reward -2) ;it took unnecessary time to check TARS input
+(spp t-i-anti-coll-light-status-on-correspond-to-tars-input :reward -1) ;it took unnecessary time to check TARS input
 
-(p anti-coll-light-status-does-not-correspond-to-tars-input
+(p t-i-anti-coll-light-status-does-not-correspond-to-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -3298,10 +4321,10 @@
     =goal>
      stage               action
 )
-(spp anti-coll-light-status-on-does-not-correspond-to-tars-input :reward 2) ;it was a good idea to check TARS input will be less
+(spp t-i-anti-coll-light-status-does-not-correspond-to-tars-input :reward 4) ;it was a good idea to check TARS input will be less
 ;trusted in the future
 
-(p anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck
+(p t-i-anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -3319,9 +4342,9 @@
     =goal>
     stage               action
 )
-(spp anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck :reward -2)
+(spp t-i-anti-coll-light-status-correspond-to-tars-input-off-and-crosscheck :reward -1)
 
-(p anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck
+(p t-i-anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck
     =goal>
      isa		        task
      phase		        perform-task
@@ -3339,7 +4362,7 @@
     =goal>
     stage               action
 )
-(spp anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck :reward 2)
+(spp t-i-anti-coll-light-status-correspond-to-tars-input-off-and-no-crosscheck :reward 4)
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p anti-coll-light-take-action		;ANTI-COLL LIGHT is OFF
    =goal>
@@ -3476,7 +4499,7 @@
     stage              2
 )
 
-(p retrieve-current-wind-belief-success-and-tars-input-available
+(p t-i-retrieve-current-wind-belief-success-and-tars-input-available
     =goal>
      isa		        task
      phase		        perform-task
@@ -3499,7 +4522,7 @@
     stage               compare
 )
 
-(p wind-comparison-match ;assumed to always match for now
+(p t-i-wind-comparison-match ;assumed to always match for now
     =goal>
      isa		        task
      phase		        perform-task
@@ -3538,7 +4561,7 @@
     stage       1
 )
 
-(p retrieve-current-wind-belief-failure-and-tars-input-available
+(p t-i-retrieve-current-wind-belief-failure-and-tars-input-available
     =goal>
      isa		        task
      phase		        perform-task
@@ -3608,7 +4631,7 @@
     stage		    verify-coherence
 )
 
-(p verify-wind-information-coherence-and-tars-input-available
+(p t-i-verify-wind-information-coherence-and-tars-input-available
     =goal>
      isa		        task
      phase		        perform-task
@@ -3643,89 +4666,75 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Select Altitude - PRESET AS CLEARED Task ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p retrieve-takeof-clearance
+(p t-i-selected-altitude-as-cleared-tars-input-trusted
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    select-altitude
      task-value         preset-as-cleared
+     crosscheck         no
+     tars-input         cleared-to-altitude-5000-ft-from-atc
+    ?imaginal>
+    state               free
 ==>
-    +retrieval>
-    isa                clearance
+    =goal>
+    stage               4
+    +imaginal>
+    isa                 aircraft-component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+(spp t-i-selected-altitude-as-cleared-tars-input-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+
+(p t-i-selected-altitude-as-cleared-tars-input-distrust
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     crosscheck         yes
+     tars-input         cleared-to-altitude-5000-ft-from-atc
+    ?imaginal>
+    state               free
+==>
     =goal>
     stage              2
 )
 
-(p takeoff-clearance-retrieved-successfully-and-tars-input-available
+(p selected-altitude-as-cleared-no-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     tars-input         nil
+==>
+    =goal>
+    stage              2
+)
+
+(p retrieve-takeof-clearance
     =goal>
      isa		        task
      phase		        perform-task
      stage              2
      task-object	    select-altitude
      task-value         preset-as-cleared
-    =retrieval>
-     isa                clearance
-     altitude           =cleared-altitude
-    =imaginal>
-    - tars-input        nil
-    ?retrieval>
-     state           free
 ==>
-    =imaginal>
     +retrieval>
-    =cleared-altitude
-   =goal>
+    isa                clearance
+    =goal>
     stage              3
 )
 
-(p cleared-altitude-retrieved-and-match-tars-input
+(p t-i-takeoff-clearance-not-retrieved-but-tars-input-available
     =goal>
      isa		        task
      phase		        perform-task
      stage              3
-     task-object	    select-altitude
-     task-value         preset-as-cleared
-    =imaginal>
-     tars-input         =value
-    =retrieval>
-     isa                word
-     equivalent         =value
-==>
-   =goal>
-    stage               4
-   +imaginal>
-    isa                 aircraft-component
-    component-name      selected-altitude
-    desired-status      5000 ; assuming cleared altitude is 5000 feet
-)
-
-(p cleared-altitude-retrieved-and-do-not-match-tars-input
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              3
-     task-object	    select-altitude
-     task-value         preset-as-cleared
-    =imaginal>
-     tars-input         =value
-    =retrieval>
-     isa                word
-    - equivalent        =value
-==>
-    =goal>
-    stage               4
-   +imaginal>
-    isa                 aircraft-component
-    component-name      selected-altitude
-    desired-status      5000 ; assuming cleared altitude is 5000 feet
-)
-
-(p takeoff-clearance-not-retrieved-but-tars-input-available
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              2
      task-object	    select-altitude
      task-value         preset-as-cleared
     =imaginal>
@@ -3740,6 +4749,95 @@
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
+
+(p takeoff-clearance-retrieved-no-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              3
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =retrieval>
+     isa                clearance
+     altitude           =cleared-altitude
+    =imaginal>
+    tars-input         nil
+==>
+   +imaginal>
+    isa                 aircraft-component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+   =goal>
+    stage              4
+)
+
+(p t-i-takeoff-clearance-retrieved-successfully-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              3
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+    =retrieval>
+     isa                clearance
+     altitude           =cleared-altitude
+    =imaginal>
+    - tars-input        nil
+    ?retrieval>
+     state           free
+==>
+    =imaginal>
+    +retrieval>
+    =cleared-altitude
+   =goal>
+    stage              4
+)
+
+(p t-i-cleared-altitude-match-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              4
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     crosscheck         yes
+    =imaginal>
+     tars-input         =value
+    =retrieval>
+     isa                word
+     equivalent         =value
+==>
+   =goal>
+    stage               5
+   +imaginal>
+    isa                 aircraft-component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+(spp t-i-cleared-altitude-match-tars-input :reward -1) ; it took unnecessary time to check TARS input
+
+(p t-i-cleared-altitude-retrieved-and-do-not-match-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              4
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     crosscheck         yes
+    =imaginal>
+     tars-input         =value
+    =retrieval>
+     isa                word
+    - equivalent        =value
+==>
+    =goal>
+    stage               5
+   +imaginal>
+    isa                 aircraft-component
+    component-name      selected-altitude
+    desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+(spp t-i-cleared-altitude-retrieved-and-do-not-match-tars-input :reward 4) ; it was a good idea to check TARS input will be less
 
 (p look-at-selected-altitude-on-pfd
     =goal>
@@ -3954,7 +5052,7 @@
     stage		4
 )
 
-(p task-was-autochecked-new-task-object
+(p t-i-task-was-autochecked-new-task-object
     =goal>
     isa             task
     phase           check-task-on-tars
@@ -3971,7 +5069,7 @@
    - task-object    =task-object
 ==>
     =goal>
-    phase           reading-tars-interface
+    phase           attend-aoi
     stage           1
     status          checked
     +imaginal>
@@ -3992,7 +5090,7 @@
     !output! (crosscheck =crosscheck)
 )
 
-(p task-was-autochecked-new-task-value
+(p t-i-task-was-autochecked-new-task-value
     =goal>
     isa             task
     phase           check-task-on-tars
@@ -4009,7 +5107,7 @@
    - task-value     =task-value
 ==>
     =goal>
-    phase           reading-tars-interface
+    phase           attend-aoi
     stage           1
     status          checked
     +imaginal>
@@ -4030,7 +5128,7 @@
     !output! (crosscheck =crosscheck)
 )
 
-(p task-was-not-autochecked-no-change
+(p t-i-task-was-not-autochecked-no-change
     =goal>
     isa             task
     phase           check-task-on-tars
@@ -4047,7 +5145,7 @@
     stage           5
 )
 
-(p check-task-on-tars
+(p t-i-check-task-on-tars
     =goal>
     isa         task
     phase       check-task-on-tars
@@ -4078,7 +5176,7 @@
         stage                   6
 )
 
-(p subvocalize-check-task-on-tars
+(p t-i-subvocalize-check-task-on-tars
     =goal>
     isa         task
     phase       check-task-on-tars
@@ -4105,9 +5203,6 @@
     task-value      =task-value
     status          =status
     human-role      =human-role
-    autonomy-role   =autonomy-role
-    tars-input      =tars-input
-    crosscheck      =crosscheck
    ?imaginal>
     state           free
    ?manual>
@@ -4119,20 +5214,15 @@
     task-value     =task-value
     status         =status
     human-role     =human-role
-    autonomy-role  =autonomy-role
-    tars-input     =tars-input
-    crosscheck     =crosscheck
     =goal>
-    phase          reading-tars-interface
+    phase          attend-aoi
     stage          1
     !output! (task-object =task-object)
     !output! (task-value =task-value)
     !output! (status =status)
     !output! (human-role =human-role)
-    !output! (autonomy-role =autonomy-role)
-    !output! (tars-input =tars-input)
-    !output! (crosscheck =crosscheck)
 )
+;(spp form-task-done :at 0.5) ;schedule in 0.5 seconds
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;; END OF GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -2402,6 +2402,7 @@ public class ServerLogics {
               //also modify the chunk in the model chunk list.
               String chunk_name = sim.vars.goalBuffer.Goal_Buffer_Chunk.Chunk_Name;
               if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Goal Buffer Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
+              if(chunk_name.equals("")){System.out.println("BINGO FROM ServerLogics.java 2406");}
               sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
               if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Goal_Buffer" );
               
@@ -2507,6 +2508,7 @@ public class ServerLogics {
                 //also modify the chunk in the model chunk list.
                 String chunk_name = sim.vars.goalBuffer.Goal_Buffer_Chunk_2.Chunk_Name;
                 if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Goal Buffer-2 Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
+                if(chunk_name.equals("")){System.out.println("BINGO FROM ServerLogics.java 2511");}
                 sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
                 if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Goal_Buffer_2" );
               }
@@ -2605,6 +2607,7 @@ public class ServerLogics {
                 //also modify the chunk in the model chunk list.
                 String chunk_name = sim.vars.goalBuffer.Goal_Buffer_Chunk_3.Chunk_Name;
                 if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Goal Buffer-3 Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
+                if(chunk_name.equals("")){System.out.println("BINGO FROM ServerLogics.java 2610");}
                 sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
                 if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Goal_Buffer_3" );
               }
@@ -2703,6 +2706,7 @@ public class ServerLogics {
                 //also modify the chunk in the model chunk list.
                 String chunk_name = sim.vars.goalBuffer.Goal_Buffer_Chunk_4.Chunk_Name;
                 if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Goal Buffer-4 Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
+                if(chunk_name.equals("")){System.out.println("BINGO FROM ServerLogics.java 2709");}
                 sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
                 if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Goal_Buffer_4" );
               }
@@ -2801,6 +2805,7 @@ public class ServerLogics {
                 //also modify the chunk in the model chunk list.
                 String chunk_name = sim.vars.goalBuffer.Goal_Buffer_Chunk_5.Chunk_Name;
                 if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Goal Buffer-5 Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
+                if(chunk_name.equals("")){System.out.println("BINGO FROM ServerLogics.java 2808");}
                 sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
                 if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Goal_Buffer_5" );
               }
@@ -2897,8 +2902,13 @@ public class ServerLogics {
               //also modify the chunk in the model chunk list.
               String chunk_name = sim.vars.imaginalBuffer.Imaginal_Buffer_Chunk.Chunk_Name;
               if (sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false ) System.out.println("Imaginal Buffer Buffer Chunk Spec Change Notice sim.funs.ChunkFun__Is_Chunk_Name(chunk_name) ==false");
-              sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk)  );
-              if (sim.vars.messageOn) System.out.println ("Chunk Spec Changed at Imaginal_Buffer" );
+              if(chunk_name.equals("")){
+                  System.out.println("WARNING! There is an attempt to ADD a null chunk FROM ServerLogics.java 2905");
+              }
+              else {
+                  sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk));
+                  if (sim.vars.messageOn) System.out.println("Chunk Spec Changed at Imaginal_Buffer");
+              }
             }
             
             if (Entity.Entity_Type.equals( "Clear Imaginal")) {

@@ -33,12 +33,12 @@ public class seev {
 
     // List of Areas of Interest with their probabilities and coordinates
     private static final List<AOI> aoiList = Arrays.asList(
-        new AOI("PFD", 0.197, 1260, 750),
-        new AOI("ND", 0.045, 1880, 900),
-        new AOI("E/WD", 0.394, 1600, 920),
-        new AOI("CentralConsole", 0.061, 2020, 1330),
-        new AOI("FlightManual", 0.303, 350, 990),
-        new AOI("OutsideWindow", 0.000, 1120, 340)
+        new AOI("PFD", 0.050, 1260, 750),
+        new AOI("ND", 0.050, 1880, 900),
+        new AOI("E/WD", 0.100, 1600, 920),
+        new AOI("CentralConsole", 0.050, 2020, 1330),
+        new AOI("FlightManual", 0.7, 350, 990),
+        new AOI("OutsideWindow", 0.050, 1120, 340)
     );
 
     // Private constructor for singleton pattern

@@ -1701,6 +1701,10 @@ public class Functions {
 			}
 		} //else //a specified name that is not in the model chunk list
 
+        if(the_chunk.Chunk_Name.equals("")){
+            System.out.println("BINGO, Chunk couldn't have a name defined.");
+        }
+
 		sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks , the_chunk.Chunk_Name , the_chunk ); //ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks , chunk_name , the_chunk );
 		sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunk_Types_Numbers, chunk_type, (int)sim.vars.centralParametersModule.Chunk_Types_Numbers.get(chunk_type) + 1  );
 
@@ -1839,6 +1843,10 @@ public class Functions {
 }
 	
 	public boolean ChunkFun__Is_Chunk_Name(String the_chunk_name){
+
+         //if(sim.vars.centralParametersModule.Chunks.containsKey("")){
+             //System.out.println("There is an empty chunk in the hashtable");
+         //}
 		
 		if (  sim.vars.centralParametersModule.Chunks.containsKey(the_chunk_name.toLowerCase()) ){
 			return true;
@@ -12860,7 +12868,7 @@ return return_string;
 	
 	
 	public  void ProductionModuleFun__Add_Imaginal_Request(String[] The_Chunk_Spec_Request){
-
+//      BEN BUG
 	  sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "PROCEDURAL" + "\t" + "MODULE-REQUEST IMAGINAL"); 
 	  
 	  ProductionModuleFun__Clear_Imaginal_Buffer_Request();
@@ -12875,10 +12883,13 @@ return return_string;
 //	  Temp_Entity.To = "Imaginary Module";
 //	  Temp_Entity.Entity_Type = "Add Imaginal";    // +imaginal>
 	  // parameters: ISA (slot_0), chunk_type(slot_0), slot_name_1, slot_value_1, slot_name_2, slot_value_2, ... for nil value, put ""
-	  
+
+      //System.out.println("Before ChunkFun__Define_Chunk " + The_Chunk_Spec_Request[0] + " " + The_Chunk_Spec_Request[1] + " " + The_Chunk_Spec_Request[2] + " " + The_Chunk_Spec_Request[3]);
+
 	  //define-chunk, +imaginal> will not specify chunk_name, so it does not have a name.
 	  Temp_Entity.Chunk = sim.funs.ChunkFun__Define_Chunk( sim.funs.ChunkFun__Make_Chunk_From_Descritption(The_Chunk_Spec_Request));
-	  
+
+      //System.out.println("After ChunkFun__Define_Chunk " + Temp_Entity.Chunk.Chunk_Name + " " + Temp_Entity.Chunk.Chunk_Type + " " + Temp_Entity.Chunk.Creation_Time);
 	  
 	  
 	  /*
@@ -16629,6 +16640,9 @@ return return_string;
 	  for (j = 0; j < The_Chunk_Spec_Change.length; j+=2){
 	    sim.funs.ChunkFun__Set_Chunk_Slot_Value(temp_chunk, The_Chunk_Spec_Change[j], The_Chunk_Spec_Change[j+1]);
 	  }
+      if(chunk_name.equals("")){
+          System.out.println("BINGO FROM Funcitons.java 16644");
+      }
 	  sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, temp_chunk  );
 	  
 	  Entity ProductionModuleFun__Modify_Visual_Buffer_Request_Temp_Entity = sim.funs.createEntity( "Visual Buffer" , "Execution", "Visual Buffer", "Buffer Chunk Spec Change Notice", 0.0);
@@ -16659,6 +16673,9 @@ return return_string;
 	  for (int j = 0; j < The_Chunk_Spec_Change.length; j+=2){
 	    sim.funs.ChunkFun__Set_Chunk_Slot_Value(temp_chunk, The_Chunk_Spec_Change[j], The_Chunk_Spec_Change[j+1]);
 	  }
+        if(chunk_name.equals("")){
+            System.out.println("BINGO FROM Funcitons.java 16677");
+        }
 	  sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.centralParametersModule.Chunks, chunk_name, temp_chunk  );
 	  
 	  Entity ProductionModuleFun__Modify_Visual_Location_Buffer_Request_Temp_Entity = sim.funs.createEntity( "Visual Location Buffer" , "Execution", "Visual Location Buffer", "Buffer Chunk Spec Change Notice", 0.0);
