@@ -12,6 +12,7 @@ import ch.qos.logback.classic.Level;
 import com.ingescape.*;
 import qnactr.sim.QnactrSimulation;
 import jmt.engine.simEngine.SimSystem;
+import jmt.gui.jmodel.controller.Mediator;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -25,6 +26,7 @@ public class Agent implements IopListener, ServiceListener {
 
     private static Agent instance = null;
     private QnactrSimulation simulation = null;
+    private Mediator mediator = null;
     private static final float INTERVAL_BETWEEN_WORDS = 2.55f; // seconds
 
     // Public accessible attributes that other classes can read
@@ -205,13 +207,17 @@ public class Agent implements IopListener, ServiceListener {
     /**
      * Start the Ingescape agent and register it with the simulation
      * @param mainWindow The main window that implements event listeners
+     * @param mediator The mediator for controlling simulation lifecycle
      */
-    public synchronized void start(MainWindow mainWindow) {
+    public synchronized void start(MainWindow mainWindow, Mediator mediator) {
         //prevent multiple starts
         if (ingescapeAgent != null) {
             //_logger.warn("IngeScape agent is already started");
             return;
         }
+
+        // Store the mediator reference for simulation control
+        this.mediator = mediator;
 
         //_logger.info("Starting IngeScape agent...");
 
@@ -253,6 +259,7 @@ public class Agent implements IopListener, ServiceListener {
      * Create all input definitions
      */
     private void createInputs() {
+        ingescapeAgent.definition.inputCreate("reset", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.inputCreate("airspeed", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("elevator", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("rudder", IopType.IGS_DOUBLE_T);
@@ -329,7 +336,7 @@ public class Agent implements IopListener, ServiceListener {
      */
     private void observeInputs() {
         String[] inputNames = {
-                "airspeed", "elevator", "rudder", "aileron", "l_throttle", "r_throttle",
+                "reset", "airspeed", "elevator", "rudder", "aileron", "l_throttle", "r_throttle",
                 "pitch", "roll", "slip", "heading", "vertical_speed", "altitude",
                 "flaps", "landing_gear", "spoilers", "parking_brake", "n1_match_bug",
                 "pax_safety", "master_warning", "master_caution", "flight_director",
@@ -403,6 +410,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("task_cancel", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("push_to_talk", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("production_selected", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.outputCreate("start", IopType.IGS_BOOL_T);
     }
 
     public void outputSetString(String name, String value) {
@@ -716,6 +724,30 @@ public class Agent implements IopListener, ServiceListener {
                         landing_lights_i = inputInt;
                         break;
                 }
+        } else if (iop == Iop.IGS_INPUT_T && type == IopType.IGS_IMPULSION_T) {
+            // Handle impulsion inputs if needed
+            switch (name) {
+                case "reset":
+                    System.out.println("**received reset impulsion input, processing...");
+                    if (mediator != null) {
+                        // Stop the current simulation
+                        mediator.stopSimulation();
+
+                        // Wait a brief moment to ensure clean stop
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        // Start a new simulation
+                        mediator.startSimulation();
+                        System.out.println("**simulation reset completed");
+                    } else {
+                        System.err.println("**ERROR: Cannot reset simulation - mediator reference not set");
+                    }
+                    break;
+            }
         }
     }
 

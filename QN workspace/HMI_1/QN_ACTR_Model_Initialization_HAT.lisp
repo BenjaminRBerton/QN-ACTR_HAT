@@ -742,7 +742,7 @@
         procedure       IDLE
 		task-object	    Idle
         task-value      Waiting
-        phase           attend-aoi
+        phase           send-start
         stage           1
 	)
     (current-wind-belief
@@ -786,6 +786,29 @@
 ;;;;;;;;;;; PRODUCTION RULES;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;; PRODUCTION RULES;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;starting point
+(p start-task-initiate
+    =goal>
+     isa                    task
+     procedure              IDLE
+     phase                  send-start
+     stage                  1
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-bool
+     preparation-duration   3.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 start
+     para-2                 true
+     para-3
+     para-4
+    =goal>
+     phase                  attend-aoi
+     stage                  1
+)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;;;;;;;;;;;
@@ -1979,13 +2002,13 @@
      isa		        task
      phase              check-allocation
      stage              7
-    autonomy-role      n-a
+    autonomy-role       n-a
 ==>
     =goal>
-     crosscheck        yes
-     phase             perform-task
-    tars-input         nil
-     stage             1
+     crosscheck         yes
+     phase              perform-task
+    tars-input          nil
+     stage              1
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2184,12 +2207,13 @@
     task-object takeoff-clearance
     task-value  confirm
     phase       perform-task
-    stage       wait
-    =imaginal>
-    isa         clearance
-    procedure   takeoff
+    human-role  performer
+    stage       1
+    ;=imaginal>
+    ;isa         clearance
+    ;procedure   takeoff
 ==>
-    =imaginal>
+    ;=imaginal>
     =goal>
     stage      start-timing
 )
@@ -2201,11 +2225,11 @@
     task-value  confirm
     phase       perform-task
     stage       start-timing
-    =imaginal>
-    isa         clearance
-    procedure   takeoff
+    ;=imaginal>
+    ;isa         clearance
+    ;procedure   takeoff
 ==>
-    =imaginal>
+    ;=imaginal>
     +temporal>
     isa         time
     ticks       0
@@ -2247,7 +2271,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL ATTEMPT FOR WORD IN MEMORY;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This production follow up the encode-sound production to check if the message is from ATC
 ; retrieve self callsign from declarative memory if the message comes from ATC
-(p retrieval-attempt-for-word-from-takeoff-clearance-stop-timer
+(p encode-and-retrieval-attempt-for-word-from-takeoff-clearance-stop-timer
     =goal>
     isa             task
     task-object     takeoff-clearance
@@ -2258,39 +2282,41 @@
      isa            sound
      content        =content
      location       atc
-    =imaginal>
-     isa            clearance
-     procedure      takeoff
+    ;=imaginal>
+     ;isa            clearance
+     ;procedure      takeoff
 ==>
     +temporal>
     isa             clear
-    =imaginal>
+    ;=imaginal>
     +retrieval>
      isa         word
      value       =content
     =goal>
     phase       perform-task
-     stage       add-to-clearance-representation
+    stage       add-to-clearance-representation
 )
-(spp retrieval-attempt-for-word-from-takeoff-clearance-stop-timer :u 4) ; utility higher than regular encode-word for priority to current task
+(spp encode-and-retrieval-attempt-for-word-from-takeoff-clearance-stop-timer :u 1000) ; utility higher than regular encode-word for priority to current task
 
 ;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL SUCCESS, MAP RETRIEVED WORD TO CLEARANCE SLOT;;;;;;;;;;;;;;;;;;;;
 (p form-sender-representation-from-takeoff-clearance
     =goal>
     phase       perform-task
     stage       add-to-clearance-representation
-    =imaginal>
-        isa         clearance
-        procedure   takeoff
+    ?imaginal>
+    state       free
     =retrieval>
      isa         word
      value       =content
      category    sender
 ==>
-    =imaginal>
+    +imaginal>
+    isa         clearance
+    procedure   takeoff
     sender      =content
+    callsign     c-poly
     =goal>
-     stage       wait
+     stage       1
 )
 (spp form-sender-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
@@ -2309,7 +2335,7 @@
     =imaginal>
     runway          =content
     =goal>
-     stage          wait
+     stage          1
 )
 (spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
@@ -2345,7 +2371,7 @@
     +retrieval>
     isa             current-wind
     =goal>
-     stage          wait
+     stage          1
 )
 
 (p form-altitude-representation-from-takeoff-clearance
@@ -2363,7 +2389,7 @@
     =imaginal>
     altitude        =retrieval
     =goal>
-     stage          wait
+     stage          1
 )
 (spp form-altitude-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
@@ -2421,9 +2447,17 @@
     task-object     takeoff-clearance
     task-value      confirm
     phase           perform-task
-    stage           1
+    stage           start-readback
     human-role      performer
+    =imaginal>
+     isa            clearance
+     procedure      takeoff
+     - sender       nil
+     - callsign     nil
+     - runway       nil
+     - altitude     nil
 ==>
+    =imaginal>
     =goal>
     stage           start-readback-push-ptt
 )
@@ -4938,6 +4972,38 @@
     stage       1
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; CHECK CAS TAKEOFF TASK WILL BE USED AS END;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;starting point
+(p end-run
+    =goal>
+     isa                    task
+     phase                  perform-task
+     stage                  1
+    task-object             cas
+    task-value              check-clear
+    ?manual>
+    state		            free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-bool
+     preparation-duration   3.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 start
+     para-2                 false
+     para-3
+     para-4
+    =goal>
+     phase                  end
+     stage                  end
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;; ENDCHECK CAS TAKEOFF TASK WILL BE USED AS END;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

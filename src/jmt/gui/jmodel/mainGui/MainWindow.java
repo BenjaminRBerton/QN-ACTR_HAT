@@ -157,7 +157,7 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
         new Thread(() -> {
             try{
                 Thread.sleep(2000); // wait for 2 seconds to let simulation start
-                Agent.getInstance().start(this);
+                Agent.getInstance().start(this, mediator);
                 _logger.info("Agent started");
             } catch (InterruptedException e){
                 _logger.error("Error while starting cognitive agent: {}", e.toString());
