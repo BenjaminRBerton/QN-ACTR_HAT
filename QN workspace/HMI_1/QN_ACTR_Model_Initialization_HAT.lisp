@@ -644,6 +644,7 @@
     autonomy-role
     tars-input
     crosscheck
+    imaginal-pointer
 )
 
 (chunk-type aircraft-component
@@ -850,20 +851,20 @@
 
 (p encode-sound
    ?imaginal>
-    state       free
+     state          free
    =goal>
-    stage   encode-sound
+     stage          encode-sound
    =aural>
-     isa     sound
-     content   =content
-     location  =location
+     isa            sound
+     content        =content
+     location       =location
 ==>
    +imaginal>
-     isa        sound
-     content    =content
-     location   =location
+     isa            sound
+     content        =content
+     location       =location
     =goal>
-     stage        sound-encoded
+     stage          sound-encoded
 )
 
 (p sound-encoded-from-tars
@@ -911,6 +912,7 @@
     =goal>
      stage       1
 )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; END BLOCK PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2110,6 +2112,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(p no-task-found-for-object-value-pair
+    =goal>
+     isa		        task
+     phase              perform-task
+     stage              1
+    ?imaginal>
+     state           free
+==>
+    =goal>
+     phase              attend-aoi
+     stage              1
+    +imaginal>
+        isa                aoi
+        name               "CURRENT_TASK_OBJECT"
+)
 ;;;;
 ;;;; AT this point, THE MODEL HAS READ THE TASK TO PERFORM AND THE ALLOCATION INFORMATION
 ;;;; THE FOLLOWING PRODUCTION RULES ARE UNIQUE FOR EACH TASK THEY, REPRESENT THE "SWITCH" TO
@@ -2134,6 +2151,7 @@
    =goal>
     stage		    wait
 )
+(spp enter-takeoff-clearance :u 1000) ;higher than default of value-pair not found
 ;;;;;;;;;;;;;;;COMPARE WORD TO SELF CALLSIGN TO DETERMINE IF THE CLEARANCE IS FOR US;;;;;;;;;;;;;;;;
 (p retrieve-self-callsign
     =goal>
@@ -2164,21 +2182,20 @@
     =retrieval>
     isa             callsign
     content         =content
-    ;?imaginal>
-    ;state           free
+    ?imaginal>
+    state           free
 ==>
-    ;+imaginal>
-    ;isa             clearance
-    ;procedure       takeoff
-    ;callsign        c-poly
     =goal>
     isa             task
     task-object     takeoff-clearance
     task-value      confirm
     human-role      nil
     autonomy-role   nil
-    phase           check-allocation
+    phase           attending-aoi
     stage           1
+    +imaginal>
+    isa             aoi
+    name            "CURRENT_TASK_OBJECT"
 )
 (spp is-our-callsign :u 2)
 
@@ -2209,14 +2226,11 @@
     phase       perform-task
     human-role  performer
     stage       1
-    ;=imaginal>
-    ;isa         clearance
-    ;procedure   takeoff
 ==>
-    ;=imaginal>
     =goal>
     stage      start-timing
 )
+(spp wait-for-next-word :u 1000) ;higher than default of value-pair not found
 
 (p start-timing
     =goal>
@@ -2439,7 +2453,7 @@
     stage           1
     status          wait-teammate
 )
-(spp t-i-allocation-to-takeoff-clearance-readback-by-tars :u 5) ; high utility to prioritize this production
+(spp t-i-allocation-to-takeoff-clearance-readback-by-tars :u 1000) ; high utility to prioritize this production
 
 (p t-i-allocation-to-takeoff-clearance-readback-by-pilot
     =goal>
@@ -2664,6 +2678,7 @@
     stage       1
 )
 (spp t-i-pitot-heat-tars-input-is-on-and-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-pitot-heat-tars-input-is-on-and-trusted :u 1000); higher than default of value-pair not found
 
 (p t-i-pitot-heat-tars-input-is-on-and-distrust
     =goal>
@@ -2680,6 +2695,7 @@
     =goal>
      stage              2
 )
+(spp t-i-pitot-heat-tars-input-is-on-and-distrust :u 1000); higher than default of value-pair not found
 
 (p t-i-pitot-heat-tars-input-is-off
     =goal>
@@ -2695,6 +2711,7 @@
     =goal>
      stage		        2
 )
+(spp t-i-pitot-heat-tars-input-is-off :u 1000); higher than default of value-pair not found
 
 (p t-i-no-tars-input-on-pitot-heat
     =goal>
@@ -2708,6 +2725,7 @@
     =goal>
     stage               2
 )
+(spp t-i-no-tars-input-on-pitot-heat :u 1000); higher than default of value-pair not found
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PITOT STATIC SWITCH ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2983,7 +3001,7 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 2)
+(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 1000); higher than default of value-pair not found
 
 (p engine-anti-ice-no-tars-recommendation
     =goal>
@@ -3000,6 +3018,24 @@
     phase               retrieve-atis
     stage               1
 )
+(spp engine-anti-ice-no-tars-recommendation :u 1000); higher than default of value-pair not found
+
+(p engine-anti-ice-n-a-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    engine-anti-ice-switches
+     task-value         as-required
+     tars-input         n-a
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               retrieve-atis
+    stage               1
+)
+(spp engine-anti-ice-n-a-tars-input :u 1000); higher than default of value-pair not found
 
 (p retrieve-last-atis-temperature
     =goal>
@@ -3055,7 +3091,7 @@
      stage              2
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     status              atis-retrieval-failure
+     status             atis-retrieval-failure
     ?imaginal>
     state               free
 ==>
@@ -3098,33 +3134,15 @@
     stage               1
 )
 
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-understand-engine-anti-ice-as-required-tars-recommendation
+(p t-i-tars-recommend-check-visible-moisture-present-condition
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         =value
-    ?imaginal>
-    state               free
-==>
-    =goal>
-     task-value         =value
-     stage		        2
-)
-(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 2)
-
-(p t-i-tars-recommend-check-visible-moisture-present-condition
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              2
-     task-object	    engine-anti-ice-switches
-     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
     ?imaginal>
     state               free
 ==>
@@ -3135,6 +3153,7 @@
     =goal>
      stage		        visual-encode-aircraft-component
 )
+(spp t-i-tars-recommend-check-visible-moisture-present-condition :u 1000); higher than default of value-pair not found
 
 (p t-i-tars-do-not-recommend-check-visible-moisture-present-condition
     =goal>
@@ -3142,7 +3161,8 @@
      phase		        perform-task
      stage              2
      task-object	    engine-anti-ice-switches
-     - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     task-value         as-required
+     - tars-input       last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
     ?imaginal>
     state               free
 ==>
@@ -3157,7 +3177,8 @@
      phase		        perform-task
      stage              form-representation-aircraft-component
      task-object	    engine-anti-ice-switches
-     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     task-value         as-required
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
      status              nil ; not yet set
     ?imaginal>
     state               free
@@ -3193,53 +3214,54 @@
 
 (p form-left-engine-anti-ice-status-representation
    =goal>
-    isa		        task
-    phase           perform-task
-    stage		    form-representation-aircraft-component
-    status          left
-    task-object	    engine-anti-ice-switches
+    isa		                task
+    phase                   perform-task
+    stage		            form-representation-aircraft-component
+    status                  left
+    task-object	            engine-anti-ice-switches
     ?imaginal>
-    state           free
+    state                   free
 !bind! =value (read_input l_eng_ai)		; hard coded way to get the aircraft-component-status from X-Plane
 ==>
    +imaginal>
-    isa                   aircraft-component
-    component-name        left-engine-anti-ice-switch
-    component-status      =value
+    isa                     aircraft-component
+    component-name          left-engine-anti-ice-switch
+    component-status        =value
    =goal>
-    stage		action-left
+    stage		            action-left
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; EXECUTE ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p left-engine-anti-ice-take-action		;ENGINE ANTI-ICE is OFF
    =goal>
-    isa		    task
-    phase		perform-task
-    stage		action-left
-    status      left
-    task-object	    engine-anti-ice-switches
-    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+    isa		            task
+    phase		        perform-task
+    stage		        action-left
+    status              left
+    task-object	        engine-anti-ice-switches
+    task-value          as-required
+    tars-input          last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
    =imaginal>
-    isa		    aircraft-component
+    isa		            aircraft-component
     component-name		left-engine-anti-ice-switch
-    - component-status				    true			; true means ENGINE ANTI-ICE is ON
+    - component-status  true			; true means ENGINE ANTI-ICE is ON
    ?manual>
-    state		free
+    state		        free
 ==>
    +manual>
-    isa 			customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
-    name			agent-set-bool
+    isa 			        customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
+    name			        agent-set-bool
     preparation-duration	0.050
-    initiation-duration	0.050
-    execution-duration	1.0
-    finish-duration		1.0
-    para-1			l_engine_anti_ice
-    para-2			true
+    initiation-duration	    0.050
+    execution-duration	    1.0
+    finish-duration		    1.0
+    para-1			        l_engine_anti_ice
+    para-2			        true
     para-3
     para-4
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
     =goal>
-    stage          right-1
+    stage                   right-1
 )
 
 (p left-engine-anti-ice-is-already-on
@@ -3265,7 +3287,8 @@
      stage              action-left
      status             left
      task-object	    engine-anti-ice-switches
-    - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     task-value         as-required
+    - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
 ==>
     =goal>
      stage              right-1
@@ -3314,35 +3337,36 @@
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p engine-right-anti-ice-take-action		;RIGHT ENGINE ANTI-ICE is OFF
    =goal>
-    isa		    task
-    phase		perform-task
-    stage		action-right
-    status      right
-    task-object	    engine-anti-ice-switches
-    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+    isa		                task
+    phase		            perform-task
+    stage		            action-right
+    status                  right
+    task-object	            engine-anti-ice-switches
+    task-value              as-required
+    tars-input              last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
    =imaginal>
-    isa		    aircraft-component
-    component-name		right-engine-anti-ice-switch
-    - component-status				    true			; true means ENGINE ANTI-ICE is ON
+    isa		                aircraft-component
+    component-name		    right-engine-anti-ice-switch
+    - component-status      true			; true means ENGINE ANTI-ICE is ON
    ?manual>
-    state		free
+    state		            free
 ==>
    +manual>
-    isa 			    customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
-    name			    agent-set-bool
+    isa 			        customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
+    name			        agent-set-bool
     preparation-duration	0.050
-    initiation-duration	0.050
-    execution-duration	1.0
-    finish-duration		1.0
-    para-1			    r_engine_anti_ice
-    para-2			    true
+    initiation-duration	    0.050
+    execution-duration	    1.0
+    finish-duration		    1.0
+    para-1			        r_engine_anti_ice
+    para-2			        true
     para-3
     para-4
     ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
     =goal>
-    phase		        check-task-on-tars
-    stage       1
-    task-value          as-required ;need to set it back otherwise it will read tars interface as a new task
+    phase		            check-task-on-tars
+    stage                   1
+    task-value              as-required ;need to set it back otherwise it will read tars interface as a new task
 )
 
 (p right-engine-anti-ice-is-already-on
@@ -3370,7 +3394,8 @@
      stage              action-right
      status             right
      task-object	    engine-anti-ice-switches
-    - task-value        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     task-value         as-required
+    - tars-input        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
 ==>
     =goal>
     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
@@ -3399,6 +3424,7 @@
     stage       1
 )
 (spp t-i-windshield-anti-ice-is-already-on-according-to-tars :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-windshield-anti-ice-is-already-on-according-to-tars :u 1000); higher than default of value-pair not found
 
 (p t-i-windshield-anti-ice-no-tars-recommendation
     =goal>
@@ -3415,6 +3441,24 @@
     phase               retrieve-atis
     stage               1
 )
+(spp t-i-windshield-anti-ice-no-tars-recommendation :u 1000); higher than default of value-pair not found
+
+(p windshield-anti-ice-n-a-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    windshield-anti-ice-switches
+     task-value         as-required
+     tars-input         n-a
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               retrieve-atis
+    stage               1
+)
+(spp windshield-anti-ice-n-a-tars-input :u 1000); higher than default of value-pair not found
 
 (p windshield-anti-ice-could-not-retrieve-atis
     =goal>
@@ -3468,28 +3512,14 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-understand-windshield-anti-ice-as-required-tars-recommendation
+(p tars-recommend-check-visible-moisture-present-condition-windshield
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    windshield-anti-ice-switches
-     tars-input         =tars-input
-    ?imaginal>
-    state               free
-==>
-    =goal>
-     stage		        2
-     task-value         =tars-input
-)
-
-(p tars-recommend-check-visible-moisture-present-condition-windshield
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              2
-     task-object	    windshield-anti-ice-switches
-     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     task-value         as-required
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
     ?imaginal>
     state               free
 ==>
@@ -3500,20 +3530,23 @@
     =goal>
      stage		        visual-encode-aircraft-component
 )
+(spp tars-recommend-check-visible-moisture-present-condition-windshield :u 1000); higher than default of value-pair not found
 
 (p tars-do-not-recommend-check-visible-moisture-present-condition-windshield
     =goal>
      isa		        task
      phase		        perform-task
-     stage              2
+     stage              1
      task-object	    windshield-anti-ice-switches
-     - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     task-value         as-required
+     - tars-input       last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
     ?imaginal>
     state               free
 ==>
     =goal>
      stage		        3
 )
+(spp tars-do-not-recommend-check-visible-moisture-present-condition-windshield :u 1000); higher than default of value-pair not found
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK ENVIRONMENT TO DECIDE ACTION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p confirm-visible-moisture-present-condition-windshield
@@ -3522,7 +3555,8 @@
      phase		        perform-task
      stage              form-representation-aircraft-component
      task-object	    windshield-anti-ice-switches
-     task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     task-value         as-required
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
      status              nil ; not yet set
     ?imaginal>
     state               free
@@ -3583,7 +3617,8 @@
     stage		action-left
     status      left
     task-object	    windshield-anti-ice-switches
-    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    task-value      as-required
+    tars-input      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
     isa		    aircraft-component
     component-name		left-windshield-anti-ice-switch
@@ -3630,7 +3665,8 @@
      stage              action-left
      status             left
      task-object	    windshield-anti-ice-switches
-    - task-value         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     task-value         as-required
+    - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
 ==>
     =goal>
      stage              right-1
@@ -3679,26 +3715,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NECESSARY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p right-windshield-anti-ice-take-action		;RIGHT WINDSHIELD ANTI-ICE is OFF
    =goal>
-    isa		    task
-    phase		perform-task
-    stage		action-right
-    status      right
-    task-object	    windshield-anti-ice-switches
-    task-value      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    isa		            task
+    phase		        perform-task
+    stage		        action-right
+    status              right
+    task-object	        windshield-anti-ice-switches
+    task-value          as-required
+    tars-input          last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
    =imaginal>
-    isa		    aircraft-component
+    isa		            aircraft-component
     component-name		right-windshield-anti-ice-switch
-    - component-status				    true			; true means WINDSHIELD ANTI-ICE is ON
+    - component-status  true			; true means WINDSHIELD ANTI-ICE is ON
    ?manual>
-    state		free
+    state		        free
 ==>
    +manual>
-    isa 			customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
-    name			agent-set-bool
+    isa 			    customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
+    name			    agent-set-bool
     preparation-duration	0.050
-    initiation-duration	0.050
-    execution-duration	1.0
-    finish-duration		1.0
+    initiation-duration	    0.050
+    execution-duration	    1.0
+    finish-duration		    1.0
     para-1			    r_windshield_anti_ice
     para-2			    true
     para-3
@@ -3735,7 +3772,8 @@
      stage              action-right
      status             right
      task-object	    windshield-anti-ice-switches
-    - task-value        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     task-value         as-required
+    - tars-input        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
 ==>
     =goal>
     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
@@ -3766,6 +3804,7 @@
     stage       1
 )
 (spp t-i-pax-safety-tars-input-is-on-and-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-pax-safety-tars-input-is-on-and-trusted :u 1000); higher than default of value-pair not found
 
 (p t-i-pax-safety-tars-input-is-on-and-distrust
     =goal>
@@ -3782,6 +3821,7 @@
     =goal>
      stage               2
 )
+(spp t-i-pax-safety-tars-input-is-on-and-distrust :u 1000); higher than default of value-pair not found
 
 (p t-i-pax-safety-tars-input-is-off
     =goal>
@@ -3797,6 +3837,7 @@
     =goal>
     stage               2
 )
+(spp t-i-pax-safety-tars-input-is-off :u 1000); higher than default of value-pair not found
 
 (p no-tars-input-on-pax-safety
     =goal>
@@ -3810,6 +3851,7 @@
     =goal>
     stage               2
 )
+(spp no-tars-input-on-pax-safety :u 1000); higher than default of value-pair not found
 
 (p n-a-tars-input-on-pax-safety
     =goal>
@@ -3823,6 +3865,7 @@
     =goal>
     stage               2
 )
+(spp n-a-tars-input-on-pax-safety :u 1000); higher than default of value-pair not found
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PAX SAFETY SWITCH CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -4036,6 +4079,7 @@
     stage       1
 )
 (spp t-i-landing-lights-is-already-on-according-to-tars :reward 4)
+(spp t-i-landing-lights-is-already-on-according-to-tars :u 1000); higher than default of value-pair not found
 
 (p landing-lights-no-tars-recommendation
     =goal>
@@ -4051,6 +4095,7 @@
     =goal>
     stage               3
 )
+(spp landing-lights-no-tars-recommendation :u 1000); higher than default of value-pair not found
 
 ;;;;;;;;;;;;;;;;;;;;;;;; CHECK TEAMMATE RECOMMENDATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p t-i-understand-landing-lights-as-desired-tars-recommendation
@@ -4068,6 +4113,7 @@
      task-value         =tars-input
      stage		        2
 )
+(spp t-i-understand-landing-lights-as-desired-tars-recommendation :u 1000); higher than default of value-pair not found
 
 (p t-i-tars-recommend-landing-lights-on
     =goal>
@@ -4210,6 +4256,7 @@
     stage       1
 )
 (spp t-i-anti-coll-light-is-on-and-trusted :reward 4) ; TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-anti-coll-light-is-on-and-trusted :u 1000); higher than default of value-pair not found
 
 (p t-i-anti-coll-light-is-on-and-distrust
     =goal>
@@ -4226,6 +4273,7 @@
     =goal>
      stage               2
 )
+(spp t-i-anti-coll-light-is-on-and-distrust :u 1000); higher than default of value-pair not found
 
 (p anti-coll-light-is-off
     =goal>
@@ -4241,6 +4289,7 @@
     =goal>
     stage               2
 )
+(spp anti-coll-light-is-off :u 1000); higher than default of value-pair not found
 
 (p no-tars-input-on-anti-coll-light
     =goal>
@@ -4254,6 +4303,7 @@
     =goal>
     stage               2
 )
+(spp no-tars-input-on-anti-coll-light :u 1000); higher than default of value-pair not found
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE CURRENT STATE OF THE SWITCH;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p perform-visually-attend-anti-coll-light-switch
@@ -4471,6 +4521,7 @@
     =goal>
     stage		    visual-encode-aircraft-component
 )
+(spp perform-visually-attend-eicas :u 1000); higher than default of value-pair not found
 
 (p form-eicas-status-representation
    =goal>
@@ -4532,6 +4583,7 @@
     =goal>
     stage              2
 )
+(spp retrieve-current-wind-belief :u 1000); higher than default of value-pair not found
 
 (p t-i-retrieve-current-wind-belief-success-and-tars-input-available
     =goal>
@@ -4720,6 +4772,7 @@
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
 (spp t-i-selected-altitude-as-cleared-tars-input-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-selected-altitude-as-cleared-tars-input-trusted :u 1000); higher than default of value-pair not found
 
 (p t-i-selected-altitude-as-cleared-tars-input-distrust
     =goal>
@@ -4736,6 +4789,7 @@
     =goal>
     stage              2
 )
+(spp t-i-selected-altitude-as-cleared-tars-input-distrust :u 1000); higher than default of value-pair not found
 
 (p selected-altitude-as-cleared-no-tars-input
     =goal>
@@ -4749,6 +4803,7 @@
     =goal>
     stage              2
 )
+(spp selected-altitude-as-cleared-no-tars-input :u 1000); higher than default of value-pair not found
 
 (p retrieve-takeof-clearance
     =goal>
@@ -4771,8 +4826,7 @@
      stage              3
      task-object	    select-altitude
      task-value         preset-as-cleared
-    =imaginal>
-    - tars-input        nil
+    -tars-input        nil
     ?retrieval>
      state             error
 ==>
@@ -5001,6 +5055,7 @@
      phase                  end
      stage                  end
 )
+(spp end-run :u 1000); higher than default of value-pair not found
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;; ENDCHECK CAS TAKEOFF TASK WILL BE USED AS END;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
