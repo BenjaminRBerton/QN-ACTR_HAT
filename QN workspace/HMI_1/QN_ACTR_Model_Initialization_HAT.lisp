@@ -689,6 +689,7 @@
     callsign
     wind
     runway
+    altimeter
     altitude
     heading
     navigation
@@ -772,9 +773,13 @@
     (w-montreal-tower isa word value montreal-tower category sender)
     (w-zero-niner-zero isa word value wind-0-9-0-at-4 category wind)
     (w-zero-six-left isa word value runway-zero-six-left category runway)
+    (w-zero-six-right isa word value runway-zero-six-right category runway)
+    (w-two-four-right isa word value runway-two-four-right category runway)
+    (w-two-four-left isa word value runway-two-four-left category runway)
+    (w-altimeter-std isa word value altimeter-two-niner-niner-two category altimeter)
     (w-cleared-for-takeoff isa word value cleared-for-takeoff category procedure)
     (w-runway-heading isa word value maintain-runway-heading category heading)
-    (w-to-five-thousand isa word value climb-to-5000ft equivalent cleared-to-altitude-5000-ft-from-atc category altitude)
+    (w-to-five-thousand isa word value climb-to-five-thousand equivalent cleared-to-altitude-5000-ft-from-atc category altitude)
     (w-direct-agmeb-then-omeki isa word value proceed-direct-agmeb-then-omeki category navigation)
     (w-on-one-one-eight-decimal-niner isa word value departure-on-one-one-eight-decimal-niner category frequency)
     (w-good-flight isa word value good-flight category ending)
@@ -880,10 +885,27 @@
      stage       1
 )
 
+(p sound-encoded-from-atc-human-role-not-determined
+   =goal>
+    stage           sound-encoded
+    task-object     takeoff-clearance
+    human-role      nil
+    ?imaginal>
+        state       free
+   =imaginal>
+     isa         sound
+     location    atc
+     content     =content
+==>
+    !output!    (=content); debug
+    =goal>
+     stage       1
+)
+
 (p sound-encoded-from-atc-not-performer
    =goal>
     stage           sound-encoded
-    task-object   takeoff-clearance
+    task-object     takeoff-clearance
     - human-role    performer
     ?imaginal>
         state       free
@@ -1764,12 +1786,16 @@
 (p x-5-not-n-a-task-continue
     =goal>
      isa		    task
-     phase		reading-tars-interface
-     stage       5
+     phase		    reading-tars-interface
+     stage          5
     =imaginal>
      - task-object	n-a
      - task-value	n-a
+     task-object =value_obj
+     task-value =value_val
 ==>
+    !output! (=value_obj)
+    !output! (=value_val)
     =goal>
      stage		6
     =imaginal>
@@ -2187,8 +2213,6 @@
 ==>
     =goal>
     isa             task
-    task-object     takeoff-clearance
-    task-value      confirm
     human-role      nil
     autonomy-role   nil
     phase           attending-aoi
@@ -2352,6 +2376,24 @@
      stage          1
 )
 (spp form-runway-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
+
+(p form-altimeter-runway-representation-from-takeoff-clearance
+    =goal>
+    phase       perform-task
+    stage       add-to-clearance-representation
+    =imaginal>
+        isa         clearance
+        procedure   takeoff
+    =retrieval>
+     isa            word
+     value          =content
+     category       altimeter
+==>
+    =imaginal>
+    altimeter          =content
+    =goal>
+     stage          1
+)
 
 (p form-wind-representation-from-takeoff-clearance
     =goal>
@@ -2655,6 +2697,285 @@
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; END TAKEOFF-CLEARANCE CONFIRMATION TASK ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; FLAPS - SET FOR TAKEOFF TASK ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p t-i-flaps-set-for-takeoff-tars-input-is-set-and-trusted
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    flaps
+     task-value         set-for-takeoff
+     crosscheck         no
+     tars-input         flap-handle-is-currently-set-to-takeoff-position
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     phase		check-task-on-tars
+    stage       1
+)
+(spp t-i-flaps-set-for-takeoff-tars-input-is-set-and-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-flaps-set-for-takeoff-tars-input-is-set-and-trusted :u 1000); higher than default of value-pair not found
+
+(p t-i-flaps-set-for-takeoff-tars-input-is-set-and-distrust
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    flaps
+     task-value         set-for-takeoff
+     crosscheck         yes
+     tars-input         flap-handle-is-currently-set-to-takeoff-position
+    ?imaginal>
+    state               free
+==>
+    =goal>
+     stage               2
+)
+(spp t-i-flaps-set-for-takeoff-tars-input-is-set-and-distrust :u 1000); higher than default of value-pair not found
+
+(p t-i-flaps-set-for-takeoff-tars-input-is-not-set
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    flaps
+     task-value         set-for-takeoff
+     - tars-input       flap-handle-is-currently-set-to-takeoff-position
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    stage               2
+)
+(spp t-i-flaps-set-for-takeoff-tars-input-is-not-set :u 1000); higher than default of value-pair not found
+
+(p no-tars-input-on-flaps
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    flaps
+     task-value         set-for-takeoff
+     tars-input          nil
+==>
+    =goal>
+    stage               2
+)
+(spp no-tars-input-on-flaps :u 1000); higher than default of value-pair not found
+
+(p n-a-tars-input-on-flaps
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    flaps
+     task-value         set-for-takeoff
+     tars-input         n-a
+==>
+    =goal>
+    stage               2
+)
+(spp n-a-tars-input-on-flaps :u 1000); higher than default of value-pair not found
+
+
+;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE FLAPS SWITCH CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p perform-visually-attend-flaps
+   =goal>
+    isa		        task
+    phase		    perform-task
+    stage           2
+    task-object	    flaps
+    task-value      set-for-takeoff
+    human-role      =value
+    autonomy-role   =value2
+    ?imaginal>
+    state               free
+==>
+   +visual-location>
+    isa		        visual-location
+    screen-x	    1690			; representing flap indicator location on the MFD
+    screen-y	    1010
+    =goal>
+    stage		    visual-encode-aircraft-component
+)
+
+(p form-flaps-status-representation-has-tars-input
+   =goal>
+    isa		        task
+    phase           perform-task
+    stage		    form-representation-aircraft-component
+    task-object	    flaps
+    task-value      set-for-takeoff
+    - tars-input      nil
+    ?imaginal>
+    state        free
+!bind! =value (read_input flaps)		; hard coded way to get the aircraft-component-status from X-Plane
+==>
+   +imaginal>
+    isa                   aircraft-component
+    component-name        flaps
+    component-status      =value
+   =goal>
+    stage		          verify-tars-input
+)
+
+(p form-flaps-status-representation-no-tars-input
+   =goal>
+    isa		        task
+    phase           perform-task
+    task-object	    flaps
+    task-value      set-for-takeoff
+    stage		    form-representation-aircraft-component
+    tars-input       nil
+    ?imaginal>
+    state           free
+!bind! =value (read_input flaps)		; hard coded way to get the aircraft-component-status from X-Plane
+==>
+    +imaginal>
+    isa                   aircraft-component
+    component-name        flaps
+    component-status      =value
+   =goal>
+    stage		          action
+)
+
+(p t-i-flaps-status-set-for-takeoff-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    flaps
+     task-value         set-for-takeoff
+     tars-input         flap-handle-is-currently-set-to-takeoff-position
+    =imaginal>
+     isa		        aircraft-component
+     component-name		flaps
+     component-status   0.5			; 0.5 means TARS was reliable
+==>
+    =imaginal>
+    =goal>
+     phase               check-task-on-tars
+    stage       1
+)
+(spp t-i-flaps-status-set-for-takeoff-correspond-to-tars-input :reward -1) ;it took unnecessary time to check TARS input
+
+(p t-i-flaps-status-does-not-correspond-to-tars-input
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    flaps
+     task-value         set-for-takeoff
+     tars-input         flap-handle-is-currently-set-to-takeoff-position
+    =imaginal>
+     isa		        aircraft-component
+     component-name		flaps
+     - component-status   0.5			; 0.5 means TARS was not reliable
+==>
+    =imaginal>
+    =goal>
+     stage               action
+)
+(spp t-i-flaps-status-does-not-correspond-to-tars-input :reward 4) ;it was a good idea to check TARS input will be less
+;trusted in the future
+
+(p t-i-flaps-status-correspond-to-tars-input-not-set-and-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    flaps
+     task-value         set-for-takeoff
+     - tars-input         flap-handle-is-currently-set-to-takeoff-position
+     crosscheck         yes
+    =imaginal>
+     isa		        aircraft-component
+     component-name		flaps
+     - component-status   0.5			; non-0.5 means TARS was reliable
+==>
+    =imaginal>
+    =goal>
+    stage               action
+)
+(spp t-i-flaps-status-correspond-to-tars-input-not-set-and-crosscheck :reward -1)
+
+(p t-i-flaps-status-correspond-to-tars-input-not-set-and-no-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    flaps
+     task-value         set-for-takeoff
+     -tars-input         flap-handle-is-currently-set-to-takeoff-position
+     crosscheck         no
+    =imaginal>
+     isa		        aircraft-component
+     component-name		flaps
+     - component-status   0.5			; non-0.5 means TARS was reliable
+==>
+    =imaginal>
+    =goal>
+     stage              action
+)
+(spp t-i-flaps-status-correspond-to-tars-input-not-set-and-no-crosscheck :reward 4)
+
+;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p flaps-take-action		;FLAPS are not set for takeoff
+   =goal>
+    isa		    task
+    phase		perform-task
+    stage		action
+    task-object	    flaps
+    task-value      set-for-takeoff
+   =imaginal>
+    isa		    aircraft-component
+    component-name		flaps
+    - component-status  0.5			; 0.5 means FLAPS are set for takeoff
+   ?manual>
+    state		free
+==>
+   +manual>
+    isa 			customized-manual-action		; representing hand reach to flap handle (time duration should be estimated based on human pilot video recordings)
+    name			agent-set-double
+    preparation-duration	0.050
+    initiation-duration	0.050
+    execution-duration	1.0
+    finish-duration		1.0
+    para-1			flaps
+    para-2			0.5
+    para-3
+    para-4
+    ; hard coded way to send the updated aircraft-component-status to X-Plane using agent-set-output action
+    =goal>
+    phase		check-task-on-tars
+    stage       1
+)
+
+(p flaps-is-already-set-for-takeoff
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              action
+     task-object	    flaps
+    =imaginal>
+     isa		        aircraft-component
+     component-name        flaps
+     component-status      0.5			; 0.5 means FLAPS are set for takeoff
+==>
+    =goal>
+     phase		check-task-on-tars
+    stage       1
+)
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;; END FLAPS - SET FOR TAKEOFF TASK ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 

@@ -87,7 +87,7 @@ public class QnactrSimulation
   
   ///////////// SETUP Begin///////////////////
   public static boolean entitiesViewerEnable = false; // true or false
-  public static boolean taskVisualization2DEnable = false;
+  public static boolean taskVisualization2DEnable = true;
   public static boolean taskVisualization3DEnable = false;
   public static boolean taskInterfaceWindowEnable = false; //TODO, for radar operator tasks
     

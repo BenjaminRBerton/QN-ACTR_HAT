@@ -97,8 +97,7 @@ public class QnactrFiles
     Results_results_response = new QnactrTxtFile(hmiFolder + "Results/" + "results_response.txt");
     Results_trace = new QnactrTxtFile(hmiFolder + "Results/" + "trace.txt");
     Results_mental_workload = new QnactrTxtFile(hmiFolder + "Results/" + "results_mental_workload.txt");
-    QN_ACTR_Model_Initialization = new QnactrTxtFile(hmiFolder + "QN_ACTR_Model_Initialization_HAT.lisp");
-    copyModelFileToSrc();
+    QN_ACTR_Model_Initialization = new QnactrTxtFile(getModelInitializationFile());
     //QN_ACTR_Model_Initialization = new QnactrTxtFile(hmiFolder + "QN_ACTR_Model_Initialization_aural_stuffing.lisp");
     //QN_ACTR_Model_Initialization = new QnactrTxtFile(hmiFolder + "QN_ACTR_Model_Initialization_pretakeoff.txt");
 
@@ -106,33 +105,28 @@ public class QnactrFiles
 
   }
 
-    private void copyModelFileToSrc() {
-        try {
-            // Source path in out/
-            Path sourcePath = Paths.get(URI.create(hmiFolder + "QN_ACTR_Model_Initialization_HAT.lisp"));
+  private String getModelInitializationFile() {
+    Path workingDirectory = Paths.get(System.getProperty("user.dir"));
+    Path workspaceModel = workingDirectory.resolve(Paths.get(
+        "QN workspace",
+        "HMI_" + (sim.ID + 1),
+        "QN_ACTR_Model_Initialization_HAT.lisp"
+    ));
 
-            // Navigate up from out/production/QN-ACTR-XPlane/QN workspace/HMI_1/ to the outer project root
-            // Need to go up 5 levels: HMI_1 -> QN workspace -> QN-ACTR-XPlane -> production -> out -> project root
-            Path outerProjectRoot = sourcePath.getParent().getParent().getParent().getParent().getParent();
-
-            // Then go into the inner QN-ACTR-XPlane folder
-            Path destPath = outerProjectRoot.resolve("QN-ACTR-XPlane/QN workspace/HMI_" + (sim.ID + 1) + "/QN_ACTR_Model_Initialization_HAT.lisp");
-
-            // Create parent directories if needed
-            Files.createDirectories(destPath.getParent());
-
-            // Copy the file
-            Files.copy(sourcePath, destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    if (!Files.isRegularFile(workspaceModel)) {
+      workspaceModel = workingDirectory.resolve("QN-ACTR-XPlane").resolve(Paths.get(
+          "QN workspace",
+          "HMI_" + (sim.ID + 1),
+          "QN_ACTR_Model_Initialization_HAT.lisp"
+      ));
     }
 
+    if (Files.isRegularFile(workspaceModel)) {
+      return workspaceModel.toUri().toString();
+    }
 
-
-
-
+    return hmiFolder + "QN_ACTR_Model_Initialization_HAT.lisp";
+  }
 
   /**
    * Text file
