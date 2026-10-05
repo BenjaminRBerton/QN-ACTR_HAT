@@ -671,6 +671,7 @@
     e1-n1
     e2-n1
     cas
+    cas-status
 )
 
 (chunk-type throttle-situation
@@ -1326,6 +1327,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; AoI E/WD - construct eicas situation ;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; goal-2 is reserved for the EICAS worker; goal keeps the caller's task context.
 (p x-3-form-eicas-aoi-representation
    =goal>
     isa		    task
@@ -1341,13 +1343,19 @@
     +imaginal>
      isa		    eicas-situation
      cas            clear ; is getting the value from agent.eicas_cas
+     cas-status     no-alert
     =goal>
+     phase       waiting-for-eicas
+     stage       idle
+    +goal-2>
+     isa         task
+     task-object eicas
      phase       read-eicas
-     stage		1
+     stage       1
 )
 
 (p resume-read-eicas-task
-    =goal>
+    =goal-2>
     phase       read-eicas
     stage       1
     ?imaginal>
@@ -1357,10 +1365,11 @@
     +imaginal>
     isa         eicas-situation
     cas         clear ; is getting the value from imaginal buffer
+    cas-status  no-alert
 )
 
 (p visually-attend-eicas-n1-percent
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-eicas
     stage       1
@@ -1374,18 +1383,35 @@
     isa		visual-location
     screen-x	1600			; representing n1 percent label x-coordinate on E/WD AoI in the scene
     screen-y	760         ; representing n1 percent label y-coordinate on E/WD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
+(p visually-encode-eicas-component
+   =goal-2>
+    isa         task
+    phase       read-eicas
+    stage       visual-encode-aircraft-component
+   =visual-location>
+   ?visual>
+    state       free
+==>
+   +visual>
+    isa         move-attention
+    screen-pos  =visual-location
+   =goal-2>
+    stage       form-representation-aircraft-component
+)
+
 (p form-eicas-e1-n1-percent-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-eicas
     stage       form-representation-aircraft-component
     =imaginal>
     isa         eicas-situation
     cas         =value_cas
+    cas-status  =value_cas_status
     e1-n1      nil
     e2-n1      nil
    ?imaginal>
@@ -1395,13 +1421,14 @@
    +imaginal>
     isa		    eicas-situation
     cas         =value_cas ; is getting the value from imaginal buffer
+    cas-status  =value_cas_status
     e1-n1  =value ; is getting the value from agent.eicas_n1_percent
-    =goal>
+    =goal-2>
     stage		2
 )
 
 (p visually-attend-eicas-e2-n1-percent
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-eicas
     stage       2
@@ -1414,18 +1441,19 @@
     isa		visual-location
     screen-x	1630			; representing n2 percent label x-coordinate on E/WD AoI in the scene
     screen-y	760         ; representing n2 percent label y-coordinate on E/WD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-eicas-e2-n1-percent-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-eicas
     stage       form-representation-aircraft-component
     =imaginal>
     isa         eicas-situation
     cas         =value_cas
+    cas-status  =value_cas_status
     e1-n1  =value_n1_percent
     e2-n1      nil
    ?imaginal>
@@ -1435,11 +1463,32 @@
    +imaginal>
     isa		    eicas-situation
     cas         =value_cas ; is getting the value from imaginal buffer
+    cas-status  =value_cas_status
     e1-n1  =value_n1_percent ; is getting the value from imaginal buffer
     e2-n1  =value ; is getting the value from agent.eicas_n2_percent
-    =goal>
+    =goal-2>
+    phase       eicas-complete
+    stage       1
+)
+
+(p finish-idle-eicas-check
+   =goal>
+    phase       waiting-for-eicas
+    stage       idle
+   =goal-2>
+    phase       eicas-complete
+   =imaginal>
+    isa         eicas-situation
+    cas         clear
+    cas-status  no-alert
+    e1-n1       =e1_n1
+    e2-n1       =e2_n1
+==>
+   =goal>
     phase       attend-aoi
-    stage		1
+    stage       1
+   =imaginal>
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; end of AoI E/WD - construct eicas situation ;;;;;;;;
@@ -4855,11 +4904,45 @@
     state           free
 ==>
    +imaginal>
-    isa                 aircraft-component
-    component-name      eicas
-    component-status    no-alert
+    isa             eicas-situation
+    cas             clear
+    cas-status      no-alert
    =goal>
-    stage		action
+    phase           waiting-for-eicas
+    stage           checked
+   +goal-2>
+    isa             task
+    task-object     eicas
+    phase           read-eicas
+    stage           1
+)
+
+(p finish-procedural-eicas-check
+   =goal>
+    isa             task
+    phase           waiting-for-eicas
+    stage           checked
+    task-object     eicas
+    task-value      checked
+   =goal-2>
+    phase           eicas-complete
+   =imaginal>
+    isa             eicas-situation
+    cas             clear
+    cas-status      =cas_status
+    e1-n1           =e1_n1
+    e2-n1           =e2_n1
+   ?imaginal>
+    state           free
+==>
+   +imaginal>
+    isa             aircraft-component
+    component-name  eicas
+    component-status =cas_status
+   =goal>
+    phase           perform-task
+    stage           action
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p eicas-is-clear
@@ -5497,7 +5580,7 @@
 ;;;;;;;;;;;; CHECK CAS TAKEOFF TASK ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;starting point
-(p end-run
+(p start-cas-check-clear-takeoff
     =goal>
      isa                    task
      phase                  perform-task
@@ -5506,15 +5589,48 @@
     task-value              check-clear
     ?manual>
     state		            free
+    ?imaginal>
+    state                   free
 ==>
      =goal>
+     phase                  waiting-for-eicas
+     stage                  cas
+    +imaginal>
+     isa                    eicas-situation
+     cas                    clear
+     cas-status             no-alert
+    +goal-2>
      isa                    task
+     task-object            eicas
      phase                  read-eicas
      stage                  1
 )
-(spp end-run :u 1000); higher than default of value-pair not found
+(spp start-cas-check-clear-takeoff :u 1000); higher than default of value-pair not found
+
+(p finish-cas-eicas-check
+   =goal>
+    isa                    task
+    phase                  waiting-for-eicas
+    stage                  cas
+    task-object            cas
+    task-value             check-clear
+   =goal-2>
+    phase                  eicas-complete
+   =imaginal>
+    isa                    eicas-situation
+    cas                    clear
+    cas-status             no-alert
+    e1-n1                  =e1_n1
+    e2-n1                  =e2_n1
+==>
+   =goal>
+    phase                  check-task-on-tars
+    stage                  1
+   =imaginal>
+   -goal-2>
+)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;; ENDCHECK CAS TAKEOFF TASK WILL BE USED AS END;;;;;
+;;;;;;;;; END OF CHECK CAS TAKEOFF TASK ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
