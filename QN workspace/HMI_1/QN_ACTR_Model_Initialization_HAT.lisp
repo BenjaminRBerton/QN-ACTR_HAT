@@ -3463,7 +3463,7 @@
      stage              1
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
     ?imaginal>
     state               free
 ==>
@@ -3483,7 +3483,7 @@
      stage              2
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     - tars-input       last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
     ?imaginal>
     state               free
 ==>
@@ -3499,7 +3499,7 @@
      stage              form-representation-aircraft-component
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
      status              nil ; not yet set
     ?imaginal>
     state               free
@@ -3561,7 +3561,7 @@
     status              left
     task-object	        engine-anti-ice-switches
     task-value          as-required
-    tars-input          last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+    tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
    =imaginal>
     isa		            aircraft-component
     component-name		left-engine-anti-ice-switch
@@ -3609,7 +3609,7 @@
      status             left
      task-object	    engine-anti-ice-switches
      task-value         as-required
-    - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
 ==>
     =goal>
      stage              right-1
@@ -3664,7 +3664,7 @@
     status                  right
     task-object	            engine-anti-ice-switches
     task-value              as-required
-    tars-input              last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+    tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
    =imaginal>
     isa		                aircraft-component
     component-name		    right-engine-anti-ice-switch
@@ -3716,7 +3716,7 @@
      status             right
      task-object	    engine-anti-ice-switches
      task-value         as-required
-    - tars-input        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-engine-anti-ice-on
+     - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-engine-anti-ice--->-on
 ==>
     =goal>
     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
@@ -3840,7 +3840,7 @@
      stage              1
      task-object	    windshield-anti-ice-switches
      task-value         as-required
-     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
     ?imaginal>
     state               free
 ==>
@@ -3860,7 +3860,7 @@
      stage              1
      task-object	    windshield-anti-ice-switches
      task-value         as-required
-     - tars-input       last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
     ?imaginal>
     state               free
 ==>
@@ -3877,7 +3877,7 @@
      stage              form-representation-aircraft-component
      task-object	    windshield-anti-ice-switches
      task-value         as-required
-     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
      status              nil ; not yet set
     ?imaginal>
     state               free
@@ -3939,7 +3939,7 @@
     status      left
     task-object	    windshield-anti-ice-switches
     task-value      as-required
-    tars-input      last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
    =imaginal>
     isa		    aircraft-component
     component-name		left-windshield-anti-ice-switch
@@ -3987,7 +3987,7 @@
      status             left
      task-object	    windshield-anti-ice-switches
      task-value         as-required
-    - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+     - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
 ==>
     =goal>
      stage              right-1
@@ -4042,7 +4042,7 @@
     status              right
     task-object	        windshield-anti-ice-switches
     task-value          as-required
-    tars-input          last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
    =imaginal>
     isa		            aircraft-component
     component-name		right-windshield-anti-ice-switch
@@ -4094,7 +4094,7 @@
      status             right
      task-object	    windshield-anti-ice-switches
      task-value         as-required
-    - tars-input        last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-windshield-anti-ice-on
+    - tars-input         last-metar-temperature-05-degrees-celsius---if-visible-moisture-present-i-suggest:-windshield-anti-ice--->-on
 ==>
     =goal>
     task-value         as-required ;need to set it back otherwise it will read tars interface as a new task
@@ -4929,29 +4929,72 @@
     stage               compare
 )
 
-(p t-i-wind-comparison-match ;assumed to always match for now
+(p t-i-wind-comparison-match-tars-supporter ;assumed to always match for now
     =goal>
      isa		        task
      phase		        perform-task
      stage              compare
      task-object	    winds
      task-value         check
+     autonomy-role      supporter
+    - tars-input         nil
+    =imaginal>
+     isa                current-wind
+==>
+   =goal>
+    phase               check-winds-popup
+    stage               1
+)
+
+(p t-i-wind-comparison-match-tars-not-supporter ;assumed to always match for now
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              compare
+     task-object	    winds
+     task-value         check
+     -autonomy-role     supporter
     - tars-input         nil
     =imaginal>
      isa                current-wind
 ==>
    =goal>
     phase               check-task-on-tars
-    stage       1
+    stage               1
 )
 
-(p retrieve-current-wind-belief-success-no-tars-input
+(p retrieve-current-wind-belief-success-no-tars-input-tars-supporter
     =goal>
      isa		        task
      phase		        perform-task
      stage              2
      task-object	    winds
      task-value         check
+     autonomy-role      supporter
+    =imaginal>
+    tars-input          nil
+    =retrieval>
+     isa                current-wind
+     wind-direction     =wind-direction
+     wind-speed         =wind-speed
+==>
+   +imaginal>
+    isa                 current-wind
+    wind-direction      =wind-direction
+    wind-speed          =wind-speed
+   =goal>
+    phase               check-winds-popup
+    stage               1
+)
+
+(p retrieve-current-wind-belief-success-no-tars-input-tars-no-supporter
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              2
+     task-object	    winds
+     task-value         check
+     -autonomy-role     supporter
     =imaginal>
     tars-input          nil
     =retrieval>
@@ -4965,7 +5008,7 @@
     wind-speed          =wind-speed
    =goal>
     phase               check-task-on-tars
-    stage       1
+    stage               1
 )
 
 (p t-i-retrieve-current-wind-belief-failure-and-tars-input-available
@@ -5053,7 +5096,7 @@
     stage               compare
 )
 
-(p verify-wind-information-coherence-no-tars-input
+(p verify-wind-information-coherence-no-tars-input-tars-no-support
     =goal>
      isa		        task
      phase		        perform-task
@@ -5061,10 +5104,113 @@
      task-object	    winds
      task-value         check
      tars-input         nil
+     -autonomy-role     supporter
 ==>
    =goal>
     phase               check-task-on-tars
+    stage               1
+)
+
+(p verify-wind-information-coherence-no-tars-input-tars-support
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              verify-coherence
+     task-object	    winds
+     task-value         check
+     tars-input         nil
+     autonomy-role      supporter
+==>
+   =goal>
+    phase               check-winds-popup
+    stage               1
+)
+
+;;;;;;;;;;;; CHECK TASK FOR WINDS ;;;;;;;;;;;;;
+
+(p check-1-press-check-winds-popup
+    =goal>
+    isa         task
+    phase       check-winds-popup
     stage       1
+    ?imaginal>
+    state       free
+    ?visual>
+    state       free
+    ?manual>
+    state       free
+    ?vocal>
+    state       free
+    ?aural>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-impulsion
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  task_check
+        para-2                  impulsion
+        para-3
+        para-4
+    =goal>
+        stage                   2
+)
+(p check-2-visually-attend-tars-wind-components-input
+   =goal>
+	isa		    task
+	phase		check-winds-popup
+    stage       2
+   ?visual>
+	state		free
+   ?imaginal>
+	state		free
+   ?manual>
+	state		free
+   ?vocal>
+    state		free
+==>
+   +visual-location>
+	isa		visual-location
+	screen-x	440			; representing tars input label
+	screen-y	1250         ; representing tars input label
+   =goal>
+	stage		3
+)
+;; visually encode tars-wind-components-input
+(p check-2-visually-encode-tars-wind-components-input
+   =goal>
+	isa		    task
+	phase		check-winds-popup
+    stage       3
+   =visual-location>
+   ?visual>
+	state		free
+==>
+   +visual>
+	isa		    move-attention
+	screen-pos	=visual-location
+   =goal>
+	stage		4
+)
+;; form tars-wind-components representation
+(p check-3-form-tars-wind-components-representation
+   =goal>
+	isa		    task
+	phase		check-winds-popup
+    stage       4
+   =visual>					; assume the model has read the checklist item properly
+   ?imaginal>
+	state		free
+!bind! =value (read_input tars-input)		; hard coded way to get the TARS input
+==>
+   =imaginal>
+	tars-input  =value
+   =goal>
+	phase		check-task-on-tars
+	stage       1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; END OF WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;
@@ -5348,7 +5494,7 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;; CHECK CAS TAKEOFF TASK WILL BE USED AS END;;;;;
+;;;;;;;;;;;; CHECK CAS TAKEOFF TASK ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;starting point
 (p end-run
@@ -5361,20 +5507,10 @@
     ?manual>
     state		            free
 ==>
-    +manual>
-     isa                    customized-manual-action
-     name                   agent-set-bool
-     preparation-duration   3.000
-     initiation-duration    1.000
-     execution-duration     1.000
-     finish-duration        1.000
-     para-1                 start
-     para-2                 false
-     para-3
-     para-4
-    =goal>
-     phase                  end
-     stage                  end
+     =goal>
+     isa                    task
+     phase                  read-eicas
+     stage                  1
 )
 (spp end-run :u 1000); higher than default of value-pair not found
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
