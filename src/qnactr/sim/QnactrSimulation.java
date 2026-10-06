@@ -10,9 +10,14 @@ import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.util.Hashtable;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.swing.JFrame;
 
@@ -21,6 +26,9 @@ import qnactr.GUI.ActrLiveDiagram;
 import qnactr.GUI.TaskVisualization2D;
 import qnactr.GUI.TaskVisualization3D;
 import qnactr.objectDesigner.Entity;
+import qnactr.objectDesigner.Chunk;
+import qnactr.objectDesigner.Production_Rule;
+import qnactr.objectDesigner.Production_Rule_Condition_Action_Item;
 //import qnactr.taskInterface.gui.*;
 import jmt.engine.QueueNet.Job;
 import jmt.engine.QueueNet.NetNode;
@@ -67,7 +75,26 @@ public class QnactrSimulation
   public static TaskVisualization2D taskVisualization2D; //currently just one static member may change this to each object has one member
 
   public static JFrame frameActrLiveDiagramViewer;
-  public static ActrLiveDiagram actrLiveDiagram;
+  public static volatile ActrLiveDiagram actrLiveDiagram;
+  private boolean imaginalWasCleared;
+  private boolean retrievalWasCleared;
+  private boolean goal1WasCleared;
+  private boolean goal2WasCleared;
+  private boolean temporalWasCleared;
+  private boolean auralWasCleared;
+  private boolean auralLocationWasCleared;
+  private boolean visualWasCleared;
+  private boolean visualLocationWasCleared;
+  private int vocalDiagramRequestTag = -1;
+  private int manualDiagramRequestTag = -1;
+  private int proceduralMatchTag = -1;
+  private int proceduralCapturingTag = -1;
+  private String proceduralStage = "IDLE";
+  private String proceduralLastExecuted = "";
+  private final List<ActrLiveDiagram.ProceduralCandidate> proceduralCandidates = new ArrayList<ActrLiveDiagram.ProceduralCandidate>();
+  private final List<ActrLiveDiagram.ProceduralCandidate> proceduralSelected = new ArrayList<ActrLiveDiagram.ProceduralCandidate>();
+  private final Map<Integer, List<String>> proceduralExecuting = new LinkedHashMap<Integer, List<String>>();
+  private final GoalRecency goalRecency = new GoalRecency();
   
   //public TaskInterfaceWindow ucWindow;
   
@@ -197,6 +224,304 @@ public class QnactrSimulation
                                        Math.min(860, usableScreen.height));
     frameActrLiveDiagramViewer.setLocationByPlatform(true);
     frameActrLiveDiagramViewer.setVisible(true);
+  }
+
+  /** Called after an imaginal transition, while the simulation still owns its mutable state. */
+  public void publishImaginalDiagram(boolean cleared) {
+    if (cleared) imaginalWasCleared = true;
+    if (!vars.imaginalBuffer.Empty) imaginalWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateImaginal(vars.imaginalBuffer, vars.imaginaryModule, imaginalWasCleared);
+    }
+  }
+
+  public void resetImaginalDiagram() {
+    imaginalWasCleared = false;
+    publishImaginalDiagram(false);
+  }
+
+  /** Publish a retrieval transition from the simulation thread. */
+  public void publishRetrievalDiagram(boolean cleared) {
+    if (cleared) retrievalWasCleared = true;
+    if (!vars.retrievalBuffer.Empty || vars.declarativeModule.State_Error) retrievalWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateRetrieval(vars.retrievalBuffer, vars.declarativeModule, retrievalWasCleared);
+    }
+  }
+
+  public void resetRetrievalDiagram() {
+    retrievalWasCleared = false;
+    publishRetrievalDiagram(false);
+  }
+
+  /** One shade step per simulation time; changes to both goals at that time share the newest shade. */
+  public void publishGoalDiagram(int goalIndex, boolean cleared) {
+    goalRecency.mark(goalIndex, SimSystem.clock());
+    if (goalIndex == 1) {
+      if (cleared) goal1WasCleared = true;
+    } else {
+      if (cleared) goal2WasCleared = true;
+    }
+    if (hasGoalChunk(vars.goalBuffer.Goal_Buffer_Chunk)) goal1WasCleared = false;
+    if (hasGoalChunk(vars.goalBuffer.Goal_Buffer_Chunk_2)) goal2WasCleared = false;
+    publishGoalSnapshot();
+  }
+
+  /** Reset either goal (1 or 2), or both (0), without marking a user-visible update. */
+  public void resetGoalDiagram(int goalIndex) {
+    goalRecency.reset(goalIndex);
+    if (goalIndex == 0 || goalIndex == 1) {
+      goal1WasCleared = false;
+    }
+    if (goalIndex == 0 || goalIndex == 2) {
+      goal2WasCleared = false;
+    }
+    publishGoalSnapshot();
+  }
+
+  static final class GoalRecency {
+    int first;
+    int second;
+    private double lastClock = Double.NaN;
+
+    void mark(int goalIndex, double clock) {
+      if (goalIndex != 1 && goalIndex != 2) throw new IllegalArgumentException("goalIndex");
+      if (Double.compare(clock, lastClock) != 0) {
+        first = Math.max(0, first - 1);
+        second = Math.max(0, second - 1);
+        lastClock = clock;
+      }
+      if (goalIndex == 1) first = 5;
+      else second = 5;
+    }
+
+    void reset(int goalIndex) {
+      if (goalIndex != 0 && goalIndex != 1 && goalIndex != 2) {
+        throw new IllegalArgumentException("goalIndex");
+      }
+      if (goalIndex == 0 || goalIndex == 1) first = 0;
+      if (goalIndex == 0 || goalIndex == 2) second = 0;
+      lastClock = Double.NaN;
+    }
+  }
+
+  private static boolean hasGoalChunk(Chunk chunk) {
+    return chunk != null && (!chunk.Chunk_Name.isEmpty() || !chunk.Chunk_Type.isEmpty());
+  }
+
+  private void publishGoalSnapshot() {
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateGoals(vars.goalBuffer.Goal_Buffer_Chunk, vars.goalBuffer.Goal_Buffer_Chunk_2,
+                          goal1WasCleared, goal2WasCleared, goalRecency.first, goalRecency.second);
+    }
+  }
+
+  /** Publish the temporal buffer after a request, tick, modification, or clear. */
+  public void publishTemporalDiagram(boolean cleared) {
+    if (cleared) temporalWasCleared = true;
+    if (!vars.temporalBuffer.Empty) temporalWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateTemporal(vars.temporalBuffer, temporalWasCleared);
+    }
+  }
+
+  /** Capture both audio buffers and the common audio-module state after a transition. */
+  public void publishAudioDiagram(boolean auralCleared, boolean locationCleared) {
+    if (auralCleared) auralWasCleared = true;
+    if (locationCleared) auralLocationWasCleared = true;
+    if (hasGoalChunk(vars.auralBuffer.Aural_Buffer_Chunk)) auralWasCleared = false;
+    if (!vars.auralLocationBuffer.Empty) auralLocationWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateAudio(vars.auralBuffer, vars.auralLocationBuffer, vars.audioModule,
+                          auralWasCleared, auralLocationWasCleared);
+    }
+  }
+
+  public void resetAudioDiagram() {
+    auralWasCleared = false;
+    auralLocationWasCleared = false;
+    publishAudioDiagram(false, false);
+  }
+
+  /** Capture both visual buffers after stuffing, a request, a modification, or a clear. */
+  public void publishVisualDiagram(boolean visualCleared, boolean locationCleared) {
+    if (visualCleared) visualWasCleared = true;
+    if (locationCleared) visualLocationWasCleared = true;
+    if (hasGoalChunk(vars.visualBuffer.Visual_Buffer_Chunk) || vars.visionModule.State_Error) {
+      visualWasCleared = false;
+    }
+    if (!vars.visualLocationBuffer.Empty || vars.visualLocationBuffer.State_Error) {
+      visualLocationWasCleared = false;
+    }
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateVisual(vars.visualBuffer, vars.visualLocationBuffer, vars.visionModule,
+                           visualWasCleared, visualLocationWasCleared);
+    }
+  }
+
+  public void resetVisualDiagram() {
+    visualWasCleared = false;
+    visualLocationWasCleared = false;
+    publishVisualDiagram(false, false);
+  }
+
+  /** Track the newest vocal request so an older completion cannot replace a newer command. */
+  public void publishVocalDiagram(int requestTag, String stage, Chunk command) {
+    if (requestTag < vocalDiagramRequestTag) return;
+    vocalDiagramRequestTag = requestTag;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateVocal(stage, command, vars.vocalBuffer, vars.speechModule);
+    }
+  }
+
+  public void resetVocalDiagram() {
+    vocalDiagramRequestTag = -1;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateVocal("IDLE", null, vars.vocalBuffer, vars.speechModule);
+    }
+  }
+
+  /** Track the newest manual request independently of overlapping older movements. */
+  public void publishManualDiagram(int requestTag, String stage, Chunk command) {
+    if (requestTag < manualDiagramRequestTag) return;
+    manualDiagramRequestTag = requestTag;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateManual(stage, command, vars.manualBuffer, vars.motorModule);
+    }
+  }
+
+  public void resetManualDiagram() {
+    manualDiagramRequestTag = -1;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) {
+      diagram.updateManual("IDLE", null, vars.manualBuffer, vars.motorModule);
+    }
+  }
+
+  public void resetProceduralDiagram() {
+    proceduralMatchTag = -1;
+    proceduralCapturingTag = -1;
+    proceduralStage = "IDLE";
+    proceduralLastExecuted = "";
+    proceduralCandidates.clear();
+    proceduralSelected.clear();
+    proceduralExecuting.clear();
+    publishProceduralSnapshot();
+  }
+
+  public void beginProceduralDiagram(int entityTag) {
+    proceduralCapturingTag = entityTag;
+    if (entityTag < proceduralMatchTag) return;
+    proceduralMatchTag = entityTag;
+    proceduralStage = "MATCHING";
+    proceduralCandidates.clear();
+    proceduralSelected.clear();
+    publishProceduralSnapshot();
+  }
+
+  /** Called by the existing selector after it has calculated noise and thread offsets. */
+  public void recordProceduralSelection(List<Production_Rule> matches, Production_Rule chosen,
+                                        Hashtable offsets) {
+    if (proceduralCapturingTag != proceduralMatchTag) return;
+    ActrLiveDiagram.ProceduralCandidate selectedCandidate = null;
+    for (Production_Rule rule : matches) {
+      String name = rule.Rule_Name;
+      double base = proceduralBaseUtility(name);
+      double finalValue = numberOrNaN(vars.utilityModule.utility.get(name));
+      Object offset = offsets.get(name + rule.Condition_Part_Goal_X_Reference);
+      double offsetValue = numberOrNaN(offset);
+      if (Double.isFinite(finalValue) && Double.isFinite(offsetValue)) finalValue += offsetValue;
+      ActrLiveDiagram.ProceduralCandidate candidate = new ActrLiveDiagram.ProceduralCandidate(
+          name, rule.Condition_Part_Goal_X_Reference, base, finalValue, proceduralLhsBuffers(rule));
+      proceduralCandidates.add(candidate);
+      if (chosen != null && name.equals(chosen.Rule_Name)
+          && rule.Condition_Part_Goal_X_Reference.equals(chosen.Condition_Part_Goal_X_Reference)) {
+        selectedCandidate = candidate;
+      }
+    }
+    if (selectedCandidate != null && !selectedCandidate.name.equals("nil")) {
+      proceduralSelected.add(selectedCandidate);
+      proceduralStage = "SELECTED";
+    } else {
+      proceduralStage = "NO MATCH";
+    }
+    publishProceduralSnapshot();
+  }
+
+  private static List<String> proceduralLhsBuffers(Production_Rule rule) {
+    Set<String> buffers = new LinkedHashSet<String>();
+    for (Production_Rule_Condition_Action_Item condition : rule.Condition) {
+      // Both chunk tests and buffer-state queries participate in LHS matching.
+      if (!"=".equals(condition.Type) && !"?".equals(condition.Type)) continue;
+      String buffer = condition.Buffer_Name;
+      if ("goal-x".equals(buffer)) buffer = rule.Condition_Part_Goal_X_Reference;
+      if (buffer != null && !buffer.isEmpty()) buffers.add(buffer);
+    }
+    return new ArrayList<String>(buffers);
+  }
+
+  private double proceduralBaseUtility(String name) {
+    Object base;
+    if (vars.utilityModule.utility_Computation_Method.equals("PG-C")) {
+      base = vars.centralParametersModule.esc
+          ? vars.utilityModule.pg_c.get(name) : vars.utilityModule.PG_C_value.get(name);
+    } else {
+      base = vars.utilityModule.U_N_Without_Noise.get(name);
+    }
+    return numberOrNaN(base);
+  }
+
+  private static double numberOrNaN(Object value) {
+    if (value == null || "nil".equals(value)) return Double.NaN;
+    try {
+      return Double.parseDouble(value.toString());
+    } catch (NumberFormatException ignored) {
+      return Double.NaN;
+    }
+  }
+
+  public void finishProceduralMatch(int entityTag) {
+    if (entityTag != proceduralMatchTag) return;
+    if (proceduralSelected.isEmpty()) proceduralStage = "NO MATCH";
+    publishProceduralSnapshot();
+  }
+
+  public void beginProceduralExecution(int entityTag, List<Production_Rule> rules) {
+    if (rules == null || rules.isEmpty()) return;
+    List<String> names = new ArrayList<String>();
+    for (Production_Rule rule : rules) {
+      names.add(rule.Condition_Part_Goal_X_Reference.isEmpty() ? rule.Rule_Name
+          : rule.Rule_Name + " [" + rule.Condition_Part_Goal_X_Reference + "]");
+    }
+    proceduralExecuting.put(entityTag, names);
+    publishProceduralSnapshot();
+  }
+
+  public void finishProceduralExecution(int entityTag) {
+    List<String> finished = proceduralExecuting.remove(entityTag);
+    if (finished != null) proceduralLastExecuted = String.join(", ", finished);
+    if (finished != null && entityTag == proceduralMatchTag && proceduralExecuting.isEmpty()) {
+      proceduralStage = "COMPLETE";
+    }
+    publishProceduralSnapshot();
+  }
+
+  private void publishProceduralSnapshot() {
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (!actrLiveDiagramEnable || diagram == null) return;
+    List<String> executing = new ArrayList<String>();
+    for (List<String> names : proceduralExecuting.values()) executing.addAll(names);
+    diagram.updateProcedural(executing.isEmpty() ? proceduralStage : "EXECUTING",
+        proceduralCandidates, proceduralSelected, executing, proceduralLastExecuted);
   }
   
   public static void createAndShowTaskVisualization3DViewerGUI() {

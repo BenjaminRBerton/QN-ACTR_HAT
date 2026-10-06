@@ -4711,6 +4711,7 @@ return return_string;
 		sim.vars.declarativeModule.Declarative_Retrieved_Finst_Time_Hashtable.clear();
 		sim.vars.declarativeModule.State_Error = false;
 		sim.vars.declarativeModule.State_Free = true;
+		sim.resetRetrievalDiagram();
 
 
 		//trash any entity in the retrieval buffer and the declarative module.
@@ -4775,6 +4776,7 @@ return return_string;
 	  //clear and reset retrieval buffer
 	  sim.vars.retrievalBuffer.Empty = true;
 	  sim.vars.retrievalBuffer.Retrieval_Buffer_Chunk = new Chunk();
+	  sim.resetRetrievalDiagram();
 	  
 	  
 	  //trash any entity in the retrieval buffer and the declarative module.
@@ -4830,6 +4832,7 @@ return return_string;
 	
 	public  void FrameworkFun__ReInitialize_Goal_1(){
 	  sim.vars.goalBuffer.Goal_Buffer_Chunk = new Chunk();
+	  sim.resetGoalDiagram(1);
 	  FrameworkFun__ReInitialize_Goal_1_Focus();
 	}
 	
@@ -4889,11 +4892,13 @@ return return_string;
 	  sim.vars.goalBuffer.Goal_Buffer_Chunk_3 = new Chunk();
 	  sim.vars.goalBuffer.Goal_Buffer_Chunk_4 = new Chunk();
 	  sim.vars.goalBuffer.Goal_Buffer_Chunk_5 = new Chunk();
+	  sim.resetGoalDiagram(0);
 	  
 	  FrameworkFun__ReInitialize_Goal_Focus();  //will do both goal> , goal-2> , goal-3> , goal-4> , goal-5>
 	}
 	
 	public  void FrameworkFun__ReInitialize_Production_Modules(){
+	  sim.resetProceduralDiagram();
 	  
 	  ////////////////////////////////////////////////////////////////////////////
 	  //production rules, clear,
@@ -4984,6 +4989,7 @@ return return_string;
 	  
 	  sim.vars.imaginalBuffer.Empty = true;
 	  sim.vars.imaginalBuffer.Imaginal_Buffer_Chunk = new Chunk();
+	  sim.resetImaginalDiagram();
 	}
 	
 	public  void FrameworkFun__Reset_PM_Module(String the_module_name){
@@ -5005,6 +5011,7 @@ return return_string;
 	      sim.vars.auralLocationBuffer.Empty	= true;
 	      
 	      DeviceModuleFun__Clear_Audio_Display();
+	      sim.resetAudioDiagram();
 	      //currently just so much to reset, check Audio_Module Audio_Buffer object definition
 	      break;
 	    }
@@ -5016,6 +5023,7 @@ return return_string;
 	      sim.vars.speechModule.State_Free = true;
 	      
 	      sim.vars.vocalBuffer.Vocal_Buffer_Chunk = new Chunk();
+	      sim.resetVocalDiagram();
 	      
 	      break;
 	    }
@@ -5027,6 +5035,7 @@ return return_string;
 	      sim.vars.motorModule.State_Free = true;
 	      
 	      sim.vars.manualBuffer.Manual_Buffer_Chunk = new Chunk();
+	      sim.resetManualDiagram();
 	      
 	      sim.vars.deviceModule.Mouse_Cursor_Screen_X = sim.vars.deviceModule.Mouse_Cursor_Initial_Screen_X;
 	      sim.vars.deviceModule.Mouse_Cursor_Screen_Y = sim.vars.deviceModule.Mouse_Cursor_Initial_Screen_Y;
@@ -5064,6 +5073,7 @@ return return_string;
 	      sim.vars.visualLocationBuffer.State_Free = true;
 	      sim.vars.visualLocationBuffer.Unrequested = false;
 	      sim.vars.visualLocationBuffer.Visual_Location_Buffer_Chunk = new Chunk();
+	      sim.resetVisualDiagram();
 	      
 	      //currently just so much to reset, check Vision_Module, visual buffer, and visual location object definitions
 	      break;
@@ -12926,6 +12936,7 @@ return return_string;
 	  //Model.Message ( sim.funs.ProgramUtilitiesFun__StringArray_To_String_Show_Empty(The_Chunk_Spec_Request));
 	  
 	  Temp_Entity.Chunk = sim.funs.ChunkFun__Make_Chunk_From_Descritption ( The_Chunk_Spec_Request ); //make the chunk based on its ISA type, but do not define it in the model's chunk list
+	  sim.publishManualDiagram(Temp_Entity.Tag, "QUEUED", Temp_Entity.Chunk);
 	  
 	  /*
 			//obsolete way of making the request chunk.
@@ -13154,6 +13165,7 @@ return return_string;
 	  for (j = 0; j < The_Chunk_Spec_Request.length; j+=2){
 	    sim.funs.ChunkFun__Add_Chunk_Slot_Name_And_Value(Temp_Entity.Chunk, The_Chunk_Spec_Request[j], The_Chunk_Spec_Request[j+1]);  //can handel exception for ISA chunk-type
 	  }
+	  sim.publishVocalDiagram(Temp_Entity.Tag, "QUEUED", Temp_Entity.Chunk);
 
 	}
 	
@@ -13451,7 +13463,8 @@ return return_string;
 	              //no problem, pass, do nothing
 	            }
 	            else{
-	              System.out.println( "WARNING! ProductionModuleFun__Bind_Variables_In_Rule_Condition, rule: " + the_rule.Rule_Name + ". !bind! " + content_string + ", has a new bind_result: " + bind_result + " that is different from the old one: " + (String) currentItem.Slot.get( "bind_result" ) );
+	              // Live inputs can legitimately change between rule matches; keep the binding, but do not warn.
+	              //System.out.println( "WARNING! ProductionModuleFun__Bind_Variables_In_Rule_Condition, rule: " + the_rule.Rule_Name + ". !bind! " + content_string + ", has a new bind_result: " + bind_result + " that is different from the old one: " + (String) currentItem.Slot.get( "bind_result" ) );
 	            }
 	          }
 	          else{ //add it for the first time
@@ -13482,6 +13495,7 @@ return return_string;
 	    DeclarativeModuleFun__Merge_Chunk_Into_DM (sim.vars.auralBuffer.Aural_Buffer_Chunk, "Aural_Buffer");
 	  }
 	  sim.vars.auralBuffer.Aural_Buffer_Chunk = new Chunk();
+	  sim.publishAudioDiagram(true, false);
 	  NetworkDetailsVisualizationFun__Get_Aural_Buffer_Contents();
 	  
 	  sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + Math.round (SimSystem.clock()) + "\t" + "PROCEDURAL" + "\t" + "CLEAR-BUFFER AURAL"); 
@@ -13501,6 +13515,7 @@ return return_string;
 	  
 	  sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + Math.round (SimSystem.clock()) + "\t" + "PROCEDURAL" + "\t" + "CLEAR-BUFFER AURAL-LOCATION"); 
 	  sim.vars.auralLocationBuffer.Empty = true;
+	  sim.publishAudioDiagram(false, true);
 	  
 	}
 	
@@ -13634,6 +13649,7 @@ return return_string;
 	  sim.vars.retrievalBuffer.Retrieval_Buffer_Chunk = new Chunk();
 	  sim.vars.retrievalBuffer.Empty = true;
 	  sim.vars.declarativeModule.State_Error = false;
+	  sim.publishRetrievalDiagram(true);
 	  
 	  
 	  
@@ -13671,6 +13687,7 @@ return return_string;
 	  //GlobalUtilities.popUpMessage(" ProductionModuleFun__Clear_Visual_Buffer_Request " );
 	  
 	  sim.vars.visualBuffer.Visual_Buffer_Chunk = new Chunk();
+	  sim.publishVisualDiagram(true, false);
 	  //sim.vars.visionModule.State_Error = false;
 	  
 	  NetworkDetailsVisualizationFun__Get_Visual_Buffer_Contents();
@@ -13707,6 +13724,7 @@ return return_string;
 	  sim.vars.visualLocationBuffer.State_Error = false;
 	  sim.vars.visualLocationBuffer.State_Free = true;
 	  sim.vars.visualLocationBuffer.Unrequested = false;
+	  sim.publishVisualDiagram(false, true);
 	  
 	}
 	
@@ -16660,6 +16678,7 @@ return return_string;
 
 	  
 	  sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(), 3) + "\t" + "PROCEDURAL" + "\t" + "MOD-BUFFER-CHUNK VISUAL"); 
+	  sim.publishVisualDiagram(false, false);
 	  
 	}
 	
@@ -16693,6 +16712,7 @@ return return_string;
 
 	  
 	  sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(), 3) + "\t" + "PROCEDURAL" + "\t" + "MOD-BUFFER-CHUNK VISUAL-LOCATION"); 
+	  sim.publishVisualDiagram(false, false);
 	  
 	}
 	
@@ -17133,6 +17153,7 @@ return return_string;
 	  if(sim.vars.printingModule.v.equals( "t")) sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("________Match and select rule: End________");
 	  if(sim.vars.printingModule.v.equals( "t")) sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("");
 	  ProductionModuleFun__Print_SelectRule_Traces(the_selected_rule);
+	  sim.recordProceduralSelection(matched_rules, the_selected_rule, utility_offset_table);
 	  return the_selected_rule;
 	}
 	

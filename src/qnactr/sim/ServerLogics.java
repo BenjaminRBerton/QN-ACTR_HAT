@@ -1803,6 +1803,7 @@ public class ServerLogics {
             sim.funs.NetworkDetailsVisualizationFun__Get_Audicon();
             sim.funs.NetworkDetailsVisualizationFun__Get_Aural_Buffer_Contents();
             sim.funs.NetworkDetailsVisualizationFun__Get_Aural_Location_Buffer_Contents();
+            sim.publishAudioDiagram(false, false);
             
             break;
             
@@ -1915,6 +1916,7 @@ public class ServerLogics {
             sim.funs.NetworkDetailsVisualizationFun__Get_Audicon();
             sim.funs.NetworkDetailsVisualizationFun__Get_Aural_Buffer_Contents();
             sim.funs.NetworkDetailsVisualizationFun__Get_Aural_Location_Buffer_Contents();
+            sim.publishAudioDiagram(false, false);
             
             
             
@@ -1979,6 +1981,7 @@ public class ServerLogics {
             Entity.Time_Computed = true;
             
             if(duration > 0.0 ) sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value( sim.vars.utilization__Audio_Module_Changes_In_A_Second , (double)GlobalUtilities.round(SimSystem.clock(),3) , 1.0 ) ;  
+            sim.publishAudioDiagram(false, false);
             
             return duration;
 
@@ -2055,6 +2058,7 @@ public class ServerLogics {
               sim.funs.ChunkFun__Define_Chunk( Entity.Chunk );
               
               sim.vars.auralBuffer.Aural_Buffer_Chunk = sim.funs.ChunkFun__Chunk_Clone(Entity.Chunk);
+              sim.publishAudioDiagram(false, false);
               
               if (!sim.vars.auralBuffer.Aural_Buffer_Chunk.Chunk_Name.equals( "" ) && !sim.vars.auralBuffer.Aural_Buffer_Chunk.Chunk_Type.equals( "" )){
                 sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "AUDIO" + "\t\t" + "SET-BUFFER-CHUNK AURAL " + sim.vars.auralBuffer.Aural_Buffer_Chunk.Chunk_Name); 
@@ -2149,6 +2153,7 @@ public class ServerLogics {
               if (sim.vars.printingModule.v.equals( "t") && sim.vars.declarativeModule.act == true) sim.funs.DeclarativeModuleFun__Print_DM_Activation_Trace(sim.vars.programGlobalVar__DeclarativeModule_Beginning_To_Timing_And_Ending_MatchedChunkID, sim.vars.programGlobalVar__DeclarativeModule_Beginning_To_Timing_And_Ending_RetrievedChunk);
               sim.vars.declarativeModule.State_Free = false;
               //sim.vars.declarativeModule.State_Busy = true;
+              sim.publishRetrievalDiagram(false);
             }
             
             break;
@@ -2192,6 +2197,7 @@ public class ServerLogics {
               }
               sim.vars.declarativeModule.State_Free = true;	
               //sim.vars.declarativeModule.State_Busy = false;
+              sim.publishRetrievalDiagram(false);
             }
             
             sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value( sim.vars.utilization__Declarative_Module_Changes_In_A_Second , (double)GlobalUtilities.round(SimSystem.clock(),3) , 0.0 );
@@ -2234,6 +2240,8 @@ public class ServerLogics {
             
           case Beginning:
             Entity.Time_Computed = false;
+            sim.beginProceduralExecution(Entity.Tag,
+                Entity.Production_Rules_List_Clone_From_Matching_And_Selection_To_Execution);
             //GlobalUtilities.popUpMessage(Entity.Entity_Type);
             //if(Clock == 2.445)GlobalUtilities.popUpMessage("Execution sim.vars.visualBuffer.Visual_Buffer_Chunk.Chunk_Name : " + sim.vars.visualBuffer.Visual_Buffer_Chunk.Chunk_Name);
             
@@ -2320,6 +2328,7 @@ public class ServerLogics {
               if (new_utilization_value < 0)System.out.println("Error! Execution ending effect has new_utilization_value < 0");
               sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value( sim.vars.utilization__Production_Module_Changes_In_A_Second ,  (double)GlobalUtilities.round(SimSystem.clock(),3) , new_utilization_value ) ;
             }
+            sim.finishProceduralExecution(Entity.Tag);
             
             break;
             
@@ -2423,6 +2432,12 @@ public class ServerLogics {
             }
             
             sim.funs.NetworkDetailsVisualizationFun__Get_Goal_Buffer_Contents ();
+            if (Entity.Entity_Type.equals("First Goal") ||
+                Entity.Entity_Type.equals("Goal Buffer's New Chunk") ||
+                Entity.Entity_Type.equals("Buffer Chunk Spec Change Notice") ||
+                Entity.Entity_Type.equals("Clear Goal")) {
+              sim.publishGoalDiagram(1, Entity.Entity_Type.equals("Clear Goal"));
+            }
             
             break;
             
@@ -2523,6 +2538,12 @@ public class ServerLogics {
               
               
               sim.funs.NetworkDetailsVisualizationFun__Get_Goal_Buffer_2_Contents ();            
+              if (Entity.Entity_Type.equals("First Goal") ||
+                  Entity.Entity_Type.equals("Goal Buffer-2's New Chunk") ||
+                  Entity.Entity_Type.equals("Buffer Chunk Spec Change Notice") ||
+                  Entity.Entity_Type.equals("Clear Goal")) {
+                sim.publishGoalDiagram(2, Entity.Entity_Type.equals("Clear Goal"));
+              }
               break;
               
             case Ending:
@@ -2922,6 +2943,7 @@ public class ServerLogics {
             }
             
             sim.funs.NetworkDetailsVisualizationFun__Get_Imaginal_Buffer_Contents();
+            sim.publishImaginalDiagram(Entity.Entity_Type.equals("Clear Imaginal"));
             
             break;
             
@@ -2968,6 +2990,7 @@ public class ServerLogics {
             if (Entity.Entity_Type.equals( "Add Imaginal")){
               sim.vars.imaginaryModule.State_Free = false;
               //sim.vars.imaginaryModule.State_Busy = true;
+              sim.publishImaginalDiagram(false);
             }
             
 //            System.out.println("ServerLogics, " + ServerName + ", " + ServiceStage + ". " + Entity.Entity_Type + " Done");
@@ -2988,6 +3011,7 @@ public class ServerLogics {
               sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(), 3) + "\t" + "IMAGINAL" + "\t" + "CREATE-NEW-BUFFER-CHUNK IMAGINAL ISA "+Entity.Chunk.Chunk_Type); 
               sim.vars.imaginaryModule.State_Free = true;
               //sim.vars.imaginaryModule.State_Busy = false;
+              sim.publishImaginalDiagram(false);
             }
             if (Entity.Entity_Type.equals( "Modify Imaginal")) { 
             //no need. if change Tag, must update server.qnactrEntityInServer and server.removeTokensInServer
@@ -3281,6 +3305,7 @@ public class ServerLogics {
             Entity.Event_Priority = 0; //reset this value that may be modified in triggerbuffer
             
             Entity.Time_Computed = false;
+            sim.beginProceduralDiagram(Entity.Tag);
             
             int round_number = 1;
             LinkedList<Production_Rule> rule_pool_to_be_matched = new LinkedList<Production_Rule>();
@@ -3476,6 +3501,7 @@ public class ServerLogics {
             for(Production_Rule rule : selected_rules_list) {
               rule.Variable_Binding = sim.funs.ProductionModuleFun__Bind_Variables_In_Rule_Condition(rule);
             }
+            sim.finishProceduralMatch(Entity.Tag);
             
             
             
@@ -3531,6 +3557,10 @@ public class ServerLogics {
               
             }
             Entity.Time_Computed = true;
+            if (duration > 0.0) {
+              sim.beginProceduralExecution(Entity.Tag,
+                  Entity.Production_Rules_List_Clone_From_Matching_And_Selection_To_Execution);
+            }
             return duration;
 
         }
@@ -3558,6 +3588,7 @@ public class ServerLogics {
             Entity.Time_Computed = false;
             //1. beginning effect; 2. timing; 3. ending effect
             sim.vars.motorModule.Execution_Free = false;
+            sim.publishManualDiagram(Entity.Tag, "EXECUTION", Entity.Chunk);
             
             if (Entity.From.equals( "Motor Initiation") && Entity.To.equals( "Motor Execution") && Entity.Entity_Type.equals( "Add Manual")){ //copy an entity to control for motor execution results
               if(!Entity.Chunk.Chunk_Type.equals( "clear")){
@@ -3756,6 +3787,7 @@ public class ServerLogics {
             
             
             if(sim.vars.motorModule.State_Free) sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(sim.vars.utilization__Motor_Module_Changes_In_A_Second, (double)GlobalUtilities.round(SimSystem.clock(),3) , 0.0 );
+            sim.publishManualDiagram(Entity.Tag, "COMPLETED", Entity.Chunk);
             
             
             Entity.Entity_Type = "Motor Finish";
@@ -3897,6 +3929,7 @@ public class ServerLogics {
               //1. beginning effect; 2. timing; 3. ending effect
               sim.vars.motorModule.Processor_Free = false;
               sim.vars.motorModule.Execution_Free = false;
+              sim.publishManualDiagram(Entity.Tag, "INITIATION", Entity.Chunk);
               
               
               //System.out.println(Clock + " Initiated: " + sim.vars.motorModule.Initiated_But_Output_Not_Finished_Request );
@@ -4268,6 +4301,11 @@ public class ServerLogics {
               
               
             }
+            if (Entity.Entity_Type.equals("Add Manual")) {
+              sim.publishManualDiagram(Entity.Tag,
+                  Entity.Trash ? (Entity.Chunk.Chunk_Type.equals("type-letters") ? "EXPANDED" : "REJECTED") : "REQUEST",
+                  Entity.Chunk);
+            }
             
             break;
             
@@ -4631,6 +4669,7 @@ public class ServerLogics {
               sim.funs.NetworkDetailsVisualizationFun__Get_Visicon();
               sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Buffer_Contents();
               sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Location_Buffer_Contents();
+              sim.publishVisualDiagram(false, false);
               
               
               break;
@@ -4877,6 +4916,11 @@ public class ServerLogics {
               sim.funs.NetworkDetailsVisualizationFun__Get_Visicon();
               sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Buffer_Contents();
               sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Location_Buffer_Contents();
+              // A successful search sets Empty before the buffer receives the new chunk.
+              // Publish after that buffer's Beginning stage to avoid a stale intermediate view.
+              if (!Entity.Entity_Type.equals("Visual-location Buffer's New Chunk")) {
+                sim.publishVisualDiagram(false, false);
+              }
               
               /* //no need because "Visual-location Buffer Stuffing" no longer exist
               	if (Entity.From.equals( "Vision Module Trigger") && Entity.Entity_Type.equals( "Visual-location Buffer Stuffing")){
@@ -4962,6 +5006,7 @@ public class ServerLogics {
               
               sim.vars.motorModule.Processor_Free = false;
               //System.out.println(GlobalUtilities.round(SimSystem.clock(),3) + "sim.vars.motorModule.Processor_Free: " + sim.vars.motorModule.Processor_Free);
+              sim.publishManualDiagram(Entity.Tag, "PREPARATION", Entity.Chunk);
               
             }
             
@@ -5077,6 +5122,7 @@ public class ServerLogics {
             }
             
             sim.funs.NetworkDetailsVisualizationFun__Get_Retrieval_Buffer_Contents();
+            sim.publishRetrievalDiagram(false);
             
             break;
             
@@ -5140,6 +5186,7 @@ public class ServerLogics {
                 sim.funs.DeviceModuleFun__Audio_Display_Prepare_Other_Sound(content, Double.toString(duration), (double) content_delay, (double) recode_time, Double.toString(onset_clock_time_value), location, kind); //content, duration, content_delay, recode_time, onset_clock_time(optional, Clock by default), location (optional, "external" by default), kind (optional "speech" by default)
               }
             }
+            sim.publishVocalDiagram(Entity.Tag, "EXECUTION", Entity.Chunk);
             
             break;
             
@@ -5162,6 +5209,7 @@ public class ServerLogics {
             
             
             if(sim.vars.speechModule.State_Free)  sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value( sim.vars.utilization__Speech_Module_Changes_In_A_Second , (double)GlobalUtilities.round (SimSystem.clock(),3) , 0.0 );
+            sim.publishVocalDiagram(Entity.Tag, "COMPLETED", Entity.Chunk);
             
             
             
@@ -5194,6 +5242,7 @@ public class ServerLogics {
             Entity.Time_Computed = false;
             //1. beginning effect; 2. timing; 3. ending effect
             sim.vars.speechModule.Execution_Free = false;
+            sim.publishVocalDiagram(Entity.Tag, "INITIATION", Entity.Chunk);
             
             break;
             
@@ -5269,6 +5318,9 @@ public class ServerLogics {
                 }
               }
             }
+            if (Entity.Entity_Type.equals("Add Vocal")) {
+              sim.publishVocalDiagram(Entity.Tag, "REQUEST", Entity.Chunk);
+            }
             
         
           case Ending:
@@ -5302,6 +5354,7 @@ public class ServerLogics {
             sim.vars.speechModule.State_Free = false;
             sim.vars.speechModule.Preparation_Free = false;
             sim.vars.speechModule.Processor_Free = false;
+            sim.publishVocalDiagram(Entity.Tag, "PREPARATION", Entity.Chunk);
             
             break;
             
@@ -5574,6 +5627,12 @@ public class ServerLogics {
             if(Entity.Entity_Type.equals( "Modify Temporal")) {
               // set the value of the chunk
               sim.funs.ChunkFun__Set_Chunk_Slot_Value(sim.vars.temporalBuffer.Temporal_Buffer_Chunk, "ticks", Entity.Chunk.Slot.get("ticks").toString());
+            }
+            if (Entity.Entity_Type.equals("Clear Temporal") ||
+                Entity.Entity_Type.equals("Request Temporal") ||
+                Entity.Entity_Type.equals("Increment Temporal") ||
+                Entity.Entity_Type.equals("Modify Temporal")) {
+              sim.publishTemporalDiagram(Entity.Entity_Type.equals("Clear Temporal"));
             }
             
             
@@ -6114,6 +6173,7 @@ public class ServerLogics {
             sim.funs.NetworkDetailsVisualizationFun__Get_Visicon();
             sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Buffer_Contents();
             sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Location_Buffer_Contents();
+            sim.publishVisualDiagram(false, false);
             
             
             // Ending Effect
@@ -6282,6 +6342,7 @@ public class ServerLogics {
             sim.funs.NetworkDetailsVisualizationFun__Get_Visicon();
             sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Buffer_Contents();
             sim.funs.NetworkDetailsVisualizationFun__Get_Visual_Location_Buffer_Contents();
+            sim.publishVisualDiagram(false, false);
             
           case Ending:
             
@@ -8369,7 +8430,8 @@ public class ServerLogics {
                       if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
                           sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
                       }
-
+                      Entity.Trash = true;
+                      break;
                     }
                     case "agent-set-int":{
                       String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
@@ -8388,7 +8450,8 @@ public class ServerLogics {
                       if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
                           sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
                       }
-
+                      Entity.Trash = true;
+                      break;
                     }
                     case "agent-set-double":{
                       String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name

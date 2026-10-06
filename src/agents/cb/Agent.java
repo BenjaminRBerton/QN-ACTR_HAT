@@ -50,7 +50,6 @@ public class Agent implements IopListener, ServiceListener {
     public volatile float slip_i = 0.0f;
     public volatile float vertical_speed_i = 0.0f;
     public volatile float flaps_i = 0.0f;
-    public volatile float landing_gear_i = 0.0f;
     public volatile float spoilers_i = 0.0f;
     public volatile float e1_n1_i = 0.0f;
     public volatile float e2_n1_i = 0.0f;
@@ -75,6 +74,7 @@ public class Agent implements IopListener, ServiceListener {
     public volatile boolean l_engine_fire_i = false;
     public volatile boolean r_engine_fire_i = false;
     public volatile boolean parking_brake_i = true;
+    public volatile boolean landing_gear_i = false;
     public volatile boolean n1_match_bug_i = false;
     public volatile boolean master_warning_i = false;
     public volatile boolean master_caution_i = false;
@@ -285,7 +285,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("vertical_speed", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("altitude", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("flaps", IopType.IGS_DOUBLE_T);
-        ingescapeAgent.definition.inputCreate("landing_gear", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.inputCreate("landing_gear", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("spoilers", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("parking_brake", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("n1_match_bug", IopType.IGS_BOOL_T);
@@ -385,12 +385,19 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("l_throttle", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.outputCreate("r_throttle", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.outputCreate("flaps", IopType.IGS_DOUBLE_T);
-        ingescapeAgent.definition.outputCreate("landing_gear", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.outputCreate("landing_gear", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("pax_safety", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("flight_director", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("speed_mode_toggle", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("heading_mode_toggle", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("autopilot", IopType.IGS_IMPULSION_T);
+        ingescapeAgent.definition.outputCreate("autopilot_on_off", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("airspeed_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("pitch_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("roll_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("vertical_speed_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("altitude_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("heading_target", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("l_fuel_boost", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("r_fuel_boost", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("test_knob", IopType.IGS_INTEGER_T);
@@ -415,6 +422,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("master_caution", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("vocal_command", IopType.IGS_STRING_T);
         ingescapeAgent.definition.outputCreate("speech_output", IopType.IGS_STRING_T);
+        ingescapeAgent.definition.outputCreate("dummy_manual_action", IopType.IGS_STRING_T);
         ingescapeAgent.definition.outputCreate("l_eng_fire_switch", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("r_eng_fire_switch", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_approve", IopType.IGS_IMPULSION_T);
@@ -564,9 +572,6 @@ public class Agent implements IopListener, ServiceListener {
                 case "flaps":
                     flaps_i = inputDouble;
                     break;
-                case "landing_gear":
-                    landing_gear_i = inputDouble;
-                    break;
                 case "spoilers":
                     spoilers_i = inputDouble;
                     break;
@@ -601,6 +606,9 @@ public class Agent implements IopListener, ServiceListener {
             switch (name) {
                 case "parking_brake":
                     parking_brake_i = inputBool;
+                    break;
+                case "landing_gear":
+                    landing_gear_i = inputBool;
                     break;
                 case "n1_match_bug":
                     n1_match_bug_i = inputBool;

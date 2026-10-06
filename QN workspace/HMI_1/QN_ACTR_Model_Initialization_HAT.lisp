@@ -739,6 +739,7 @@
 (chunk-type outside-world-situation
     birds
     runway-centerline-deviation
+    heading-deviation
 )
 
 (chunk-type  clearance
@@ -1339,6 +1340,7 @@
    ?imaginal>
     state		free
 !bind! =value (read_input airspeed)		; hard coded way to get the checklist item from PFD AoI
+!bind! =value_vertical_speed (read_input vertical_speed)
 ==>
    +imaginal>
     isa		    aviate-situation
@@ -1347,6 +1349,7 @@
     slip        =value_slip ; is getting the value from imaginal buffer
     altitude    =value_altitude ; is getting the value from imaginal buffer
     airspeed    =value ; is getting the value from agent.pfd_airspeed
+    vertical-speed =value_vertical_speed
     =goal-2>
     phase       situation-complete
     stage       1
@@ -1363,7 +1366,12 @@
     situation-return-stage =return_stage
    =imaginal>
     isa         aviate-situation
+    pitch       =pitch
+    roll        =roll
+    slip        =slip
+    altitude    =altitude
     airspeed    =airspeed
+    vertical-speed =vertical_speed
    ?imaginal>
     state       free
 ==>
@@ -1847,10 +1855,12 @@
    ?imaginal>
     state		free
 !bind! =value (read_input runway_centerline_deviation)		; hard coded way to get the checklist item from Outside the Window AoI
+!bind! =value_heading (read_input heading_deviation)
 ==>
    +imaginal>
     isa		    outside-world-situation
     runway-centerline-deviation       =value ; is getting the value from agent.outside_runway_centerline_deviation
+    heading-deviation                =value_heading
    =goal>
     phase       waiting-for-situation
     stage       outside-window
@@ -1891,12 +1901,14 @@
    ?imaginal>
     state       free
 !bind! =value_runway_centerline_deviation (read_input runway_centerline_deviation)
+!bind! =value_heading_deviation (read_input heading_deviation)
 ==>
    +imaginal>
-    isa         outside-world-situation
+    isa                         outside-world-situation
     runway-centerline-deviation =value_runway_centerline_deviation
+    heading-deviation           =value_heading_deviation
    =goal-2>
-    stage       1
+    stage                       1
 )
 
 (p resume-read-outside-window-task
@@ -1907,9 +1919,11 @@
     buffer      empty
     state       free
 !bind! =value_runway_centerline_deviation (read_input runway_centerline_deviation)		; hard coded way to get the checklist item from Outside the Window AoI
+!bind! =value_heading_deviation (read_input heading_deviation)
 ==>
     +imaginal>
     isa         outside-world-situation
+    heading-deviation           =value_heading_deviation
     runway-centerline-deviation       =value_runway_centerline_deviation ; is getting the value from imaginal buffer
 )
 
@@ -1940,6 +1954,7 @@
     =imaginal>
     isa         outside-world-situation
     runway-centerline-deviation       =value_runway_centerline_deviation
+    heading-deviation                 =value_heading_deviation
     birds            nil
    ?imaginal>
     state		free
@@ -1948,6 +1963,7 @@
    +imaginal>
     isa		    outside-world-situation
     runway-centerline-deviation       =value_runway_centerline_deviation ; is getting the value from imaginal buffer
+    heading-deviation                 =value_heading_deviation
     birds       =value ; is getting the value from agent.outside_birds
     =goal-2>
     phase       situation-complete
@@ -1967,9 +1983,12 @@
     isa         outside-world-situation
     birds       =birds
     runway-centerline-deviation =value_rcd
+    heading-deviation           =value_hd
    ?imaginal>
     state       free
 ==>
+!output! (runway-centerline-deviation =value_rcd)
+!output! (heading-deviation =value_hd)
    =goal>
     phase       =return_phase
     stage       =return_stage
@@ -2533,7 +2552,9 @@
      phase              perform-task
      stage              1
     ?imaginal>
-     state           free
+     state              free
+    ?manual>
+    state               free
 ==>
     =goal>
      phase              attend-aoi
@@ -6417,7 +6438,7 @@
     -status      true
 ==>
     =goal>
-    stage       2
+    stage       1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;; END of FADEC BUG - CHECK TO task ;;;;;;;;;;;;;;;
@@ -6465,7 +6486,7 @@
 ==>
     =imaginal>
     isa         engine-spool
-    e1      =value
+    e1          =value
     =goal>
     stage       2
 )
@@ -6497,7 +6518,7 @@
     e1                      =value
 )
 
-(p form-e1-n1
+(p form-e2-n1
     =goal>
     isa         task
     phase       perform-task
@@ -6527,7 +6548,7 @@
     stage       3
     =imaginal>
     isa         engine-spool
-    >e1         90
+    >=e1         90
 ==>
     =imaginal>
     =goal>
@@ -6559,7 +6580,7 @@
     stage       4
     =imaginal>
     isa         engine-spool
-    >e2         90
+    >=e2         90
 ==>
     =imaginal>
     =goal>
@@ -6617,8 +6638,10 @@
         para-4
    =goal>
    isa                      task
-   task-object              airspeed-is-alive
-   task-value               announce
+   task-object              takeoff
+   task-value               acceleration
+   status                   airspeed-is-alive
+   stage                    1
 )
 (spp start-brake-release-task :u 1000)
 
@@ -6626,6 +6649,492 @@
 ;;;; end of BRAKE - RELEASE TASK ;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; TAKEOFF ACCELERATION BLOCK ;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p takeoff-engage-human-autopilot
+   =goal>
+   isa                      task
+   task-object              takeoff
+   task-value               acceleration
+   status                   airspeed-is-alive
+   stage                    1
+   ?imaginal>
+   state                    free
+   ?manual>
+   state                    free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-bool
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  autopilot_on_off
+        para-2                  true
+        para-3
+        para-4
+   =goal>
+   stage                        attend-otw
+)
+(spp takeoff-engage-human-autopilot :u 1000)
+
+(p takeoff-attend-otw-situation
+   =goal>
+   isa                      task
+   phase                    perform-task
+   task-object              takeoff
+   task-value               acceleration
+   stage                    attend-otw
+   ?visual>
+   state                    free
+==>
+    =goal>
+    phase                   request-outside-window-situation
+    situation-return-phase  perform-task
+    situation-return-stage  verify-runway-centered
+)
+
+(p takeoff-is-offset-right-of-runway
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   stage                        verify-runway-centered
+   =imaginal>
+   isa                          outside-world-situation
+   >runway-centerline-deviation 5 ; 5 meters to the right
+   ;>heading-deviation           0 ; not being corrected
+   ?manual>
+   state                        free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  dummy_manual_action
+        para-2                  rudder-left-action
+        para-3
+        para-4
+   =goal>
+   stage                        attend-otw
+)
+
+(p takeoff-is-offset-left-of-runway
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   stage                        verify-runway-centered
+   =imaginal>
+   isa                          outside-world-situation
+   <runway-centerline-deviation -5 ; 5 meters to the left
+   ;<heading-deviation           0 ; not being corrected
+   ?manual>
+   state                        free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  dummy_manual_action
+        para-2                  rudder-right-action
+        para-3
+        para-4
+   =goal>
+   stage                        attend-otw
+)
+
+(p takeoff-is-centered-on-runway
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   stage                        verify-runway-centered
+   =imaginal>
+   isa                          outside-world-situation
+   >=runway-centerline-deviation -5 ; 5 meters to the left
+   <=runway-centerline-deviation 5 ; 5 meters to the right
+   ?manual>
+   state                        free
+==>
+   =goal>
+   stage                        attend-pfd
+)
+
+(p takeoff-attend-pfd-situation
+   =goal>
+   isa                      task
+   phase                    perform-task
+   task-object              takeoff
+   stage                    attend-pfd
+   ?visual>
+   state                    free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  verify-pfd-situation
+)
+
+;;;;;;;;;;;;;;;;;;; AIRSPEED IS ALIVE - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;
+
+(p takeoff-airspeed-is-not-yet-alive
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       airspeed-is-alive
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   <airspeed                    30
+==>
+   =goal>
+   stage                        attend-otw
+)
+
+(p takeoff-airspeed-is-alive
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       airspeed-is-alive
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    30
+==>
+   =goal>
+   stage                        vocalize
+)
+
+(p takeoff-vocalize-airspeed-is-alive-human-is-performer
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       airspeed-is-alive
+   stage                        vocalize
+   human-role                   performer
+   ?vocal>
+   state                        free
+==>
+    +vocal>
+    cmd                         speak
+    string                      airspeed-is-alive
+   =goal>
+   stage                        attend-otw
+   status                       seventy-knots
+)
+
+;;;;;;;;;;;;;;; end of AIRSPEED IS ALIVE - ANNOUNCE ;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;; AIRSPEED IS SEVENTY - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;;;
+(p takeoff-airspeed-is-not-yet-seventy
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       seventy-knots
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   <airspeed                    70
+==>
+   =goal>
+   stage                        attend-otw
+)
+
+(p takeoff-airspeed-is-seventy
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       seventy-knots
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    70
+==>
+   =goal>
+   stage                        vocalize
+)
+
+(p takeoff-vocalize-seventy-knots-human-is-performer
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       seventy-knots
+   stage                        vocalize
+   human-role                   performer
+   ?vocal>
+   state                        free
+==>
+    +vocal>
+    cmd                         speak
+    string                      seventy-knots
+   =goal>
+   stage                        attend-otw
+   status                       v1
+)
+;;;;;;;;;;; end of AIRSPEED IS SEVENTY - ANNOUNCE ;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;; AIRSPEED IS V1 - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;;;;
+
+(p takeoff-airspeed-is-not-yet-v1
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       v1
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   <airspeed                    90
+==>
+   =goal>
+   stage                        attend-otw
+)
+
+(p takeoff-airspeed-is-v1
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       v1
+   stage                        verify-pfd-situation
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    90
+==>
+   =goal>
+   stage                        vocalize
+)
+
+(p takeoff-vocalize-v1-human-is-performer
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       v1
+   stage                        vocalize
+   human-role                   performer
+   ?vocal>
+   state                        free
+==>
+    +vocal>
+    cmd                         speak
+    string                      v1-rotate
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   initial-climb
+   status                       rotation
+   stage                        1
+)
+;;;;;;;;;;;;;;; end of AIRSPEED IS V1 - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; end of TAKEOFF ACCELERATION BLOCK ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; TAKEOFF INITIAL CLIMB BLOCK ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p takeoff-rotate-action
+    =goal>
+    isa                          task
+    task-object                  takeoff
+    task-value                   initial-climb
+    status                       rotation
+    stage                        1
+    ?manual>
+    state                        free
+    ?imaginal>
+    state                        free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-int
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  pitch_target
+        para-2                  10
+        para-3
+        para-4
+    =goal>
+    stage                       attend-pfd
+)
+(spp takeoff-rotate-action :u 1000)
+
+(p takeoff-pitch-is-around-10-deg
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       verify-pfd-situation
+    status                      rotation
+    =imaginal>
+    isa                         aviate-situation
+    >pitch                      6
+==>
+    =goal>
+    status                      climb-rate
+    stage                       attend-pfd
+)
+
+(p takeoff-pitch-is-not-around-10-deg
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       verify-pfd-situation
+    status                      rotation
+    =imaginal>
+    isa                         aviate-situation
+    <=pitch                      6
+==>
+    =goal>
+    stage                       attend-pfd
+)
+
+(p takeoff-rate-of-climb-is-positive
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       verify-pfd-situation
+    status                      climb-rate
+    =imaginal>
+    isa                         aviate-situation
+    >vertical-speed             500
+==>
+    =goal>
+    stage                       attend-gear-handle
+)
+
+(p takeoff-rate-of-climb-is-not-positive
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       verify-pfd-situation
+    status                      climb-rate
+    =imaginal>
+    isa                         aviate-situation
+    <=vertical-speed             500
+==>
+    =goal>
+    stage                       attend-pfd
+)
+
+(p takeoff-attend-gear-handle
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       attend-gear-handle
+    ?manual>
+    state                       free
+    ?imaginal>
+    state                       free
+==>
+    +visual-location>
+    isa                         visual-location
+    screen-x                    1540
+    screen-y                    1170
+    =goal>
+    stage                       visual-encode-aircraft-component
+)
+
+(p takeoff-form-gear-handle-representation
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       form-representation-aircraft-component
+    ?imaginal>
+    state                       free
+!bind!  =value (read_input landing_gear)
+==>
+    +imaginal>
+    isa                         aircraft-component
+    component-name              landing-gear
+    component-status            =value
+    =goal>
+    stage                       gear-up-action
+)
+
+(p takeoff-landing-gear-up-action
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       gear-up-action
+    -status                     actuated-gear-handle
+    =imaginal>
+    isa                         aircraft-component
+    component-name              landing-gear
+    component-status            true
+    ?manual>
+    state                       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-bool
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  landing_gear
+        para-2                  false
+        para-3
+        para-4
+    =goal>
+    stage                       attend-pfd
+    status                      actuated-gear-handle
+)
+
+(p attend-landing-gear-status-after-actuation
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       verify-pfd-situation
+    status                      actuated-gear-handle
+==>
+    =goal>
+    stage                       attend-gear-handle
+)
+
+(p takeoff-landing-gear-is-up
+    =goal>
+    isa                         task
+    task-object                 takeoff
+    task-value                  initial-climb
+    stage                       gear-up-action
+    status                      actuated-gear-handle
+    =imaginal>
+    isa                         aircraft-component
+    component-name              landing-gear
+    component-status            false
+==>
+    =goal>
+    task-object                 engine-failure-during-takeoff
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; TAKEOFF INITIAL CLIMB BLOCK ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
