@@ -1,19 +1,24 @@
 package qnactr.GUI;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Paint;
+import java.awt.RadialGradientPaint;
+import java.awt.RenderingHints;
+import java.awt.event.HierarchyEvent;
 import java.awt.image.BufferedImage;
-import java.lang.reflect.Field;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-import javax.swing.BoxLayout;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.Timer;
+import javax.swing.UIManager;
 
 import qnactr.sim.GlobalUtilities;
 import qnactr.sim.ImageResources;
@@ -23,6 +28,63 @@ import qnactr.sim.QnactrSimulation;
 
 public class TaskVisualization2D extends JPanel 
 {
+  // Visual-attention trail settings (logical display pixels and elapsed seconds).
+  public static final int ATTENTION_MARKER_DIAMETER = 40;
+  public static final int HEATMAP_DIAMETER = 140;
+  public static final Color HEATMAP_COLOR = new Color(255, 35, 35);
+  public static final double HEATMAP_HISTORY_SECONDS = 30.0;
+  public static final double HEATMAP_SATURATION_SECONDS = 8.0;
+  public static final Color SACCADE_LINE_COLOR = new Color(180, 20, 20);
+  public static final float SACCADE_LINE_WIDTH = 5.0f;
+  private static final int TRAIL_REFRESH_MILLISECONDS = 200;
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
+
+  private static final class Fixation {
+    final int x;
+    final int y;
+    final long startedAt;
+    long endedAt;
+
+    Fixation(int x, int y, long startedAt) {
+      this.x = x;
+      this.y = y;
+      this.startedAt = startedAt;
+    }
+  }
+
+  private static final class Saccade {
+    final int fromX;
+    final int fromY;
+    final int toX;
+    final int toY;
+    final long occurredAt;
+
+    Saccade(int fromX, int fromY, int toX, int toY, long occurredAt) {
+      this.fromX = fromX;
+      this.fromY = fromY;
+      this.toX = toX;
+      this.toY = toY;
+      this.occurredAt = occurredAt;
+    }
+  }
+
+  private final Deque<Fixation> fixations = new ArrayDeque<>();
+  private final Deque<Saccade> saccades = new ArrayDeque<>();
+  private Fixation activeFixation;
+  private final Timer trailRefreshTimer = new Timer(TRAIL_REFRESH_MILLISECONDS, event -> {
+    synchronized (TaskVisualization2D.this) {
+      if (!isShowing()) {
+        ((Timer) event.getSource()).stop();
+        return;
+      }
+      expireAttentionHistory(System.nanoTime());
+      if (activeFixation == null && fixations.isEmpty() && saccades.isEmpty()) {
+        ((Timer) event.getSource()).stop();
+      }
+    }
+    repaint();
+  });
+
   public int objectCounter = 0;
   public Hashtable<String, Object> currentAllObjects = new Hashtable<String, Object>();
   public Hashtable<String, DynamicVisualObjects> currentDynamicObjects = new Hashtable<String, DynamicVisualObjects>();
@@ -39,6 +101,10 @@ public class TaskVisualization2D extends JPanel
   private int winY1 = 30; //upper left corner
   private int winX2 = winX1 + QnactrSimulation.simulatedWindowDefaultSizeX; //bottom right corner
   private int winY2 = winY1 + QnactrSimulation.simulatedWindowDefaultSizeY; //bottom right corner
+  private static final int LOGICAL_WIDTH = QnactrSimulation.simulatedWindowDefaultSizeX
+          + QnactrSimulation.taskVisualization2DExtendSizeX + 60;
+  private static final int LOGICAL_HEIGHT = QnactrSimulation.simulatedWindowDefaultSizeY
+          + QnactrSimulation.taskVisualization2DExtendSizeY;
   
   
   
@@ -46,7 +112,17 @@ public class TaskVisualization2D extends JPanel
     
     
     setBackground(Color.WHITE);
-    setLayout(null);
+    setPreferredSize(new Dimension(LOGICAL_WIDTH, LOGICAL_HEIGHT));
+    addHierarchyListener(event -> {
+      if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) == 0) return;
+      synchronized (TaskVisualization2D.this) {
+        if (isShowing() && (activeFixation != null || !fixations.isEmpty() || !saccades.isEmpty())) {
+          trailRefreshTimer.start();
+        } else {
+          trailRefreshTimer.stop();
+        }
+      }
+    });
     
     //add simulated window corners
     createStaticText("(" + 0 + ", " + 0 + ")    Visual Display", winX1 , winY1 - 20);
@@ -66,7 +142,8 @@ public class TaskVisualization2D extends JPanel
     rightHandFingerIDs[3] = createStaticText("--", 180 + 390 + 60, winY2 + 60 + 90 - 20);
     rightHandFingerIDs[4] = createStaticText("--", 180 + 390 + 70, winY2 + 60 + 90);
     mouseCursorID = createDynamicImage(ImageResources.biMouseCursor, 0, 0, 10, 16); 
-    visualAttentionCircleID = createDynamicOval (0, 0, 20, 20, Color.red); 
+    visualAttentionCircleID = createDynamicOval(0, 0, ATTENTION_MARKER_DIAMETER,
+                                                ATTENTION_MARKER_DIAMETER, Color.RED);
     vocalResponseDisplayID = createStaticText("--", 180, winY2 + 60 + 20);
     
     //test
@@ -80,32 +157,143 @@ public class TaskVisualization2D extends JPanel
   }
   
   //================= paintComponent
-  public void paintComponent(Graphics g) {
+  public synchronized void paintComponent(Graphics g) {
     super.paintComponent(g);  // Paint background, border
-    
-    //draw simulated window border lines
-    g.drawLine(winX1, winY1, winX2, winY1);
-    g.drawLine(winX1, winY1, winX1, winY2);
-    g.drawLine(winX1, winY2, winX2, winY2);
-    g.drawLine(winX2, winY1, winX2, winY2);
-    
-    //draw TaskVisualization2D default images
-    g.drawImage(ImageResources.biVisual, 0, 0, 30, 30, null);
-    g.drawImage(ImageResources.biAudio, 0, winY2 + 30, 30, 24, null);
-    g.drawImage(ImageResources.biVocal, 180, winY2 + 30, 30, 30, null);
-    g.drawImage(ImageResources.biLeftHand, 180 + 220, winY2 + 30 + 120, 24, 32, null);
-    g.drawImage(ImageResources.biRightHand, 180 + 220 + 200, winY2 + 30 + 120, 24, 32, null);
-    
-    //draw each object in currentDynamicObjects using its own draw method
-    Iterator<Entry<String, DynamicVisualObjects>> itrEntires = currentDynamicObjects.entrySet().iterator();
-    while(itrEntires.hasNext()){
-      Entry<String, DynamicVisualObjects> anEntry = itrEntires.next();
-      DynamicVisualObjects anObj = anEntry.getValue();
-      if(!anObj.hide)anObj.draw(g);
+    if (getWidth() <= 0 || getHeight() <= 0) return;
+
+    double scale = Math.min((double) getWidth() / LOGICAL_WIDTH,
+                            (double) getHeight() / LOGICAL_HEIGHT);
+    Graphics2D scaled = (Graphics2D) g.create();
+    try {
+      scaled.translate((getWidth() - LOGICAL_WIDTH * scale) / 2.0,
+                       (getHeight() - LOGICAL_HEIGHT * scale) / 2.0);
+      scaled.scale(scale, scale);
+      scaled.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      scaled.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      scaled.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      // Draw everything in the same logical coordinate system, including the labels.
+      scaled.drawLine(winX1, winY1, winX2, winY1);
+      scaled.drawLine(winX1, winY1, winX1, winY2);
+      scaled.drawLine(winX1, winY2, winX2, winY2);
+      scaled.drawLine(winX2, winY1, winX2, winY2);
+
+      scaled.drawImage(ImageResources.biVisual, 0, 0, 30, 30, null);
+      scaled.drawImage(ImageResources.biAudio, 0, winY2 + 30, 30, 24, null);
+      scaled.drawImage(ImageResources.biVocal, 180, winY2 + 30, 30, 30, null);
+      scaled.drawImage(ImageResources.biLeftHand, 180 + 220, winY2 + 30 + 120, 24, 32, null);
+      scaled.drawImage(ImageResources.biRightHand, 180 + 220 + 200, winY2 + 30 + 120, 24, 32, null);
+
+      for (Object object : currentAllObjects.values()) {
+        if (object instanceof TV2DLabel) {
+          TV2DLabel label = (TV2DLabel) object;
+          if (!label.hide) label.draw(scaled);
+        }
+      }
+
+      paintAttentionTrail(scaled, System.nanoTime());
+
+      Iterator<Entry<String, DynamicVisualObjects>> itrEntires = currentDynamicObjects.entrySet().iterator();
+      while(itrEntires.hasNext()){
+        Entry<String, DynamicVisualObjects> anEntry = itrEntires.next();
+        if (anEntry.getKey().equals(visualAttentionCircleID)) continue;
+        DynamicVisualObjects anObj = anEntry.getValue();
+        if(!anObj.hide)anObj.draw(scaled);
+      }
+      paintAttentionMarker(scaled);
+    } finally {
+      scaled.dispose();
     }
-    
-    //test
-    //g.drawLine(100 + winX1, 100 + winY1, 100 + winX1 + 7, 100 + winY1 + 11);
+  }
+
+  private void paintAttentionTrail(Graphics2D g, long now) {
+    expireAttentionHistory(now);
+    Graphics2D trail = (Graphics2D) g.create();
+    try {
+      trail.clipRect(winX1, winY1, winX2 - winX1, winY2 - winY1);
+      long cutoff = now - (long) (HEATMAP_HISTORY_SECONDS * NANOS_PER_SECOND);
+      int radius = HEATMAP_DIAMETER / 2;
+
+      for (Fixation fixation : fixations) {
+        long end = fixation == activeFixation ? now : fixation.endedAt;
+        double visibleSeconds = (end - Math.max(fixation.startedAt, cutoff))
+                / (double) NANOS_PER_SECOND;
+        if (visibleSeconds <= 0) continue;
+        int opacity = (int) Math.round(190 * Math.min(1.0,
+                visibleSeconds / HEATMAP_SATURATION_SECONDS));
+        if (opacity <= 0) continue;
+        Paint previousPaint = trail.getPaint();
+        trail.setPaint(new RadialGradientPaint(fixation.x + winX1, fixation.y + winY1,
+                radius, new float[] {0.0f, 1.0f}, new Color[] {
+                  new Color(HEATMAP_COLOR.getRed(), HEATMAP_COLOR.getGreen(),
+                            HEATMAP_COLOR.getBlue(), opacity),
+                  new Color(HEATMAP_COLOR.getRed(), HEATMAP_COLOR.getGreen(),
+                            HEATMAP_COLOR.getBlue(), 0)
+                }));
+        trail.fillOval(fixation.x + winX1 - radius, fixation.y + winY1 - radius,
+                       HEATMAP_DIAMETER, HEATMAP_DIAMETER);
+        trail.setPaint(previousPaint);
+      }
+
+      trail.setStroke(new BasicStroke(SACCADE_LINE_WIDTH, BasicStroke.CAP_ROUND,
+                                      BasicStroke.JOIN_ROUND));
+      for (Saccade saccade : saccades) {
+        double remaining = 1.0 - (now - saccade.occurredAt)
+                / (HEATMAP_HISTORY_SECONDS * NANOS_PER_SECOND);
+        int opacity = (int) Math.round(210 * Math.max(0.0, remaining));
+        if (opacity <= 0) continue;
+        trail.setColor(new Color(SACCADE_LINE_COLOR.getRed(), SACCADE_LINE_COLOR.getGreen(),
+                                 SACCADE_LINE_COLOR.getBlue(), opacity));
+        trail.drawLine(saccade.fromX + winX1, saccade.fromY + winY1,
+                       saccade.toX + winX1, saccade.toY + winY1);
+      }
+    } finally {
+      trail.dispose();
+    }
+  }
+
+  private void paintAttentionMarker(Graphics2D g) {
+    DynamicVisualObjects marker = currentDynamicObjects.get(visualAttentionCircleID);
+    if (marker == null || marker.hide || activeFixation == null) return;
+    int x = marker.locX + winX1;
+    int y = marker.locY + winY1;
+    int radius = ATTENTION_MARKER_DIAMETER / 2;
+    g.setColor(new Color(255, 255, 255, 210));
+    g.fillOval(x - radius, y - radius, ATTENTION_MARKER_DIAMETER, ATTENTION_MARKER_DIAMETER);
+    g.setColor(Color.RED);
+    g.setStroke(new BasicStroke(4.0f));
+    g.drawOval(x - radius, y - radius, ATTENTION_MARKER_DIAMETER, ATTENTION_MARKER_DIAMETER);
+    g.fillOval(x - 4, y - 4, 8, 8);
+  }
+
+  private void expireAttentionHistory(long now) {
+    long cutoff = now - (long) (HEATMAP_HISTORY_SECONDS * NANOS_PER_SECOND);
+    while (!fixations.isEmpty() && fixations.peekFirst() != activeFixation
+            && fixations.peekFirst().endedAt <= cutoff) {
+      fixations.removeFirst();
+    }
+    while (!saccades.isEmpty() && saccades.peekFirst().occurredAt <= cutoff) {
+      saccades.removeFirst();
+    }
+  }
+
+  private void updateAttentionFixation(int x, int y) {
+    long now = System.nanoTime();
+    expireAttentionHistory(now);
+    if (activeFixation != null && activeFixation.x == x && activeFixation.y == y) return;
+    if (activeFixation != null) {
+      activeFixation.endedAt = now;
+      saccades.addLast(new Saccade(activeFixation.x, activeFixation.y, x, y, now));
+    }
+    activeFixation = new Fixation(x, y, now);
+    fixations.addLast(activeFixation);
+    if (!trailRefreshTimer.isRunning()) trailRefreshTimer.start();
+  }
+
+  private void endAttentionFixation() {
+    if (activeFixation != null) {
+      activeFixation.endedAt = System.nanoTime();
+      activeFixation = null;
+    }
   }
   
   
@@ -113,26 +301,38 @@ public class TaskVisualization2D extends JPanel
   //========= static (do not move them) objects
   
   
-  private class TV2DLabel extends JLabel 
+  private class TV2DLabel
   {
     String ID;
-    
-    //    public TV2DLabel (String text) {
-    //      super(text);
-    //      setLocation(0, 0);
-    //      setSize(this.preferredSize());
-    //      objectCounter++;
-    //      ID = String.valueOf(objectCounter);
-    //    }
+    String text;
+    int locX;
+    int locY;
+    Color background;
+    boolean hide;
     
     public TV2DLabel (String text, int locX, int locY) {
-      super(text);
-      setLocation(locX, locY);
-      //setSize(this.preferredSize());
-      setSize(new Dimension(text.length() * (defaultWidthPerChar + 2), defaultHeightPerChar + 2));
+      this.text = text;
+      this.locX = locX;
+      this.locY = locY;
       objectCounter++;
       ID = String.valueOf(objectCounter);
       currentAllObjects.put(ID, this);
+    }
+
+    public void draw(Graphics2D g) {
+      java.awt.Font oldFont = g.getFont();
+      java.awt.Font labelFont = UIManager.getFont("Label.font");
+      if (labelFont != null) g.setFont(labelFont);
+      int height = Math.max(defaultHeightPerChar + 2, g.getFontMetrics().getHeight());
+      if (background != null) {
+        int width = Math.max(text.length() * (defaultWidthPerChar + 2),
+                             g.getFontMetrics().stringWidth(text));
+        g.setColor(background);
+        g.fillRect(locX, locY, width, height);
+      }
+      g.setColor(Color.BLACK);
+      g.drawString(text, locX, locY + g.getFontMetrics().getAscent());
+      g.setFont(oldFont);
     }
     
   }
@@ -144,9 +344,9 @@ public class TaskVisualization2D extends JPanel
    * @param locY, reference to the TaskVisualization2D, upper-left corner
    * @return
    */
-  public String createStaticText(String text, int locX, int locY){
+  public synchronized String createStaticText(String text, int locX, int locY){
     TV2DLabel label = new TV2DLabel (text, locX, locY);
-    add(label);
+    repaint();
     return label.ID;
   }
   
@@ -156,16 +356,16 @@ public class TaskVisualization2D extends JPanel
    * @param ID
    * @param newText
    */
-  public void setStaticTextString (String ID, String newText){
+  public synchronized void setStaticTextString (String ID, String newText){
     TV2DLabel label = (TV2DLabel)currentAllObjects.get(ID);
-    label.setText(newText);
-    label.setSize(new Dimension(newText.length() * (defaultWidthPerChar + 2), defaultHeightPerChar + 2));
+    label.text = newText;
+    repaint();
   }
   
-  public void setStaticTextBackgroundColor(String ID, Color color){
+  public synchronized void setStaticTextBackgroundColor(String ID, Color color){
     TV2DLabel label = (TV2DLabel)currentAllObjects.get(ID);
-    label.setBackground(color);
-    label.setOpaque(true);
+    label.background = color;
+    repaint();
   }
   
   
@@ -320,7 +520,7 @@ public class TaskVisualization2D extends JPanel
    * @param y, upper-left corner, reference to simulated window (0,0)
    * @return
    */
-  public String createDynamicText (String text, int x, int y){
+  public synchronized String createDynamicText (String text, int x, int y){
     DynamicText dt = new DynamicText (text, x, y);
     repaint();
     //System.out.println("TaskVisualization2D createDynamicText text: " + text);
@@ -336,51 +536,51 @@ public class TaskVisualization2D extends JPanel
    * @param h, display height
    * @return
    */
-  public String createDynamicImage (BufferedImage bi, int x, int y, int w, int h){
+  public synchronized String createDynamicImage (BufferedImage bi, int x, int y, int w, int h){
     DynamicImage di = new DynamicImage (bi, x, y, w, h);
     repaint();
     //System.out.println("TaskVisualization2D createDynamicImage ");
     return di.ID;
   }
   
-  public String createDynamicLine (int x, int y, int w, int h){
+  public synchronized String createDynamicLine (int x, int y, int w, int h){
     DynamicLine dl = new DynamicLine (x, y, w, h);
     repaint();
     return dl.ID;
   }
   
-  public String createDynamicLine (int x, int y, int w, int h, Color color){
+  public synchronized String createDynamicLine (int x, int y, int w, int h, Color color){
     DynamicLine dl = new DynamicLine (x, y, w, h, color);
     repaint();
     return dl.ID;
   }
   
   
-  public String createDynamicOval (int x, int y, int w, int h){
+  public synchronized String createDynamicOval (int x, int y, int w, int h){
     DynamicOval dyo = new DynamicOval (x, y, w, h);
     repaint();
     return dyo.ID;
   }
   
-  public String createDynamicOval (int x, int y, int w, int h, Color color){
+  public synchronized String createDynamicOval (int x, int y, int w, int h, Color color){
     DynamicOval dyo = new DynamicOval (x, y, w, h, color);
     repaint();
     return dyo.ID;
   }
   
-  public String createDynamicRect (int x, int y, int w, int h){
+  public synchronized String createDynamicRect (int x, int y, int w, int h){
     DynamicRect drect = new DynamicRect (x, y, w, h);
     repaint();
     return drect.ID;
   }
   
-  public String createDynamicRect (int x, int y, int w, int h, Color color){
+  public synchronized String createDynamicRect (int x, int y, int w, int h, Color color){
     DynamicRect drect = new DynamicRect (x, y, w, h, color);
     repaint();
     return drect.ID;
   }
   
-  public void setDynamicTextColor (String ID, String colorString){
+  public synchronized void setDynamicTextColor (String ID, String colorString){
     if(!currentDynamicObjects.containsKey(ID)){
       System.out.println("ERROR! TaskVisualization2D.setDynamicTextColor has non-existing currentDynamicObjects ID: " + ID);
       return;
@@ -391,45 +591,38 @@ public class TaskVisualization2D extends JPanel
     repaint();
   }
   
-  public void setDynamicObjectLocation (String ID, int x, int y){
+  public synchronized void setDynamicObjectLocation (String ID, int x, int y){
     if(!currentDynamicObjects.containsKey(ID)){
       System.out.println("ERROR! TaskVisualization2D.setDynamicObjectLocation has non-existing currentDynamicObjects ID: " + ID);
       return;
     }
     currentDynamicObjects.get(ID).locX = x;
     currentDynamicObjects.get(ID).locY = y;
+    if (ID.equals(visualAttentionCircleID)) updateAttentionFixation(x, y);
     repaint();
   }
   
   //============= general methods for all Objects   
   
-  public void removeObject(String ID){
+  public synchronized void removeObject(String ID){
     if(!currentAllObjects.containsKey(ID)){
       System.out.println("ERROR! TaskVisualization2D.removeObject has non-existing currentAllObjects ID: " + ID);
       return;
     }
     
-    if(currentAllObjects.get(ID) instanceof TV2DLabel){
-      this.remove((Component)currentAllObjects.get(ID));
-    }
-    else{ //all dynamic objects
-      if(!currentDynamicObjects.containsKey(ID)){
-        System.out.println("ERROR! TaskVisualization2D.removeObject has non-existing currentDynamicObjects ID: " + ID);
-        return;
-      }
-      currentDynamicObjects.remove(ID);
-    }
+    currentDynamicObjects.remove(ID);
+    currentAllObjects.remove(ID);
     repaint();
   }
   
-  public void hideObject(String ID){
+  public synchronized void hideObject(String ID){
     if(!currentAllObjects.containsKey(ID)){
       System.out.println("ERROR! TaskVisualization2D.hideObject has non-existing currentAllObjects ID: " + ID);
       return;
     }
     
     if(currentAllObjects.get(ID) instanceof TV2DLabel){
-      ((TV2DLabel)currentAllObjects.get(ID)).hide();
+      ((TV2DLabel)currentAllObjects.get(ID)).hide = true;
     }
     else{ //all dynamic objects
       if(!currentDynamicObjects.containsKey(ID)){
@@ -438,18 +631,20 @@ public class TaskVisualization2D extends JPanel
       }
       currentDynamicObjects.get(ID).hide = true;
     }
+
+    if (ID.equals(visualAttentionCircleID)) endAttentionFixation();
     
     repaint();
   }
   
-  public void showObject(String ID){
+  public synchronized void showObject(String ID){
     if(!currentAllObjects.containsKey(ID)){
       System.out.println("ERROR! TaskVisualization2D.showObject has non-existing currentAllObjects ID: " + ID);
       return;
     }
     
     if(currentAllObjects.get(ID) instanceof TV2DLabel){
-      ((TV2DLabel)currentAllObjects.get(ID)).show();
+      ((TV2DLabel)currentAllObjects.get(ID)).hide = false;
     }
     else{ //all dynamic objects
       if(!currentDynamicObjects.containsKey(ID)){

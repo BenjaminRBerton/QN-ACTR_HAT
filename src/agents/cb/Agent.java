@@ -28,6 +28,13 @@ public class Agent implements IopListener, ServiceListener {
     private QnactrSimulation simulation = null;
     private Mediator mediator = null;
     private static final float INTERVAL_BETWEEN_WORDS = 3.00f; // seconds
+    private static final String[] CYUL_RUNWAY_NAMES = {"06L", "06R", "24R", "24L"};
+    private static final double[][] CYUL_RUNWAY_THRESHOLDS = {
+            {45.461222, -73.76474},  // 06L
+            {45.457832, -73.741171}, // 06R
+            {45.483156, -73.73607},  // 24R
+            {45.476887, -73.716188}  // 24L
+    };
 
     // Public accessible attributes that other classes can read
     public volatile float airspeed_i = 0.0f;
@@ -53,6 +60,9 @@ public class Agent implements IopListener, ServiceListener {
     public volatile float r_gen_load_i = 0.0f;
     public volatile float trim_rudder_i = 0.0f;
     public volatile float radio_frequency_i = 0.0f;
+    public volatile Double latitude_i = null;
+    public volatile Double longitude_i = null;
+    public volatile String current_runway = null;
 
     // For boolean inputs
     public volatile boolean l_bottle_arm_i = false;
@@ -261,6 +271,8 @@ public class Agent implements IopListener, ServiceListener {
     private void createInputs() {
         ingescapeAgent.definition.inputCreate("reset", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.inputCreate("airspeed", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.inputCreate("latitude", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.inputCreate("longitude", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("elevator", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("rudder", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("aileron", IopType.IGS_DOUBLE_T);
@@ -336,7 +348,7 @@ public class Agent implements IopListener, ServiceListener {
      */
     private void observeInputs() {
         String[] inputNames = {
-                "reset", "airspeed", "elevator", "rudder", "aileron", "l_throttle", "r_throttle",
+                "reset", "airspeed", "latitude", "longitude", "elevator", "rudder", "aileron", "l_throttle", "r_throttle",
                 "pitch", "roll", "slip", "heading", "vertical_speed", "altitude",
                 "flaps", "landing_gear", "spoilers", "parking_brake", "n1_match_bug",
                 "pax_safety", "master_warning", "master_caution", "flight_director",
@@ -411,6 +423,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("push_to_talk", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("production_selected", IopType.IGS_STRING_T);
         ingescapeAgent.definition.outputCreate("start", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("runway_number", IopType.IGS_STRING_T);
     }
 
     public void outputSetString(String name, String value) {
@@ -443,6 +456,61 @@ public class Agent implements IopListener, ServiceListener {
         }
     }
 
+    private synchronized void updateGpsPosition(String name, double value) {
+        boolean valid = Double.isFinite(value)
+                && (name.equals("latitude") ? Math.abs(value) <= 90.0 : Math.abs(value) <= 180.0);
+        if (!valid) {
+            if (name.equals("latitude")) {
+                latitude_i = null;
+            } else {
+                longitude_i = null;
+            }
+            if (current_runway != null) {
+                current_runway = null;
+                outputSetString("runway_number", "");
+            }
+            return;
+        }
+
+        if (name.equals("latitude")) {
+            latitude_i = value;
+        } else {
+            longitude_i = value;
+        }
+        if (latitude_i == null || longitude_i == null) {
+            return;
+        }
+
+        double currentLatitudeRadians = Math.toRadians(latitude_i);
+        double currentLongitudeRadians = Math.toRadians(longitude_i);
+        int closestRunwayIndex = -1;
+        double closestDistance = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < CYUL_RUNWAY_THRESHOLDS.length; i++) {
+            double runwayLatitudeRadians = Math.toRadians(CYUL_RUNWAY_THRESHOLDS[i][0]);
+            double deltaLatitude = runwayLatitudeRadians - currentLatitudeRadians;
+            double deltaLongitude = Math.toRadians(CYUL_RUNWAY_THRESHOLDS[i][1]) - currentLongitudeRadians;
+            double a = Math.pow(Math.sin(deltaLatitude / 2.0), 2.0)
+                    + Math.cos(currentLatitudeRadians) * Math.cos(runwayLatitudeRadians)
+                    * Math.pow(Math.sin(deltaLongitude / 2.0), 2.0);
+            double angularDistance = 2.0 * Math.asin(Math.min(1.0, Math.sqrt(a)));
+            if (angularDistance < closestDistance) {
+                closestDistance = angularDistance;
+                closestRunwayIndex = i;
+            }
+        }
+
+        String closestRunway = CYUL_RUNWAY_NAMES[closestRunwayIndex];
+        if (!closestRunway.equals(current_runway)) {
+            current_runway = closestRunway;
+            outputSetString("runway_number", closestRunway);
+            System.out.printf(Locale.ROOT,
+                    "Runway detected: %s (nearest threshold at %.6f, %.6f)%n",
+                    closestRunway,
+                    CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][0],
+                    CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][1]);
+        }
+    }
+
     @Override
     public void handleIOP(com.ingescape.Agent agent, Iop iop, String name, IopType type, Object value) {
         //_logger.debug("**received input {} with type {} and value {}", name, type, value);
@@ -453,6 +521,10 @@ public class Agent implements IopListener, ServiceListener {
             //_logger.debug("**received double {} with value {}, processing...", name, inputDouble);
             // Store values in corresponding attributes
             switch (name) {
+                case "latitude":
+                case "longitude":
+                    updateGpsPosition(name, myDouble);
+                    break;
                 case "airspeed":
                     airspeed_i = inputDouble;
                     break;

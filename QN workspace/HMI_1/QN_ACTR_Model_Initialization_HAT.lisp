@@ -34,7 +34,9 @@
 	:number_of_responses_per_trial			1
 	:display_and_response_duration			(-1.0)  ;; (-1.0) by default, meaning keep displaying without time limit.
 
+
     ;; Control panel first row
+
     (
 	:item_type					display_item_visual_text_button
 	:visual_text					("L_GEN")
@@ -115,7 +117,12 @@
     :display_item_width		                (20)
     :display_item_height		            (30)
     )
+
+
+
+
     ;; Control panel second row
+
     (
 	:item_type					display_item_visual_text_button
 	:visual_text					("L_IGN")
@@ -156,7 +163,12 @@
     :display_item_width		                (20)
     :display_item_height		            (30)
     )
+
+
+
+
     ;; PFD
+
     (
 	:item_type					display_item_visual_text
 	:visual_text					("SLIP")
@@ -223,7 +235,12 @@
 	:display_item_screen_location_x			(1370)
 	:display_item_screen_location_y			(650)
     )
+
+
+
+
     ;; Attention getters
+
     (
 	:item_type					display_item_visual_text_button
 	:visual_text					("M_W")
@@ -280,7 +297,13 @@
     :display_item_width		                (20)
     :display_item_height		            (30)
     )
+
+
+
+
+
     ;;AUTOPILOT CONTROL PANEL
+
     (
 	:item_type					display_item_visual_text_button
 	:visual_text					("HEADING_MODE")
@@ -394,7 +417,12 @@
     :display_item_width		                (20)
     :display_item_height		            (20)
     )
+
+
+
+
     ;;Navigation Display ND nd
+
     (
 	:item_type					display_item_visual_text
 	:visual_text					("N1%")
@@ -406,6 +434,12 @@
 	:visual_text					("N2%")
 	:display_item_screen_location_x			(1630)
 	:display_item_screen_location_y			(760)
+    )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("FADEC_BUG")
+	:display_item_screen_location_x			(1600)
+	:display_item_screen_location_y			(700)
     )
     (
 	:item_type					display_item_visual_text
@@ -455,7 +489,11 @@
 	:display_item_screen_location_x			(1880)
 	:display_item_screen_location_y			(850)
     )
+
+
+
     ;; Outside the Window
+
     (
 	:item_type					display_item_visual_text
 	:visual_text					("BIRDS")
@@ -470,6 +508,12 @@
     )
     (
 	:item_type					display_item_visual_text
+	:visual_text					("RUNWAY_NUMBER")
+	:display_item_screen_location_x			(1120)
+	:display_item_screen_location_y			(440)
+    )
+    (
+	:item_type					display_item_visual_text
 	:visual_text					("LEFT-SIDE-OTW")
 	:display_item_screen_location_x			(500)
 	:display_item_screen_location_y			(420)
@@ -480,7 +524,12 @@
 	:display_item_screen_location_x			(760)
 	:display_item_screen_location_y			(450)
     )
+
+
+
+
     ;; TARS INTERFACE
+
     (
 	:item_type					display_item_visual_text
 	:visual_text					("SPEECH_OUTPUT_TEXT")
@@ -645,7 +694,15 @@
     tars-input
     crosscheck
     imaginal-pointer
+    situation-return-phase
+    situation-return-stage
 )
+
+; To call a situation worker from a procedural task, set the goal's phase to
+; request-pfd-situation, request-nd-situation,
+; request-central-console-situation, or request-outside-window-situation.
+; Set situation-return-phase and situation-return-stage to the desired next
+; goal state. The worker replaces imaginal with the completed situation chunk.
 
 (chunk-type aircraft-component
     component-name
@@ -737,6 +794,19 @@
 
 (chunk-type cleared-altitude
     altitude
+)
+
+(chunk-type current-runway
+    runway
+)
+
+(chunk-type fadec-bug
+    status
+)
+
+(chunk-type engine-spool
+    e1
+    e2
 )
 
 (add-dm
@@ -1041,12 +1111,55 @@
     isa		    aviate-situation
     pitch       =value ; is getting the value from agent.pfd_pitch
    =goal>
+    phase       waiting-for-situation
+    stage       pfd
+   +goal-2>
+    isa         task
+    task-object pfd
     phase       read-pfd
-    stage		1
+    stage       1
+    situation-return-phase attend-aoi
+    situation-return-stage 1
+)
+
+(p request-pfd-situation
+   =goal>
+    isa         task
+    phase       request-pfd-situation
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       waiting-for-situation
+    stage       pfd
+   +goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       initialize
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+)
+
+(p initialize-pfd-situation
+   =goal-2>
+    phase       read-pfd
+    stage       initialize
+   ?imaginal>
+    state       free
+!bind! =value_pitch (read_input pitch)
+==>
+   +imaginal>
+    isa         aviate-situation
+    pitch       =value_pitch
+   =goal-2>
+    stage       1
 )
 
 (p resume-read-pfd-task
-    =goal>
+    =goal-2>
     phase       read-pfd
     stage       1
     ?imaginal>
@@ -1060,7 +1173,7 @@
 )
 
 (p visually-attend-pfd-roll
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       1
@@ -1074,12 +1187,12 @@
     isa		visual-location
     screen-x	1200			; representing roll label x-coordinate on PFD AoI in the scene
     screen-y	750         ; representing roll label y-coordinate on PFD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-pfd-roll-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       form-representation-aircraft-component
@@ -1099,12 +1212,12 @@
     isa		    aviate-situation
     pitch       =value_pitch ; is getting the value from imaginal buffer
     roll        =value ; is getting the value from agent.pfd_roll
-    =goal>
+    =goal-2>
     stage		2
 )
 
 (p visually-attend-pfd-slip
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       2
@@ -1117,12 +1230,12 @@
     isa		visual-location
     screen-x	1260			; representing slip label x-coordinate on PFD AoI in the scene
     screen-y	690         ; representing slip label y-coordinate on PFD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-pfd-slip-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       form-representation-aircraft-component
@@ -1143,12 +1256,12 @@
     pitch       =value_pitch ; is getting the value from imaginal buffer
     roll        =value_roll ; is getting the value from imaginal buffer
     slip        =value ; is getting the value from agent.pfd_slip
-    =goal>
+    =goal-2>
     stage        3
 )
 
 (p visually-attend-pfd-altitude
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       3
@@ -1161,12 +1274,12 @@
     isa		visual-location
     screen-x	1350			; representing altitude label x-coordinate on PFD AoI in the scene
     screen-y	750         ; representing altitude label y-coordinate on PFD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-pfd-altitude-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       form-representation-aircraft-component
@@ -1188,12 +1301,12 @@
     roll        =value_roll ; is getting the value from imaginal buffer
     slip        =value_slip ; is getting the value from imaginal buffer
     altitude    =value ; is getting the value from agent.pfd_altitude
-    =goal>
+    =goal-2>
     stage       4
 )
 
 (p visually-attend-pfd-airspeed
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       4
@@ -1206,12 +1319,12 @@
     isa		visual-location
     screen-x	1170			; representing airspeed label x-coordinate on PFD AoI in the scene
     screen-y	750         ; representing airspeed label y-coordinate on PFD AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-pfd-airspeed-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-pfd
     stage       form-representation-aircraft-component
@@ -1234,9 +1347,33 @@
     slip        =value_slip ; is getting the value from imaginal buffer
     altitude    =value_altitude ; is getting the value from imaginal buffer
     airspeed    =value ; is getting the value from agent.pfd_airspeed
-    =goal>
-    phase       attend-aoi
-    stage		1
+    =goal-2>
+    phase       situation-complete
+    stage       1
+)
+
+(p finish-pfd-situation
+   =goal>
+    phase       waiting-for-situation
+    stage       pfd
+   =goal-2>
+    phase       situation-complete
+    task-object pfd
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   =imaginal>
+    isa         aviate-situation
+    airspeed    =airspeed
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       =return_phase
+    stage       =return_stage
+    situation-return-phase nil
+    situation-return-stage nil
+   =imaginal>
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; End of AoI PFD - construct Aviate Situation-Awareness ;;;
@@ -1262,12 +1399,55 @@
     isa		    navigate-situation
     lateral-deviation       =value ; is getting the value from agent.nd_lateral_deviation
    =goal>
+    phase       waiting-for-situation
+    stage       nd
+   +goal-2>
+    isa         task
+    task-object nd
     phase       read-nd
-    stage		1
+    stage       1
+    situation-return-phase attend-aoi
+    situation-return-stage 1
+)
+
+(p request-nd-situation
+   =goal>
+    isa         task
+    phase       request-nd-situation
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       waiting-for-situation
+    stage       nd
+   +goal-2>
+    isa         task
+    task-object nd
+    phase       read-nd
+    stage       initialize
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+)
+
+(p initialize-nd-situation
+   =goal-2>
+    phase       read-nd
+    stage       initialize
+   ?imaginal>
+    state       free
+!bind! =value_lateral_deviation (read_input lateral_deviation)
+==>
+   +imaginal>
+    isa         navigate-situation
+    lateral-deviation =value_lateral_deviation
+   =goal-2>
+    stage       1
 )
 
 (p resume-read-nd-task
-    =goal>
+    =goal-2>
     phase       read-nd
     stage       1
     ?imaginal>
@@ -1281,7 +1461,7 @@
 )
 
 (p visually-attend-nd-heading-deviation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-nd
     stage       1
@@ -1295,12 +1475,12 @@
     isa		visual-location
     screen-x	1880			; representing heading deviation label x-coordinate on ND AoI in the scene
     screen-y	850         ; representing heading deviation label y-coordinate on ND AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-nd-heading-deviation-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-nd
     stage       form-representation-aircraft-component
@@ -1316,9 +1496,33 @@
     isa		    navigate-situation
     lateral-deviation       =value_lateral_deviation ; is getting the value from imaginal buffer
     heading-deviation       =value ; is getting the value from agent.nd_heading_deviation
-    =goal>
-    phase       attend-aoi
-    stage		1
+    =goal-2>
+    phase       situation-complete
+    stage       1
+)
+
+(p finish-nd-situation
+   =goal>
+    phase       waiting-for-situation
+    stage       nd
+   =goal-2>
+    phase       situation-complete
+    task-object nd
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   =imaginal>
+    isa         navigate-situation
+    heading-deviation =heading_deviation
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       =return_phase
+    stage       =return_stage
+    situation-return-phase nil
+    situation-return-stage nil
+   =imaginal>
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; end of AoI ND - construct Navigate Situation-Awareness ;;
@@ -1327,7 +1531,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; AoI E/WD - construct eicas situation ;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; goal-2 is reserved for the EICAS worker; goal keeps the caller's task context.
+; goal-2 holds one situation worker at a time; goal keeps the caller's task context.
 (p x-3-form-eicas-aoi-representation
    =goal>
     isa		    task
@@ -1385,22 +1589,6 @@
     screen-y	760         ; representing n1 percent label y-coordinate on E/WD AoI in the scene
    =goal-2>
     stage       visual-encode-aircraft-component
-)
-
-(p visually-encode-eicas-component
-   =goal-2>
-    isa         task
-    phase       read-eicas
-    stage       visual-encode-aircraft-component
-   =visual-location>
-   ?visual>
-    state       free
-==>
-   +visual>
-    isa         move-attention
-    screen-pos  =visual-location
-   =goal-2>
-    stage       form-representation-aircraft-component
 )
 
 (p form-eicas-e1-n1-percent-aoi-representation
@@ -1514,12 +1702,55 @@
    isa            throttle-situation
     left-throttle-position    =value ; is getting the value from agent.cc_left_throttle
     =goal>
+    phase       waiting-for-situation
+    stage       central-console
+    +goal-2>
+    isa         task
+    task-object central-console
     phase       read-central-console
-    stage		1
+    stage       1
+    situation-return-phase attend-aoi
+    situation-return-stage 1
+)
+
+(p request-central-console-situation
+   =goal>
+    isa         task
+    phase       request-central-console-situation
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       waiting-for-situation
+    stage       central-console
+   +goal-2>
+    isa         task
+    task-object central-console
+    phase       read-central-console
+    stage       initialize
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+)
+
+(p initialize-central-console-situation
+   =goal-2>
+    phase       read-central-console
+    stage       initialize
+   ?imaginal>
+    state       free
+!bind! =value_left_throttle (read_input l_throttle)
+==>
+   +imaginal>
+    isa         throttle-situation
+    left-throttle-position =value_left_throttle
+   =goal-2>
+    stage       1
 )
 
 (p resume-read-central-console-task
-    =goal>
+    =goal-2>
     phase       read-central-console
     stage       1
     ?imaginal>
@@ -1533,7 +1764,7 @@
 )
 
 (p visually-attend-central-console-right-throttle
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-central-console
     stage       1
@@ -1547,12 +1778,12 @@
     isa		visual-location
     screen-x	2170			; representing right throttle label x-coordinate on Central Console AoI in the scene
     screen-y	1340         ; representing right throttle label y-coordinate on Central Console AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-central-console-right-throttle-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-central-console
     stage       form-representation-aircraft-component
@@ -1568,9 +1799,34 @@
     isa		    throttle-situation
     left-throttle-position    =value_left_throttle ; is getting the value from imaginal buffer
     right-throttle-position   =value ; is getting the value from agent.cc_right_throttle
-    =goal>
-    phase       attend-aoi
-    stage		1
+    =goal-2>
+    phase       situation-complete
+    stage       1
+)
+
+(p finish-central-console-situation
+   =goal>
+    phase       waiting-for-situation
+    stage       central-console
+   =goal-2>
+    phase       situation-complete
+    task-object central-console
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   =imaginal>
+    isa         throttle-situation
+    left-throttle-position =value_left_throttle
+    right-throttle-position =right_throttle
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       =return_phase
+    stage       =return_stage
+    situation-return-phase nil
+    situation-return-stage nil
+   =imaginal>
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; end of AoI Central Console - construct throttle situation;
@@ -1596,12 +1852,55 @@
     isa		    outside-world-situation
     runway-centerline-deviation       =value ; is getting the value from agent.outside_runway_centerline_deviation
    =goal>
+    phase       waiting-for-situation
+    stage       outside-window
+   +goal-2>
+    isa         task
+    task-object outside-window
     phase       read-outside-window
-    stage		1
+    stage       1
+    situation-return-phase attend-aoi
+    situation-return-stage 1
+)
+
+(p request-outside-window-situation
+   =goal>
+    isa         task
+    phase       request-outside-window-situation
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       waiting-for-situation
+    stage       outside-window
+   +goal-2>
+    isa         task
+    task-object outside-window
+    phase       read-outside-window
+    stage       initialize
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+)
+
+(p initialize-outside-window-situation
+   =goal-2>
+    phase       read-outside-window
+    stage       initialize
+   ?imaginal>
+    state       free
+!bind! =value_runway_centerline_deviation (read_input runway_centerline_deviation)
+==>
+   +imaginal>
+    isa         outside-world-situation
+    runway-centerline-deviation =value_runway_centerline_deviation
+   =goal-2>
+    stage       1
 )
 
 (p resume-read-outside-window-task
-    =goal>
+    =goal-2>
     phase       read-outside-window
     stage       1
     ?imaginal>
@@ -1615,7 +1914,7 @@
 )
 
 (p visually-attend-outside-window-birds
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-outside-window
     stage       1
@@ -1629,12 +1928,12 @@
     isa		visual-location
     screen-x	1120			; representing birds label x-coordinate on Outside the Window AoI in the scene
     screen-y	370         ; representing birds label y-coordinate on Outside the Window AoI in the scene
-   =goal>
+   =goal-2>
     stage       visual-encode-aircraft-component
 )
 
 (p form-outside-window-birds-aoi-representation
-   =goal>
+   =goal-2>
     isa		    task
     phase		read-outside-window
     stage       form-representation-aircraft-component
@@ -1650,9 +1949,34 @@
     isa		    outside-world-situation
     runway-centerline-deviation       =value_runway_centerline_deviation ; is getting the value from imaginal buffer
     birds       =value ; is getting the value from agent.outside_birds
-    =goal>
-    phase       attend-aoi
-    stage		1
+    =goal-2>
+    phase       situation-complete
+    stage       1
+)
+
+(p finish-outside-window-situation
+   =goal>
+    phase       waiting-for-situation
+    stage       outside-window
+   =goal-2>
+    phase       situation-complete
+    task-object outside-window
+    situation-return-phase =return_phase
+    situation-return-stage =return_stage
+   =imaginal>
+    isa         outside-world-situation
+    birds       =birds
+    runway-centerline-deviation =value_rcd
+   ?imaginal>
+    state       free
+==>
+   =goal>
+    phase       =return_phase
+    stage       =return_stage
+    situation-return-phase nil
+    situation-return-stage nil
+   =imaginal>
+   -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; end of AoI Outside the Window - construct Outside S-A ;;;
@@ -2108,6 +2432,22 @@
 	screen-pos	=visual-location
    =goal>
 	stage		form-representation-aircraft-component
+)
+
+; Shared by the PFD, ND, EICAS, throttle, and outside-window situation workers.
+(p visually-encode-situation-component
+   =goal-2>
+    isa         task
+    stage       visual-encode-aircraft-component
+   =visual-location>
+   ?visual>
+    state       free
+==>
+   +visual>
+    isa         move-attention
+    screen-pos  =visual-location
+   =goal-2>
+    stage       form-representation-aircraft-component
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -5287,7 +5627,7 @@
    =visual>					; assume the model has read the checklist item properly
    ?imaginal>
 	state		free
-!bind! =value (read_input tars-input)		; hard coded way to get the TARS input
+!bind! =value (read_input tars_input)		; hard coded way to get the TARS input
 ==>
    =imaginal>
 	tars-input  =value
@@ -5630,8 +5970,663 @@
    -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;; END OF CHECK CAS TAKEOFF TASK ;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;; END OF CHECK CAS TAKEOFF TASK ;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; THROTTLES - TO Detent task ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;starting point
+;Look at the throttle position
+
+(p start-throttles-to-detent-task
+    =goal>
+     isa                    task
+     phase                  perform-task
+     stage                  1
+    task-object             throttles
+    task-value              to-detent
+    ?manual>
+    state		            free
+    ?imaginal>
+    state                   free
+==>
+     =goal>
+     stage                  2
+)
+(spp start-throttles-to-detent-task :u 1000); higher than default of value-pair not found
+
+(p throttles-to-subvocalize-takeoff-speeds-had-tars-input
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    -tars-input nil
+    tars-input =tars-input
+    stage       2
+   ?vocal>
+    state       free
+   ?manual>
+    state       free
+==>
+    +vocal>
+    cmd         subvocalize
+    string      =tars-input
+    =goal>
+    stage       3
+)
+
+(p throttles-to-retrieve-clearance
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       3
+==>
+    +retrieval>
+    isa         clearance
+    =goal>
+    stage       4
+)
+
+(p throttles-to-retrieval-succeed-form-takeoff-runway-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       4
+    =retrieval>
+    isa         clearance
+    runway       =content
+==>
+    =retrieval>
+    +imaginal>
+    isa         current-runway
+    runway      =content
+    =goal>
+    stage       5
+)
+
+(p throttles-to-retrieval-failure-look-at-runway-sign
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       4
+    ?retrieval>
+    state       error
+    ?imaginal>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1120
+    screen-y    440
+    +imaginal>
+    isa         current-runway
+    runway      nil
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-runway-sign-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         current-runway
+!bind! =value (read_input current_runway)
+==>
+    =imaginal>
+    isa         current-runway
+    runway      =value
+    =goal>
+    stage       5
+)
+
+(p subvocalize-current-runway
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       5
+    =imaginal>
+    isa         current-runway
+    runway      =value
+==>
+    +vocal>
+    cmd         subvocalize
+    string      =value
+    =goal>
+    stage       6
+)
+
+(p throttles-to-retrieval-failure-look-at-ap-altitude
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       6
+    ?retrieval>
+    state       error
+    ?imaginal>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1350 ;location of ap_altitude
+    screen-y    680
+    +imaginal>
+    isa         cleared-altitude
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-ap-altitude-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         cleared-altitude
+!bind! =value (read_input alt_sel)
+==>
+    =imaginal>
+    isa         cleared-altitude
+    altitude      =value
+    =goal>
+    stage       7
+)
+
+(p throttles-to-retrieval-succeed-form-cleared-altitude-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       6
+    =retrieval>
+    isa         clearance
+    altitude    =content
+==>
+    +imaginal>
+    isa         cleared-altitude
+    altitude    =content
+    =goal>
+    stage       7
+)
+
+(p subvocalize-cleared-altitude
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       7
+    =imaginal>
+    isa         cleared-altitude
+    altitude      =value
+==>
+    +vocal>
+    cmd         subvocalize
+    string      =value
+    =goal>
+    stage       8
+)
+
+
+(p throttles-detent-task-check-console
+    =goal>
+    isa                    task
+    phase                  perform-task
+    stage                  8
+    task-object             throttles
+    task-value              to-detent
+    ?manual>
+    state		            free
+    ?imaginal>
+    state                   free
+==>
+     =goal>
+     phase                  request-central-console-situation
+     situation-return-phase perform-task
+     situation-return-stage 9
+)
+
+;Then look the outside window
+(p throttles-to-detent-start-look-otw
+    =goal>
+     isa                    task
+     phase                  perform-task
+     stage                  9
+    task-object             throttles
+    task-value              to-detent
+    =imaginal>
+    isa                     throttle-situation
+    left-throttle-position  =left_throttle
+    right-throttle-position =right_throttle
+    ?manual>
+    state		            free
+    ?imaginal>
+    state                   free
+==>
+    !output! (left-throttle =left_throttle)
+    !output! (right-throttle =right_throttle)
+     =goal>
+     phase                  request-outside-window-situation
+     situation-return-phase perform-task
+     situation-return-stage 10
+)
+
+(p throttles-to-detent-start-adding-thrust-10-percent
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         throttles
+    task-value          to-detent
+    stage               10
+    =imaginal>
+    isa                 outside-world-situation
+    runway-centerline-deviation =value_rcd
+    ?manual>
+    state               free
+==>
+    !output! (runway-centerline-deviation =value_rcd)
+    =imaginal>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-double
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1               throttle
+        para-2               0.1
+        para-3
+        para-4
+   =goal>
+   stage                11
+)
+
+(p throttles-to-detent-start-adding-thrust-20-percent
+    =goal>
+    isa                 task
+    task-object         throttles
+    task-value          to-detent
+    stage               11
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-double
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.010
+        finish-duration      0.000
+        para-1               throttle
+        para-2               0.2
+        para-3
+        para-4
+   =goal>
+   stage                12
+)
+
+(p throttles-to-detent-start-adding-thrust-50-percent
+    =goal>
+    isa                 task
+    task-object         throttles
+    task-value          to-detent
+    stage               12
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-double
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               throttle
+        para-2               0.5
+        para-3
+        para-4
+   =goal>
+   stage                13
+)
+
+(p throttles-to-detent-start-adding-thrust-100-percent
+    =goal>
+    isa                 task
+    task-object         throttles
+    task-value          to-detent
+    stage               13
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-double
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               throttle
+        para-2               1
+        para-3
+        para-4
+   =goal>
+   isa                      task
+   task-object              fadec-bug
+   task-value               check-to
+   stage                    1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; END of THROTTLES - TO Detent task ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;; FADEC BUG - CHECK TO task ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(p start-fadec-bug-check-to-task
+   =goal>
+   isa                      task
+   task-object              fadec-bug
+   task-value               check-to
+   stage                    1
+   ?visual>
+   state                    free
+   ?imaginal>
+   state                    free
+   ?vocal>
+   state                    free
+==>
+    +visual-location>
+    isa                     visual-location
+    screen-x                1600 ;representing fadec bug label
+    screen-y                700
+    =goal>
+    stage                   visual-encode-aircraft-component
+    +imaginal>
+    isa                     fadec-bug
+)
+(spp start-fadec-bug-check-to-task :u 1000)
+
+(p form-fadec-bug-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object fadec-bug
+    task-value  check-to
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         fadec-bug
+!bind! =value (read_input n1_match_bug)
+==>
+    =imaginal>
+    isa         fadec-bug
+    status      =value
+    =goal>
+    stage       2
+)
+
+(p fadec-bug-is-to
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object fadec-bug
+    task-value  check-to
+    stage       2
+    =imaginal>
+    isa         fadec-bug
+    status      true
+==>
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       1
+)
+
+(p fadec-bug-is-not-to
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object fadec-bug
+    task-value  check-to
+    stage       2
+    =imaginal>
+    isa         fadec-bug
+    -status      true
+==>
+    =goal>
+    stage       2
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; END of FADEC BUG - CHECK TO task ;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; ENGINE SPOOL - CHECK EVEN task ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(p start-engine-spool-check-even-task
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       1
+    ?visual>
+    state                    free
+    ?imaginal>
+    state                    free
+    ?vocal>
+    state                    free
+==>
+    +visual-location>
+    isa                     visual-location
+    screen-x                1600 ;representing e1n1%
+    screen-y                760
+    =goal>
+    stage                   visual-encode-aircraft-component
+    +imaginal>
+    isa                     engine-spool
+)
+(spp start-engine-spool-check-even-task :u 1000)
+
+(p form-e1-n1
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         engine-spool
+!bind! =value (read_input e1_n1)
+==>
+    =imaginal>
+    isa         engine-spool
+    e1      =value
+    =goal>
+    stage       2
+)
+
+(p visually-attend-e2-n1
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       2
+    =imaginal>
+    isa         engine-spool
+    e1          =value
+    e2          nil
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    +visual-location>
+    isa                     visual-location
+    screen-x                1630 ;representing e1n1%
+    screen-y                760
+    =goal>
+    stage                   visual-encode-aircraft-component
+    +imaginal>
+    isa                     engine-spool
+    e1                      =value
+)
+
+(p form-e1-n1
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         engine-spool
+    e1          =value_e1
+    e2          nil
+!bind! =value (read_input e2_n1)
+==>
+    =imaginal>
+    isa         engine-spool
+    e1          =value_e1
+    e2          =value
+    =goal>
+    stage       3
+)
+
+(p e1-higher-than-90-%
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       3
+    =imaginal>
+    isa         engine-spool
+    >e1         90
+==>
+    =imaginal>
+    =goal>
+    stage       4
+)
+
+(p e1-not-higher-than-90-%
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       3
+    =imaginal>
+    isa         engine-spool
+    <e1         90
+==>
+    =imaginal>
+    =goal>
+    stage       1
+)
+
+(p e2-higher-than-90-%
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       4
+    =imaginal>
+    isa         engine-spool
+    >e2         90
+==>
+    =imaginal>
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object brake
+    task-value  release
+    stage       1
+)
+
+(p e2-not-higher-than-90-%
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object engine-spool
+    task-value  check-even
+    stage       4
+    =imaginal>
+    isa         engine-spool
+    <e2         90
+==>
+    =imaginal>
+    =goal>
+    stage       1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; end of ENGINE SPOOL - CHECK EVEN task ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; BRAKE - RELEASE TASK ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-brake-release-task
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object brake
+    task-value  release
+    stage       1
+    ?manual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-impulsion
+        preparation-duration    1.000
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  park_brake
+        para-2                  impulsion
+        para-3
+        para-4
+   =goal>
+   isa                      task
+   task-object              airspeed-is-alive
+   task-value               announce
+)
+(spp start-brake-release-task :u 1000)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; end of BRAKE - RELEASE TASK ;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

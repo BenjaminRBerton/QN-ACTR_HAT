@@ -5487,6 +5487,9 @@ return return_string;
                           case "current_procedure":
                               return_string = agent().getCurrentProcedure();
                               break;
+                          case "current_runway":
+                              return_string = agent().current_runway;
+                              break;
                           case "current_task_object":
                               if (agent().getCurrentTaskObject().isBlank()){
                                   //System.out.println("warning: current_task_object_is_blank");
@@ -26429,4 +26432,3 @@ If the string is invalid or there is no current model then a warning is printed 
 
 
 	
-

@@ -146,6 +146,7 @@ public class MainWindow extends JMTFrame implements AgentEventListener, WebSocke
 		//TestGUI.createAndShowGUI();
 		if (QnactrSimulation.entitiesViewerEnable) QnactrSimulation.createAndShowEntitiesViewerGUI();
 		if (QnactrSimulation.taskVisualization2DEnable) QnactrSimulation.createAndShowTaskVisualization2DViewerGUI();
+		if (QnactrSimulation.actrLiveDiagramEnable) QnactrSimulation.createAndShowActrLiveDiagramViewerGUI();
 		if (QnactrSimulation.taskVisualization3DEnable) QnactrSimulation.createAndShowTaskVisualization3DViewerGUI();
 
 		// added by Yelly, 

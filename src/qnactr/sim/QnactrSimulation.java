@@ -7,6 +7,8 @@ package qnactr.sim;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,6 +17,7 @@ import java.util.List;
 import javax.swing.JFrame;
 
 import qnactr.GUI.EntitiesViewer;
+import qnactr.GUI.ActrLiveDiagram;
 import qnactr.GUI.TaskVisualization2D;
 import qnactr.GUI.TaskVisualization3D;
 import qnactr.objectDesigner.Entity;
@@ -62,6 +65,9 @@ public class QnactrSimulation
 
   public static JFrame frameTaskVisualization2DViewer;
   public static TaskVisualization2D taskVisualization2D; //currently just one static member may change this to each object has one member
+
+  public static JFrame frameActrLiveDiagramViewer;
+  public static ActrLiveDiagram actrLiveDiagram;
   
   //public TaskInterfaceWindow ucWindow;
   
@@ -88,6 +94,7 @@ public class QnactrSimulation
   ///////////// SETUP Begin///////////////////
   public static boolean entitiesViewerEnable = false; // true or false
   public static boolean taskVisualization2DEnable = true;
+  public static boolean actrLiveDiagramEnable = true;
   public static boolean taskVisualization3DEnable = false;
   public static boolean taskInterfaceWindowEnable = false; //TODO, for radar operator tasks
     
@@ -171,14 +178,25 @@ public class QnactrSimulation
     frameTaskVisualization2DViewer.setContentPane(taskVisualization2D);
 
     frameTaskVisualization2DViewer.pack();
+    Rectangle usableScreen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+    frameTaskVisualization2DViewer.setSize(Math.min(1200, usableScreen.width),
+                                           Math.min(800, usableScreen.height));
     frameTaskVisualization2DViewer.setLocationByPlatform(true);
     frameTaskVisualization2DViewer.setVisible(true);
-    
-    int x = simulatedWindowDefaultSizeX + taskVisualization2DExtendSizeX;
-    int y = simulatedWindowDefaultSizeY + taskVisualization2DExtendSizeY;
-    
-    frameTaskVisualization2DViewer.setSize(x, y);
-    frameTaskVisualization2DViewer.setBackground(Color.WHITE);
+  }
+
+  public static void createAndShowActrLiveDiagramViewerGUI() {
+    frameActrLiveDiagramViewer = new JFrame("ACT-R Live Diagram");
+    frameActrLiveDiagramViewer.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+
+    actrLiveDiagram = new ActrLiveDiagram();
+    frameActrLiveDiagramViewer.setContentPane(actrLiveDiagram);
+    frameActrLiveDiagramViewer.pack();
+    Rectangle usableScreen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+    frameActrLiveDiagramViewer.setSize(Math.min(760, usableScreen.width),
+                                       Math.min(860, usableScreen.height));
+    frameActrLiveDiagramViewer.setLocationByPlatform(true);
+    frameActrLiveDiagramViewer.setVisible(true);
   }
   
   public static void createAndShowTaskVisualization3DViewerGUI() {
