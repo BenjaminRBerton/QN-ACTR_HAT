@@ -195,6 +195,12 @@
     )
     (
 	:item_type					display_item_visual_text
+	:visual_text					("FD")
+	:display_item_screen_location_x			(1260)
+	:display_item_screen_location_y			(770)
+    )
+    (
+	:item_type					display_item_visual_text
 	:visual_text					("HEADING")
 	:display_item_screen_location_x			(1260)
 	:display_item_screen_location_y			(790)
@@ -701,8 +707,10 @@
 ; To call a situation worker from a procedural task, set the goal's phase to
 ; request-pfd-situation, request-nd-situation,
 ; request-central-console-situation, or request-outside-window-situation.
-; Set situation-return-phase and situation-return-stage to the desired next
-; goal state. The worker replaces imaginal with the completed situation chunk.
+; To read TARS input, set the phase to request-tars-input. Set
+; situation-return-phase and situation-return-stage to the desired next goal
+; state. Situation workers replace imaginal; the TARS worker sets tars-input
+; on the caller's goal. Each worker releases goal-2 when it returns.
 
 (chunk-type aircraft-component
     component-name
@@ -810,6 +818,19 @@
     e2
 )
 
+(chunk-type safe-altitude
+    altitude
+)
+
+(chunk-type airspeed-v2
+    airspeed
+)
+
+(chunk-type failure-situation
+    has-failure
+    engine-side
+)
+
 (add-dm
     (start-task
 		isa 			task
@@ -818,6 +839,19 @@
         task-value      Waiting
         phase           send-start
         stage           1
+	)
+	(sop-safe-altitude
+	    isa             safe-altitude
+	    altitude        1500
+	)
+	(checklist-airspeed-v2
+	isa     airspeed-v2
+	airspeed    120
+	)
+	(current-failure-situation
+	isa     failure-situation
+	has-failure nil
+	engine-side nil
 	)
     (current-wind-belief
         isa                 current-wind
@@ -2399,8 +2433,9 @@
 ==>
     =goal>
      crosscheck        yes
-     phase             check-tars-input
-     stage             1
+     phase             request-tars-input
+     situation-return-phase perform-task
+     situation-return-stage 1
 )
 
 (p t-i-x-7-no-crosscheck
@@ -2412,8 +2447,9 @@
 ==>
     =goal>
      crosscheck        no
-     phase             check-tars-input
-     stage             1
+     phase             request-tars-input
+     situation-return-phase perform-task
+     situation-return-stage 1
 )
 ;(spp x-7-no-crosscheck :reward 2) ;
 
@@ -2470,43 +2506,51 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; BLOCK CHECK TARS INPUT IN INTERACTION PANEL FOR SUPPORT;;
+;; BLOCK READ TARS INPUT IN INTERACTION PANEL ;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-x-1-visually-attend-tars-input-supporter ;if TARS is supporter
+; Allocation skips this worker for n-a; an explicit request always reads input.
+; Use tars-reader as the task-object: tars-input is also a task slot name.
+(p request-tars-input
     =goal>
-     isa		        task
-     - autonomy-role    n-a
-     phase              check-tars-input
-     stage              1
-    ?visual>
-    state		        free
+     isa                    task
+     phase                  request-tars-input
+     situation-return-phase =return_phase
+     situation-return-stage =return_stage
 ==>
-    +visual-location>
-     isa		        visual-location
-     screen-x	        440			; representing TARS input box x-coordinate on TARS interface
-     screen-y	        1250
     =goal>
-     stage              2
+     phase                  waiting-for-tars-input
+     stage                  input
+    +goal-2>
+     isa                    task
+     task-object            tars-reader
+     phase                  read-tars-input
+     stage                  1
+     situation-return-phase =return_phase
+     situation-return-stage =return_stage
 )
 
-(p t-i-x-1-skip-tars-input-because-tars-is-not-supporter ;if TARS is not supporter
-    =goal>
-     isa		        task
-     autonomy-role    n-a
-     phase              check-tars-input
-     stage              1
+(p t-i-x-1-visually-attend-tars-input
+    =goal-2>
+     isa                    task
+     task-object            tars-reader
+     phase                  read-tars-input
+     stage                  1
     ?visual>
-    state		        free
+     state                  free
 ==>
-    =goal>
-     phase              perform-task
-     stage              1
+    +visual-location>
+     isa                    visual-location
+     screen-x               440 ; TARS input box on the interface
+     screen-y               1250
+    =goal-2>
+     stage                  2
 )
 
 (p t-i-x-2-visually-encode-tars-input
-    =goal>
+    =goal-2>
      isa		    task
-     phase          check-tars-input
+     task-object    tars-reader
+     phase          read-tars-input
      stage          2
     =visual-location>
     ?visual>
@@ -2515,34 +2559,54 @@
     +visual>
      isa		move-attention
      screen-pos	=visual-location
-    =goal>
+    =goal-2>
      stage        3
 )
 
 (p t-i-x-3-form-tars-input-representation
-    =goal>
-     isa		        task
-     phase              check-tars-input
+    =goal-2>
+     isa                task
+     task-object        tars-reader
+     phase              read-tars-input
      stage              3
-    task-object       =value_obj
-    task-value        =value_val
-    crosscheck        =value_crosscheck
     =visual>
-
 !bind! =value (read_input tars_input)	; hard coded way to get the TARS input from TARS interface
+==>
+    =goal-2>
+     phase              tars-input-complete
+     tars-input         =value
+)
 
+(p finish-tars-input
+    =goal>
+     isa                    task
+     phase                  waiting-for-tars-input
+     stage                  input
+     task-object            =value_obj
+     task-value             =value_val
+     crosscheck             =value_crosscheck
+    =goal-2>
+     isa                    task
+     task-object            tars-reader
+     phase                  tars-input-complete
+     tars-input             =value
+     situation-return-phase =return_phase
+     situation-return-stage =return_stage
 ==>
     =goal>
-    phase               perform-task
-    stage               1
-    tars-input          =value
-    !output!             (tars-input =value); debug
-    !output!             (task-object =value_obj); debug
-    !output!             (task-value =value_val); debug debug
-    !output!             (crosscheck =value_crosscheck); debug
+     phase                  =return_phase
+     stage                  =return_stage
+     tars-input             =value
+     situation-return-phase nil
+     situation-return-stage nil
+    -goal-2>
+    !output! (tars-input =value) ; debug
+    !output! (task-object =value_obj) ; debug
+    !output! (task-value =value_val) ; debug
+    !output! (crosscheck =value_crosscheck) ; debug
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; BLOCK CHECK TARS INPUT IN INTERACTION PANEL FOR SUPPORT;;
+;; end of BLOCK READ TARS INPUT IN INTERACTION PANEL ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -6704,7 +6768,7 @@
    stage                        verify-runway-centered
    =imaginal>
    isa                          outside-world-situation
-   >runway-centerline-deviation 5 ; 5 meters to the right
+   >runway-centerline-deviation 3 ; 5 meters to the right
    ;>heading-deviation           0 ; not being corrected
    ?manual>
    state                        free
@@ -6732,7 +6796,7 @@
    stage                        verify-runway-centered
    =imaginal>
    isa                          outside-world-situation
-   <runway-centerline-deviation -5 ; 5 meters to the left
+   <runway-centerline-deviation -3 ; 5 meters to the left
    ;<heading-deviation           0 ; not being corrected
    ?manual>
    state                        free
@@ -6760,11 +6824,22 @@
    stage                        verify-runway-centered
    =imaginal>
    isa                          outside-world-situation
-   >=runway-centerline-deviation -5 ; 5 meters to the left
-   <=runway-centerline-deviation 5 ; 5 meters to the right
+   >=runway-centerline-deviation -3 ; 5 meters to the left
+   <=runway-centerline-deviation 3 ; 5 meters to the right
    ?manual>
    state                        free
 ==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  dummy_manual_action
+        para-2                  rudder-keep-pressure
+        para-3
+        para-4
    =goal>
    stage                        attend-pfd
 )
@@ -7130,11 +7205,767 @@
     component-status            false
 ==>
     =goal>
-    task-object                 engine-failure-during-takeoff
+    task-object                 climb
+    task-value                  to-a-safe-altitude
+    stage                       1
+    status                      nil
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;; TAKEOFF INITIAL CLIMB BLOCK ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; end of TAKEOFF INITIAL CLIMB BLOCK ;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; ENG FAILURE DURING TAKEOFF ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; CLIMB - TO A SAFE ALTITUDE ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p climb-to-a-safe-altitude-retrieve-value
+    =goal>
+    isa             task
+    task-object     climb
+    task-value      to-a-safe-altitude
+    stage           1
+    ?retrieval>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    +retrieval>
+    isa             safe-altitude
+    =goal>
+    stage           2
+)
+(spp climb-to-a-safe-altitude-retrieve-value :u 1000)
+
+(p safe-altitude-retrieved
+    =goal>
+    isa             task
+    task-object     climb
+    task-value      to-a-safe-altitude
+    stage           2
+    =retrieval>
+    isa             safe-altitude
+    altitude        =value
+    ?vocal>
+    state           free
+    ?manual>
+    state           free
+==>
+    +vocal>
+    cmd             subvocalize
+    string          =value
+    =goal>
+    task-object     flight-director
+    task-value      set-to-mode
+    stage           1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; end of CLIMB - TO A SAFE ALTITUDE ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; FLIGHT DIRECTOR - SET TO MODE ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-flight-director-set-to-mode-visually-attend-fd
+    =goal>
+    isa         task
+    task-object flight-director
+    task-value  set-to-mode
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1260
+    screen-y    770
+    +imaginal>
+    isa         aircraft-component
+    component-name  flight-director
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-flight-director-mode-representation
+    =goal>
+    isa             task
+    task-object     flight-director
+    task-value      set-to-mode
+    stage           form-representation-aircraft-component
+    =imaginal>
+    isa             aircraft-component
+    component-name  flight-director
+!bind! =value (read_input flight_director)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    component-status    =value
+    =goal>
+    stage               2
+)
+
+(p flight-director-mode-off-take-action
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    component-status    0
+    ?manual>
+    state               free
+==>
+   +manual>
+    isa 			        customized-manual-action		; representing hand reach to ignition switch (time duration should be estimated based on human pilot video recordings)
+    name			        agent-set-int
+    preparation-duration	0.050
+    initiation-duration	    0.050
+    execution-duration	    1.0
+    finish-duration		    1.0
+    para-1			        flight_director
+    para-2			        1
+    para-3
+    para-4
+    =goal>
+    stage                   3
+)
+
+(p flight-director-mode-on-continue
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    -component-status    0
+==>
+    =goal>
+    isa                 task
+    task-object         pitch
+    task-value          maintain-10
+    phase               perform-task
+    stage               1
+)
+
+(p verify-flight-director-on-form-pfd-situation
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               3
+    ?visual>
+    state               free
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  4
+)
+
+(p verify-flight-director-on-has-pfd-situation
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               4
+    ?imaginal>
+    state               free
+    =imaginal>
+    isa                 aviate-situation
+!bind! =value (read_input flight_director)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    component-status    =value
+    =goal>
+    stage               5
+)
+
+(p flight-director-is-correctly-set-to-on
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               5
+    ?imaginal>
+    state               free
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    -component-status   0
+==>
+    =goal>
+    isa                 task
+    task-object         pitch
+    task-value          maintain-10
+    phase               perform-task
+    stage               1
+)
+
+(p flight-director-is-not-set-to-on-after-trial
+    =goal>
+    isa                 task
+    task-object         flight-director
+    task-value          set-to-mode
+    stage               5
+    ?imaginal>
+    state               free
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flight-director
+    component-status   0
+==>
+    =goal>
+    isa                 task
+    task-object         pitch
+    task-value          maintain-10
+    phase               perform-task
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; end of FLIGHT DIRECTOR - SET TO MODE ;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; PITCH - MAINTAIN 10 DEGREES ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-pitch-maintain-10-visually-attend-fd
+    =goal>
+    isa         task
+    task-object pitch
+    task-value  maintain-10
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    =goal>
+    phase       request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  verify-pfd-situation
+)
+(spp start-pitch-maintain-10-visually-attend-fd :u 1000)
+
+(p eng-failure-during-takeoff-pitch-is-around-10-deg
+    =goal>
+    isa         task
+    task-object pitch
+    task-value  maintain-10
+    stage       verify-pfd-situation
+    =imaginal>
+    isa         aviate-situation
+    >pitch     6
+==>
+    =goal>
+    isa         task
+    task-object landing-gear
+    task-value  up
+    stage       1
+)
+
+(p eng-failure-during-takeoff-pitch-is-not-around-10-deg
+    =goal>
+    isa         task
+    task-object pitch
+    task-value  maintain-10
+    stage       verify-pfd-situation
+    =imaginal>
+    isa         aviate-situation
+    <=pitch     6
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  dummy_manual_action
+        para-2                  adjust-pitch
+        para-3
+        para-4
+    =goal>
+    stage       1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;; end of PITCH - MAINTAIN 10 DEGREES ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; LANDING-GEAR  UP ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-landing-gear-up-visually-attend-landing-gear-handle
+    =goal>
+    isa         task
+    task-object landing-gear
+    task-value  up
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1540
+    screen-y    1170
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+(spp start-landing-gear-up-visually-attend-landing-gear-handle :u 1000)
+
+(p form-landing-gear-handle-representation
+    =goal>
+    isa         task
+    task-object landing-gear
+    task-value  up
+    stage       form-representation-aircraft-component
+!bind! =value (read_input landing_gear)
+==>
+    +imaginal>
+    isa         aircraft-component
+    component-name  landing-gear
+    component-status    =value
+    =goal>
+    stage           2
+)
+
+(p eng-failure-during-takeoff-landing-gear-is-up
+    =goal>
+    isa         task
+    task-object landing-gear
+    task-value  up
+    stage       2
+    =imaginal>
+    isa         aircraft-component
+    component-name  landing-gear
+    component-status    false
+==>
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; END OF LANDING-GEAR  UP ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; AIRSPEED - CHECK V2 ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-airspeed-check-v2-visually-attend-pfd
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  verify-pfd-situation
+)
+(spp start-airspeed-check-v2-visually-attend-pfd :u 1000)
+
+(p has-airspeed-value-attempt-retrieval-v2
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       verify-pfd-situation
+    =imaginal>
+    isa         aviate-situation
+    -airspeed   nil
+==>
+    =imaginal>
+    +retrieval>
+    isa         airspeed-v2
+    =goal>
+    stage       2
+)
+
+(p v2-retrieval-success-and-airspeed-close-to-v2
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa         aviate-situation
+    >airspeed   110
+    =retrieval>
+    isa         airspeed-v2
+==>
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       1
+)
+
+(p v2-retrieval-success-and-airspeed-too-low
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa         aviate-situation
+    <=airspeed   110
+    =retrieval>
+    isa         airspeed-v2
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  dummy_manual_action
+        para-2                  adjust-pitch
+        para-3
+        para-4
+    =goal>
+    stage   1
+)
+
+; Continue from perform-task/after-v2-tars-input after reading TARS input.
+(p v2-retrieval-failure
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       2
+    ?retrieval>
+    state       error
+==>
+    =goal>
+    phase       request-tars-input
+    situation-return-phase perform-task
+    situation-return-stage after-v2-tars-input
+)
+
+(p verify-tars-input-does-not-display-airspeed
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       after-v2-tars-input
+    -tars-input  airspeed-below-v2-97-kts
+==>
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       1
+)
+
+(p verify-tars-input-displays-airspeed-v2-airspeed-too-low
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       after-v2-tars-input
+    tars-input  airspeed-below-v2-97-kts
+    =imaginal>
+    isa         aviate-situation
+    <=airspeed   110
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-string
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  dummy_manual_action
+        para-2                  adjust-pitch
+        para-3
+        para-4
+    =goal>
+    stage           1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; end of AIRSPEED CHECK V2;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; RUDDER - TRIM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-rudder-trim-visually-attend-eicas
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    -status     trimmed
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    +imaginal>
+    isa                     eicas-situation
+    cas                     clear
+    cas-status              no-alert
+    =goal>
+    phase                   waiting-for-eicas
+    stage                   rudder-trim
+    +goal-2>
+    isa                     task
+    task-object             eicas
+    phase                   read-eicas
+    stage                   1
+)
+(spp start-rudder-trim-visually-attend-eicas :u 1000)
+
+(p finish-rudder-trim-eicas-check
+    =goal>
+    isa                     task
+    task-object             rudder
+    task-value              trim
+    phase                   waiting-for-eicas
+    stage                   rudder-trim
+    =goal-2>
+    isa                     task
+    task-object             eicas
+    phase                   eicas-complete
+    =imaginal>
+    isa                     eicas-situation
+    e1-n1                   =e1_n1
+    e2-n1                   =e2_n1
+    ?imaginal>
+    state                   free
+==>
+    =goal>
+    phase                   perform-task
+    stage                   verify-eicas-situation
+    =imaginal>
+    -goal-2>
+)
+
+(p has-eicas-situation-left-engine-is-failed
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       verify-eicas-situation
+    =imaginal>
+    isa         eicas-situation
+    <e1-n1      30
+    >e2-n1      80
+==>
+    +imaginal>
+    isa         failure-situation
+    has-failure t
+    engine-side left
+    =goal>
+    stage       2
+)
+
+(p has-eicas-situation-right-engine-is-failed
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       verify-eicas-situation
+    =imaginal>
+    isa         eicas-situation
+    >e1-n1      80
+    <e2-n1      30
+==>
+    +imaginal>
+    isa         failure-situation
+    has-failure t
+    engine-side right
+    =goal>
+    stage       2
+)
+
+(p has-eicas-situation-no-engine-is-failed
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       verify-eicas-situation
+    =imaginal>
+    isa         eicas-situation
+    >e1-n1      80
+    >e2-n1      80
+==>
+    +imaginal>
+    isa         failure-situation
+    has-failure nil
+    engine-side nil
+    =goal>
+    phase       attend-aoi
+    stage       1
+)
+
+(p engine-failed-visually-attend-slip
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       2
+    =imaginal>
+    isa         failure-situation
+    has-failure t
+    ?visual>
+    state       free
+==>
+    =imaginal>
+    +visual-location>
+    isa             visual-location
+    screen-x        1260
+    screen-y        690
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p engine-failed-form-slip-representation
+    =goal>
+    isa         task
+    task-object rudder
+    task-value  trim
+    stage       form-representation-aircraft-component
+    =imaginal>
+    isa         failure-situation
+    has-failure t
+    ?imaginal>
+    state       free
+!bind! =value (read_input slip)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      slip
+    component-status    =value
+    =goal>
+    stage               3
+)
+
+
+(p engine-failed-slip-negative-actuate-trim
+    =goal>
+    isa                 task
+    task-object         rudder
+    task-value          trim
+    stage               3
+    =imaginal>
+    isa                 aircraft-component
+    component-name      slip
+    <=component-status  -1
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-actuate-trim-rudder
+        preparation-duration    1.000
+        initiation-duration     0.100
+        execution-duration      0.100
+        finish-duration         0.100
+        para-1                  right
+        para-2                  nil
+        para-3                  nil
+        para-4                  nil
+    +imaginal>
+    isa                         failure-situation
+    has-failure                 t
+    =goal>
+    stage                       2
+)
+
+(p engine-failed-slip-positive-actuate-trim
+    =goal>
+    isa                 task
+    task-object         rudder
+    task-value          trim
+    stage               3
+    =imaginal>
+    isa                 aircraft-component
+    component-name      slip
+    >=component-status  1
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-actuate-trim-rudder
+        preparation-duration    1.000
+        initiation-duration     0.100
+        execution-duration      0.100
+        finish-duration         0.100
+        para-1                  left
+        para-2                  nil
+        para-3                  nil
+        para-4                  nil
+    +imaginal>
+    isa                         failure-situation
+    has-failure                 t
+    =goal>
+    stage                       2
+)
+
+(p engine-failed-slip-null-continue
+    =goal>
+    isa                 task
+    task-object         rudder
+    task-value          trim
+    stage               3
+    =imaginal>
+    isa                 aircraft-component
+    component-name      slip
+    <component-status   1
+    >component-status   -1
+==>
+    =goal>
+    phase               attend-aoi
+    status              trimmed
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;; end of RUDDER - TRIM ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; end of ENG FAILURE DURING TAKEOFF ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; GENERAL CHECK TASK ON TARS ACTION ;;;;;;;;;;;;;

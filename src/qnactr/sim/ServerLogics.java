@@ -8470,7 +8470,37 @@ public class ServerLogics {
                       if (para_1.compareTo("nil") != 0 && para_2.compareTo("nil") != 0) {
                           sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "MOTOR" + "\t\t" + "customized-manual-action with name: " + name  + " action done with agent set output " + para_1 + " to " + para_2);
                       }
+                      Entity.Trash = true;
+                      break;
+                    }
+                    case "agent-actuate-trim-rudder":{
+                      String direction = sim.funs.ChunkFun__Get_Chunk_Slot_Value(Entity.Chunk, "para-1");
+                      double step;
+                      if ("left".equals(direction)) {
+                        step = -0.1;
+                      } else if ("right".equals(direction)) {
+                        step = 0.1;
+                      } else {
+                        System.out.println("Error! agent-actuate-trim-rudder requires para-1 left or right, got: " + direction);
+                        Entity.Trash = true;
+                        break;
+                      }
 
+                      try {
+                        Agent agent = Agent.getInstance();
+                        double currentTrim = agent.trim_rudder_i;
+                        double newTrim = Math.max(-5.0, Math.min(5.0, currentTrim + step));
+                        if (newTrim != currentTrim) {
+                          agent.outputSetDouble("trim_rudder", newTrim);
+                        }
+                        sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round(SimSystem.clock(), 3) + "\tMOTOR\t\t" +
+                                "agent-actuate-trim-rudder " + direction + ": " + currentTrim + " -> " + newTrim);
+                      } catch (Exception ex) {
+                        System.out.println("Unable to actuate rudder trim. (Error message was '" + ex.getMessage() + "'.)");
+                        return null;
+                      }
+                      Entity.Trash = true;
+                      break;
                     }
                     case "agent-set-string":{
                       String para_1 = sim.funs.ChunkFun__Get_Chunk_Slot_Value( Entity.Chunk, "para-1"); //output name
