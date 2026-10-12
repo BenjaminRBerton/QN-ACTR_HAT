@@ -1,0 +1,48 @@
+Negated retrieval matcher bug and fix
+======================================
+
+Observed failure
+----------------
+The HAT model requested a failure-situation with has-failure t and
+"-engine-side nil" in the throttle-affected-engine idle task. The trace
+showed the internal request as "engine-side NOT_nil", but retrieval still
+returned a failure-situation whose engine-side was nil.
+
+Cause
+-----
+ProductionModuleFun__Add_Retrieval_Request in src/qnactr/sim/Functions.java
+encodes "-engine-side nil" as the slot/value pair "engine-side NOT_nil".
+In DeclarativeModuleFun__Find_Add_Retrieval_Matched_DM_Chunk_IDs_By_Chunk_Spec,
+the exact-matching branch (used when :mp is nil) then compared the candidate
+slot with the forbidden value. The old code kept a candidate when the values
+were equal, reversing the meaning of the NOT request.
+
+Fix
+---
+The exact-matching branch now keeps a candidate only when its slot value is
+NOT equal to the forbidden value. For "engine-side NOT_nil", a nil-valued
+chunk is excluded; a left- or right-valued chunk can continue through the
+other request constraints.
+
+The model had a separate source of nil-valued chunks: its rudder-trim loop
+recreated a failure-situation without copying engine-side. In
+QN workspace/HMI_1/QN_ACTR_Model_Initialization_HAT.lisp, that loop now
+retains the failed engine side and sets it on each recreated chunk.
+
+Partial matching
+----------------
+The matcher has a separate partial-matching path when :mp is numeric.
+ACT-R's reference manual allows imperfect retrieval in that mode and
+describes a mismatch penalty for negated requests. That path was not changed
+by this fix. The reported retrieval was explained by the reversed condition
+in the exact-matching path, not by partial matching.
+
+Reference: ACT-R 7 Reference Manual, Declarative Memory / Partial Matching:
+https://act-r.psy.cmu.edu/actr7.x/reference-manual.pdf
+
+Verification
+------------
+The Lisp file's top-level forms read successfully and git diff --check
+passed. The simulation was not replayed after the fix; confirm in a run that
+the retrieval no longer returns a nil-sided failure-situation for this
+request.

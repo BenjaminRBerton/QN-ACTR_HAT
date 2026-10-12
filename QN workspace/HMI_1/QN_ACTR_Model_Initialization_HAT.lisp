@@ -2,10 +2,7 @@
 ;; QN-ACTR, Sample piloting model
 ;; For questions and comments, please send to Shi Cao (shi.cao@uwaterloo.ca).
 
-(sgp :trace-detail high)
 (sgp :v t)
-(sgp :crt t)
-(sgp :cst t)
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Task definition ;;
 ;;;;;;;;;;;;;;;;;;;;;
@@ -207,9 +204,33 @@
     )
     (
 	:item_type					display_item_visual_text
-	:visual_text					("AP_HEADING")
+	:visual_text					("AP_HDG_VALUE")
 	:display_item_screen_location_x			(1200)
 	:display_item_screen_location_y			(800)
+    )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("AP_HDG")
+	:display_item_screen_location_x			(1200)
+	:display_item_screen_location_y			(680)
+    )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("AP_FLC")
+	:display_item_screen_location_x			(1300)
+	:display_item_screen_location_y			(680)
+    )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("AP_FLC_VALUE")
+	:display_item_screen_location_x			(1330)
+	:display_item_screen_location_y			(680)
+    )
+    (
+	:item_type					display_item_visual_text
+	:visual_text					("AP")
+	:display_item_screen_location_x			(1250)
+	:display_item_screen_location_y			(680)
     )
     (
     :item_type					display_item_visual_text
@@ -737,6 +758,8 @@
     e2-n1
     cas
     cas-status
+    l-eng-fire
+    r-eng-fire
 )
 
 (chunk-type throttle-situation
@@ -805,8 +828,10 @@
     altitude
 )
 
-(chunk-type current-runway
+(chunk-type runway
+    current
     runway
+    runway-hdg
 )
 
 (chunk-type fadec-bug
@@ -824,6 +849,7 @@
 
 (chunk-type airspeed-v2
     airspeed
+    autopilot-airspeed
 )
 
 (chunk-type failure-situation
@@ -844,9 +870,28 @@
 	    isa             safe-altitude
 	    altitude        1500
 	)
+	(runway-24-r
+	    isa             runway
+	    current         nil
+	    runway          two-four-right
+	    runway-hdg      237
+    )
+	(runway-06-l
+	    isa             runway
+	    current         nil
+	    runway          zero-six-left
+	    runway-hdg      57
+    )
+	(runway-24-l
+	    isa             runway
+	    current         nil
+	    runway          two-four-left
+	    runway-hdg      237
+    )
 	(checklist-airspeed-v2
-	isa     airspeed-v2
-	airspeed    120
+	isa                 airspeed-v2
+	airspeed            120
+	autopilot-airspeed  nil
 	)
 	(current-failure-situation
 	isa     failure-situation
@@ -2147,6 +2192,8 @@
     stage           4
     task-object     =value_obj
     task-value      =value_val
+    ?imaginal>
+    state           free
    =imaginal>
     isa             task
     task-object     =value_obj
@@ -2156,12 +2203,15 @@
     phase           attend-aoi
      stage          1
 )
+(spp t-i-x-4-same-task-stage-checked :u 1000)
 ;; IF WE'RE STILL IN (IDLE - WAIT) GO BACK TO IDLE
 (p x-4-wait-task-go-back-to-attend-aoi
    =goal>
 	isa		    task
 	phase		reading-tars-interface
     stage       4
+    ?imaginal>
+    state       free
    =imaginal>
 	task-value	waiting
 ==>
@@ -2175,6 +2225,8 @@
     isa		    task
     phase		reading-tars-interface
     stage       4
+    ?imaginal>
+    state       free
    =imaginal>
     - task-value	waiting
 ==>
@@ -2188,6 +2240,8 @@
     isa		    task
     phase		reading-tars-interface
     stage       5
+    ?imaginal>
+    state       free
    =imaginal>
     task-value	n-a
 ==>
@@ -2201,6 +2255,8 @@
     isa		    task
     phase		reading-tars-interface
     stage       5
+    ?imaginal>
+    state       free
    =imaginal>
     task-object	n-a
 ==>
@@ -2214,6 +2270,8 @@
      isa		    task
      phase		    reading-tars-interface
      stage          5
+     ?imaginal>
+     state          free
     =imaginal>
      - task-object	n-a
      - task-value	n-a
@@ -6129,7 +6187,7 @@
 ==>
     =retrieval>
     +imaginal>
-    isa         current-runway
+    isa         runway
     runway      =content
     =goal>
     stage       5
@@ -6152,7 +6210,7 @@
     screen-x    1120
     screen-y    440
     +imaginal>
-    isa         current-runway
+    isa         runway
     runway      nil
     =goal>
     stage       visual-encode-aircraft-component
@@ -6166,17 +6224,49 @@
     task-value  to-detent
     stage       form-representation-aircraft-component
     =imaginal>
-    isa         current-runway
+    isa         runway
 !bind! =value (read_input current_runway)
 ==>
     =imaginal>
-    isa         current-runway
     runway      =value
     =goal>
-    stage       5
+    stage       4-1
 )
 
-(p subvocalize-current-runway
+(p form-runway-sign-not-yet-initialized
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       4-1
+    =imaginal>
+    isa         runway
+    runway      n-a
+==>
+    =imaginal>
+    =goal>
+    stage        form-representation-aircraft-component
+)
+
+(p form-runway-sign-initialized
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       4-1
+    =imaginal>
+    isa         runway
+    -runway      n-a
+==>
+    =imaginal>
+    =goal>
+    stage        5
+)
+
+
+(p set-current-runway-and-heading-in-representation
     =goal>
     isa         task
     phase       perform-task
@@ -6184,17 +6274,45 @@
     task-value  to-detent
     stage       5
     =imaginal>
-    isa         current-runway
+    isa         runway
     runway      =value
+    ?retrieval>
+    state       free
 ==>
-    +vocal>
-    cmd         subvocalize
-    string      =value
+    =imaginal>
+    +retrieval>
+    isa         runway
+    runway      =value
     =goal>
     stage       6
 )
 
-(p throttles-to-retrieval-failure-look-at-ap-altitude
+(p runway-info-retrieval-success
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       6
+    =retrieval>
+    isa         runway
+    -runway-hdg nil
+    runway-hdg  =value_rw_hdg
+    runway      =value_rw
+    current     nil
+    ?imaginal>
+    state       free
+==>
+    +imaginal>
+    isa         runway
+    current     t
+    runway      =value_rw
+    runway-hdg  =value_rw_hdg
+    =goal>
+    stage       7
+)
+
+(p runway-info-retrieval-failure
     =goal>
     isa         task
     phase       perform-task
@@ -6203,6 +6321,42 @@
     stage       6
     ?retrieval>
     state       error
+==>
+    +imaginal>
+    isa         runway
+    current     t
+    runway      nil
+    runway-hdg  nil
+    =goal>
+    stage       7
+)
+
+
+(p subvocalize-current-runway
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       7
+    =imaginal>
+    isa         runway
+    runway      =value
+==>
+    +vocal>
+    cmd         subvocalize
+    string      =value
+    =goal>
+    stage       8
+)
+
+(p throttles-to-look-at-ap-altitude
+    =goal>
+    isa         task
+    phase       perform-task
+    task-object throttles
+    task-value  to-detent
+    stage       8
     ?imaginal>
     state       free
 ==>
@@ -6231,25 +6385,7 @@
     isa         cleared-altitude
     altitude      =value
     =goal>
-    stage       7
-)
-
-(p throttles-to-retrieval-succeed-form-cleared-altitude-representation
-    =goal>
-    isa         task
-    phase       perform-task
-    task-object throttles
-    task-value  to-detent
-    stage       6
-    =retrieval>
-    isa         clearance
-    altitude    =content
-==>
-    +imaginal>
-    isa         cleared-altitude
-    altitude    =content
-    =goal>
-    stage       7
+    stage       9
 )
 
 (p subvocalize-cleared-altitude
@@ -6258,7 +6394,7 @@
     phase       perform-task
     task-object throttles
     task-value  to-detent
-    stage       7
+    stage       9
     =imaginal>
     isa         cleared-altitude
     altitude      =value
@@ -6267,15 +6403,15 @@
     cmd         subvocalize
     string      =value
     =goal>
-    stage       8
+    stage       10
 )
 
 
 (p throttles-detent-task-check-console
     =goal>
-    isa                    task
-    phase                  perform-task
-    stage                  8
+    isa                     task
+    phase                   perform-task
+    stage                   10
     task-object             throttles
     task-value              to-detent
     ?manual>
@@ -6286,7 +6422,7 @@
      =goal>
      phase                  request-central-console-situation
      situation-return-phase perform-task
-     situation-return-stage 9
+     situation-return-stage 11
 )
 
 ;Then look the outside window
@@ -6294,7 +6430,7 @@
     =goal>
      isa                    task
      phase                  perform-task
-     stage                  9
+     stage                  11
     task-object             throttles
     task-value              to-detent
     =imaginal>
@@ -6311,7 +6447,7 @@
      =goal>
      phase                  request-outside-window-situation
      situation-return-phase perform-task
-     situation-return-stage 10
+     situation-return-stage 12
 )
 
 (p throttles-to-detent-start-adding-thrust-10-percent
@@ -6320,7 +6456,7 @@
     phase               perform-task
     task-object         throttles
     task-value          to-detent
-    stage               10
+    stage               12
     =imaginal>
     isa                 outside-world-situation
     runway-centerline-deviation =value_rcd
@@ -6341,7 +6477,7 @@
         para-3
         para-4
    =goal>
-   stage                11
+   stage                13
 )
 
 (p throttles-to-detent-start-adding-thrust-20-percent
@@ -6349,7 +6485,7 @@
     isa                 task
     task-object         throttles
     task-value          to-detent
-    stage               11
+    stage               13
     ?manual>
     state               free
 ==>
@@ -6366,7 +6502,7 @@
         para-3
         para-4
    =goal>
-   stage                12
+   stage                14
 )
 
 (p throttles-to-detent-start-adding-thrust-50-percent
@@ -6374,7 +6510,7 @@
     isa                 task
     task-object         throttles
     task-value          to-detent
-    stage               12
+    stage               14
     ?manual>
     state               free
 ==>
@@ -6391,7 +6527,7 @@
         para-3
         para-4
    =goal>
-   stage                13
+   stage                15
 )
 
 (p throttles-to-detent-start-adding-thrust-100-percent
@@ -6399,7 +6535,7 @@
     isa                 task
     task-object         throttles
     task-value          to-detent
-    stage               13
+    stage               15
     ?manual>
     state               free
 ==>
@@ -7868,6 +8004,8 @@
     =imaginal>
     isa         failure-situation
     has-failure t
+    -engine-side nil
+    engine-side =failed-engine-side
     ?imaginal>
     state       free
 !bind! =value (read_input slip)
@@ -7878,6 +8016,7 @@
     component-status    =value
     =goal>
     stage               3
+    status              =failed-engine-side
 )
 
 
@@ -7887,6 +8026,7 @@
     task-object         rudder
     task-value          trim
     stage               3
+    status              =failed-engine-side
     =imaginal>
     isa                 aircraft-component
     component-name      slip
@@ -7906,6 +8046,7 @@
     +imaginal>
     isa                         failure-situation
     has-failure                 t
+    engine-side                 =failed-engine-side
     =goal>
     stage                       2
 )
@@ -7916,6 +8057,7 @@
     task-object         rudder
     task-value          trim
     stage               3
+    status              =failed-engine-side
     =imaginal>
     isa                 aircraft-component
     component-name      slip
@@ -7935,6 +8077,7 @@
     +imaginal>
     isa                         failure-situation
     has-failure                 t
+    engine-side                 =failed-engine-side
     =goal>
     stage                       2
 )
@@ -7960,11 +8103,1962 @@
 ;;;;;;;;;;;;;;;;;;;;; end of RUDDER - TRIM ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;; AUTOPILOT - SET SPD MODE ;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(p start-autopilot-set-spd-mode-attend-pfd
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       1
+    task-object autopilot
+    task-value  set-spd-mode
+    ?imaginal>
+    state       free
+    ?visual>
+    state       free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-autopilot-set-spd-mode-attend-pfd :u 1000)
+
+(p visually-attend-autopilot-spd-mode
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       2
+    task-object autopilot
+    task-value  set-spd-mode
+    =imaginal>
+    isa         aviate-situation
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1300
+    screen-y    680
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-autopilot-spd-mode-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    -status     autopilot-airspeed
+    task-object autopilot
+    task-value  set-spd-mode
+!bind! =value (read_input flc_mode)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    component-status    =value
+    =goal>
+    stage               3
+)
+
+(p autopilot-is-spd-mode-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    component-status    2
+    ?manual>
+    state               free
+==>
+    =goal>
+    stage               4
+)
+
+(p autopilot-is-not-spd-mode-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object autopilot
+    task-value  set-spd-mode
+    human-role performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    -component-status   2
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 1.000
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1               speed_mode_toggle
+        para-2               nil
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   1
+)
+
+(p visually-attend-autopilot-selected-airspeed
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               4
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
+    ?visual>
+    state               free
+==>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1330
+    screen-y            680
+    =goal>
+    stage               visual-encode-aircraft-component
+    status              autopilot-airspeed
+)
+
+(p form-autopilot-selected-airspeed-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
+    status              autopilot-airspeed
+    ?imaginal>
+    state               free
+!bind! =value (read_input autopilot_airspeed)
+==>
+    +imaginal>
+    isa                 airspeed-v2
+    autopilot-airspeed  =value
+    =goal>
+    stage               5
+)
+
+(p autopilot-spd-mode-retrieve-airspeed-v2
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               5
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
+    =imaginal>
+    isa                 airspeed-v2
+    -autopilot-airspeed nil
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 airspeed-v2
+    -airspeed           nil
+    =goal>
+    stage               6
+)
+
+(p autopilot-spd-mode-too-low
+    =goal>
+    isa                     task
+    phase                   perform-task
+    stage                   6
+    task-object             autopilot
+    task-value              set-spd-mode
+    human-role              performer
+    =retrieval>
+    isa                     airspeed-v2
+    -airspeed                nil
+    =imaginal>
+    isa                     airspeed-v2
+    <autopilot-airspeed     116
+    ?manual>
+    state                   free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 1.000
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1               nose_up
+        para-2               nil
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   4
+)
+
+(p autopilot-spd-mode-too-high
+    =goal>
+    isa                     task
+    phase                   perform-task
+    stage                   6
+    task-object             autopilot
+    task-value              set-spd-mode
+    human-role              performer
+    =retrieval>
+    isa                     airspeed-v2
+    -airspeed               nil
+    =imaginal>
+    isa                     airspeed-v2
+    >autopilot-airspeed     124
+    ?manual>
+    state                   free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 1.000
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1               nose_down
+        para-2               nil
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   4
+)
+
+(p autopilot-spd-mode-around-v2
+    =goal>
+    isa                     task
+    phase                   perform-task
+    stage                   6
+    task-object             autopilot
+    task-value              set-spd-mode
+    human-role              performer
+    =retrieval>
+    isa                     airspeed-v2
+    -airspeed               nil
+    =imaginal>
+    isa                     airspeed-v2
+    >=autopilot-airspeed     116
+    <=autopilot-airspeed     124
+==>
+    =goal>
+    phase                   check-task-on-tars
+    stage                   1
+)
+
+(p autopilot-set-spd-human-not-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-spd-mode
+    -human-role         performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    ?manual>
+    state       free
+==>
+    =goal>
+    phase                   attend-aoi
+    stage                   1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; end of AUTOPILOT - SET SPD MODE;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; AUTOPILOT - SET HDG MODE ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(p start-autopilot-set-hdg-mode-attend-pfd
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       1
+    task-object autopilot
+    task-value  set-hdg-mode
+    ?imaginal>
+    state       free
+    ?visual>
+    state       free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-autopilot-set-hdg-mode-attend-pfd :u 1000)
+
+(p visually-attend-autopilot-hdg-mode
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       2
+    task-object autopilot
+    task-value  set-hdg-mode
+    =imaginal>
+    isa         aviate-situation
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1200
+    screen-y    680
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-autopilot-hdg-mode-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    task-object autopilot
+    task-value  set-hdg-mode
+    -status     autopilot-hdg
+!bind! =value (read_input heading_mode)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    component-status    =value
+    =goal>
+    stage               3
+)
+
+(p autopilot-is-hdg-mode-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    component-status    2
+    ?manual>
+    state               free
+==>
+    =goal>
+    stage               4
+)
+
+(p autopilot-is-not-hdg-mode-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object autopilot
+    task-value  set-hdg-mode
+    human-role performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    -component-status   2
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               heading_mode_toggle
+        para-2               nil
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                    1
+)
+
+(p visually-attend-autopilot-selected-heading
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               4
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    ?visual>
+    state               free
+==>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1200
+    screen-y            800
+    =goal>
+    status              autopilot-hdg
+    stage               visual-encode-aircraft-component
+)
+
+(p form-autopilot-selected-heading-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    status              autopilot-hdg
+    ?imaginal>
+    state               free
+!bind! =value (read_input heading_sel)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    component-status    =value
+    =goal>
+    stage               5
+)
+
+(p autopilot-hdg-mode-retrieve-current-runway
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               5
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 runway
+    current             t
+    =goal>
+    stage               6
+)
+
+(p autopilot-hdg-mode-off-course-of-current-runway-retrieved
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               6
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    =retrieval>
+    isa                 runway
+    current             t
+    runway-hdg          =value
+    =imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    -component-status   =value
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-int
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               heading_sel
+        para-2               =value
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                    form-representation-aircraft-component
+)
+
+(p autopilot-hdg-mode-on-course-of-current-runway-retrieved
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               6
+    task-object         autopilot
+    task-value          set-hdg-mode
+    human-role          performer
+    =retrieval>
+    isa                 runway
+    current             t
+    runway-hdg          =value
+    =imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    component-status   =value
+    ?manual>
+    state               free
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p autopilot-set-hdg-human-not-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    ?manual>
+    state               free
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; end of AUTOPILOT - SET HDG MODE ;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;; AUTOPILOT - ENGAGE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-autopilot-engage-attend-pfd
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       1
+    task-object autopilot
+    task-value  engage
+    ?imaginal>
+    state       free
+    ?visual>
+    state       free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-autopilot-engage-attend-pfd :u 1000)
+
+(p visually-attend-autopilot-engage-mode
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       2
+    task-object autopilot
+    task-value  engage
+    =imaginal>
+    isa         aviate-situation
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1250
+    screen-y    680
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-autopilot-engage-mode-representation
+    =goal>
+    isa         task
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    task-object autopilot
+    task-value  engage
+!bind! =value (read_input flight_director)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      ap-mode
+    component-status    =value
+    =goal>
+    stage               3
+)
+
+(p autopilot-is-not-engaged-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          engage
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      ap-mode
+    -component-status   2
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               autopilot
+        para-2               impulsion
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   4
+)
+
+(p autopilot-engaged-disconnect-human-autopilot
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               4
+    task-object         autopilot
+    task-value          engage
+    human-role          performer
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-bool
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               autopilot_on_off
+        para-2               false
+        para-3               nil
+        para-4               nil
+    =goal>
+    phase                   check-task-on-tars
+    stage                   1
+)
+
+(p autopilot-is-engaged-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          engage
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      ap-mode
+    component-status    2
+    ?manual>
+    state       free
+==>
+    =goal>
+    phase                   check-task-on-tars
+    stage                   1
+)
+
+(p autopilot-engage-human-not-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          engage
+    -human-role         performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      ap-mode
+    ?manual>
+    state       free
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; end of AUTOPILOT - ENGAGE ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; ALARM - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-alarm-announce-visually-attend-eicas
+    =goal>
+    isa         task
+    task-object alarm
+    task-value  announce
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    =goal>
+    phase       waiting-for-eicas
+    stage       1
+    +imaginal>
+    isa         eicas-situation
+    cas         clear
+    cas-status  no-alert
+    +goal-2>
+    isa         task
+    task-object eicas
+    phase       read-eicas
+    stage       1
+)
+(spp start-alarm-announce-visually-attend-eicas :u 1000)
+
+
+(p form-left-engine-alarm-representation-from-cas
+    =goal>
+    isa         task
+    task-object alarm
+    task-value  announce
+    phase       waiting-for-eicas
+    stage       1
+    =goal-2>
+    isa         task
+    task-object eicas
+    phase       eicas-complete
+    =imaginal>
+    isa         eicas-situation
+    <e1-n1      30
+    ?imaginal>
+    state       free
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      cas-alarm
+    component-status    low-oil-pressure-left
+    -goal-2>
+    =goal>
+    stage               2
+)
+
+(p form-right-engine-alarm-representation-from-cas
+    =goal>
+    isa         task
+    task-object alarm
+    task-value  announce
+    phase       waiting-for-eicas
+    stage       1
+    =goal-2>
+    isa         task
+    task-object eicas
+    phase       eicas-complete
+    =imaginal>
+    isa         eicas-situation
+    <e2-n1      30
+    ?imaginal>
+    state       free
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      cas-alarm
+    component-status    low-oil-pressure-right
+    -goal-2>
+    =goal>
+    stage               2
+)
+
+(p vocalize-alarm
+    =goal>
+    isa                 task
+    task-object         alarm
+    task-value          announce
+    phase               waiting-for-eicas
+    stage               2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      cas-alarm
+    component-status    =value
+    ?vocal>
+    state               free
+==>
+    +vocal>
+    cmd                 speak
+    string              =value
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; end of ALARM - ANNOUNCE ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; CHECK - SAFE ALTITUDE REACHED ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-check-safe-altitude-reached-visually-attend-pfd
+    =goal>
+    isa                 task
+    task-object         check
+    task-value          safe-altitude-reached
+    phase               perform-task
+    stage               1
+    ?imaginal>
+    state               free
+    ?visual>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-check-safe-altitude-reached-visually-attend-pfd :u 1000)
+
+(p safe-altitude-reached-go-to-check-task-on-tars
+    =goal>
+    isa                 task
+    task-object         check
+    task-value          safe-altitude-reached
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    >=altitude          1400
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p safe-altitude-not-reached-set-altitude-target
+    =goal>
+    isa                 task
+    task-object         check
+    task-value          safe-altitude-reached
+    human-role          performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <altitude          1400
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-int
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               altitude_target
+        para-2               1500
+        para-3               nil
+        para-4               nil
+    =goal>
+        stage                1
+)
+
+(p safe-altitude-not-reached-wait-for-autonomy
+    =goal>
+    isa                 task
+    task-object         check
+    task-value          safe-altitude-reached
+    -human-role         performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <altitude           1400
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; end of CHECK - SAFE ALTITUDE REACHED ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; ALTITUDE - CHECK 1500 FT AGL ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-altitude-check-1500-ft-agl-attend-pfd
+    =goal>
+    isa                 task
+    task-object         altitude
+    task-value          check-1500ft-agl
+    phase               perform-task
+    stage               1
+    ?imaginal>
+    state               free
+    ?visual>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-altitude-check-1500-ft-agl-attend-pfd :u 1000)
+
+(p altitude-at-1500-ft-agl-check-task-on-tars
+    =goal>
+    isa                 task
+    task-object         altitude
+    task-value          check-1500ft-agl
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    >=altitude          1500
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p altitude-below-1500-ft-agl-set-target
+    =goal>
+    isa                 task
+    task-object         altitude
+    task-value          check-1500ft-agl
+    human-role          performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <altitude           1500
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1              altitude_target
+        para-2              1500
+        para-3              nil
+        para-4              nil
+    =goal>
+    stage               1
+)
+
+(p altitude-below-1500-ft-agl-wait-for-autonomy
+    =goal>
+    isa                 task
+    task-object         altitude
+    task-value          check-1500ft-agl
+    -human-role         performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <altitude           1500
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; end of ALTITUDE - CHECK 1500 FT AGL ;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; AIRSPEED - CHECK V2 + 10 ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-airspeed-check-v2-plus-10-attend-pfd
+    =goal>
+    isa                 task
+    task-object         airspeed
+    task-value          check-v2+10
+    phase               perform-task
+    stage               1
+    ?visual>
+    state               free
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-airspeed-check-v2-plus-10-attend-pfd :u 1000)
+
+; The checklist V2 chunk is 120 knots, so V2 + 10 is 130 knots.
+(p airspeed-at-v2-plus-10-check-task-on-tars
+    =goal>
+    isa                 task
+    task-object         airspeed
+    task-value          check-v2+10
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    >=airspeed          130
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p airspeed-below-v2-plus-10-adjust-pitch
+    =goal>
+    isa                 task
+    task-object         airspeed
+    task-value          check-v2+10
+    human-role          performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <airspeed           130
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-string
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.000
+        finish-duration      0.000
+        para-1              dummy_manual_action
+        para-2              adjust-pitch
+        para-3              nil
+        para-4              nil
+    =goal>
+    stage               1
+)
+
+(p airspeed-below-v2-plus-10-wait-for-autonomy
+    =goal>
+    isa                 task
+    task-object         airspeed
+    task-value          check-v2+10
+    -human-role         performer
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aviate-situation
+    <airspeed           130
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; end of AIRSPEED - CHECK V2 + 10 ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; OBSTACLES - CHECK CLEAR ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-obstacles-check-clear-attend-outside-window
+    =goal>
+    isa                 task
+    task-object         obstacles
+    task-value          check-clear
+    phase               perform-task
+    stage               1
+    ?visual>
+    state               free
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase                   request-outside-window-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-obstacles-check-clear-attend-outside-window :u 1000)
+
+(p obstacles-check-clear-attend-pfd
+    =goal>
+    isa                 task
+    task-object         obstacles
+    task-value          check-clear
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 outside-world-situation
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  3
+)
+
+(p obstacles-check-clear-attend-navigation
+    =goal>
+    isa                 task
+    task-object         obstacles
+    task-value          check-clear
+    phase               perform-task
+    stage               3
+    =imaginal>
+    isa                 aviate-situation
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase                   request-nd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  4
+)
+
+(p obstacles-check-clear-check-task-on-tars
+    =goal>
+    isa                 task
+    task-object         obstacles
+    task-value          check-clear
+    phase               perform-task
+    stage               4
+    =imaginal>
+    isa                 navigate-situation
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; end of OBSTACLES - CHECK CLEAR ;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; FLAPS - HANDLE UP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-flaps-handle-up-visually-attend-flaps
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    phase               perform-task
+    stage               1
+    ?imaginal>
+    state               free
+    ?visual>
+    state               free
+==>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1690
+    screen-y            1010
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+(spp start-flaps-handle-up-visually-attend-flaps :u 1000)
+
+(p form-flaps-handle-up-status-representation
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    ?imaginal>
+    state               free
+!bind! =value (read_input flaps)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      flaps
+    component-status    =value
+    =goal>
+    stage               action
+)
+
+(p flaps-handle-up-retract
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    human-role          performer
+    phase               perform-task
+    stage               action
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flaps
+    -component-status   0
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-double
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   1.0
+        finish-duration      1.0
+        para-1              flaps
+        para-2              0
+        para-3              nil
+        para-4              nil
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p flaps-handle-up-wait-for-autonomy
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    -human-role         performer
+    phase               perform-task
+    stage               action
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flaps
+    -component-status   0
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+
+(p flaps-handle-up-already-retracted
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    phase               perform-task
+    stage               action
+    =imaginal>
+    isa                 aircraft-component
+    component-name      flaps
+    component-status    0
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; end of FLAPS - HANDLE UP ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; ATC - CONTACT ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-atc-contact-mayday
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               1
+    human-role          performer
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              push_to_talk
+        para-2              true
+        para-3              nil
+        para-4              nil
+    =goal>
+    stage               2
+)
+
+(p atc-contact-speak-mayday
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2
+    human-role          performer
+    ?vocal>
+    state               free
+==>
+    +vocal>
+    cmd                 speak
+    string              mayday
+    =goal>
+    stage               3
+)
+
+(p atc-contact-release-ptt
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               3
+    human-role          performer
+    ?vocal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              push_to_talk
+        para-2              false
+        para-3              nil
+        para-4              nil
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p atc-contact-wait-for-autonomy
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               1
+    -human-role         performer
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; end of ATC - CONTACT ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; ATC - READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; end of ATC - READBACK ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;; end of ENG FAILURE DURING TAKEOFF ;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;; ENGINE FIRE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;; THROTTLE AFFECTED ENGINE - IDLE ;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-throttle-affected-engine-idle-retrieve-engine-failure-situation
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           1
+    ?retrieval>
+    state           free
+==>
+    +retrieval>
+    isa             failure-situation
+    has-failure     t
+    -engine-side    nil
+    =goal>
+    stage           2
+)
+(spp start-throttle-affected-engine-idle-retrieve-engine-failure-situation :u 1000)
+
+(p engine-fire-failure-situation-retrieved
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           2
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     =value
+==>
+    =goal>
+    stage           3
+)
+
+(p engine-fire-failure-situation-not-retrieved
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           2
+    ?retrieval>
+    state           error
+==>
+    =goal>
+    stage           3
+)
+
+(p engine-fire-visually-attend-l-eng-fire-button
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           3
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1570
+    screen-y        540
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p engine-fire-form-l-eng-fire-button-representation
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           form-representation-aircraft-component
+    ?imaginal>
+    state           free
+!bind! =value (read_input   l_engine_fire)
+==>
+    +imaginal>
+    isa             eicas-situation
+    cas             clear
+    cas-status      no-alert
+    l-eng-fire      =value
+    =goal>
+    stage           4
+)
+
+(p engine-fire-visually-attend-r-eng-fire-button
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           4
+    =imaginal>
+    isa             eicas-situation
+    -l-eng-fire     nil
+    ?visual>
+    state           free
+==>
+    =imaginal>
+    +visual-location>
+    isa             visual-location
+    screen-x        2050
+    screen-y        540
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p engine-fire-form-r-eng-fire-button-representation
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           form-representation-aircraft-component
+    =imaginal>
+    isa             eicas-situation
+    -l-eng-fire     nil
+    l-eng-fire      =value_l
+    ?imaginal>
+    state           free
+!bind! =value (read_input r_engine_fire)
+==>
+    +imaginal>
+    isa             eicas-situation
+    cas             clear
+    cas-status      no-alert
+    l-eng-fire      =value_l
+    r-eng-fire      =value
+   =goal>
+   stage            5
+)
+
+(p engine-fire-visually-attend-eicas
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           5
+    ?visual>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    =goal>
+    phase           waiting-for-eicas
+    stage           1
+    +goal-2>
+    isa             task
+    task-object     eicas
+    phase           read-eicas
+    stage           1
+)
+
+(p engine-fire-point-to-engine-gauges
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           waiting-for-eicas
+    stage           1
+    =goal-2>
+    isa             task
+    task-object     eicas
+    phase           eicas-complete
+    =imaginal>
+    isa             eicas-situation
+    ?manual>
+    state           free
+==>
+    =imaginal>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-string
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 dummy_manual_action
+     para-2                 point-to-engine-gauges
+     para-3
+     para-4
+     =goal>
+     phase                  perform-task
+     stage                  6
+    -goal-2>
+)
+
+(p engine-fire-vocalize-left-engine-failure
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           6
+    =imaginal>
+    isa             eicas-situation
+    <e1-n1          30
+    >e2-n1          80
+    ?vocal>
+    state           free
+==>
+    +vocal>
+    cmd             speak
+    string          left-engine-failure
+    =goal>
+    stage           7
+    status          l_throttle
+)
+
+(p engine-fire-vocalize-right-engine-failure
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           6
+    =imaginal>
+    isa             eicas-situation
+    >e1-n1          80
+    <e2-n1          30
+    ?vocal>
+    state           free
+==>
+    +vocal>
+    cmd             speak
+    string          right-engine-failure
+    =goal>
+    stage           7
+    status          r_throttle
+)
+
+(p engine-fire-take-action-throttle-mid-thrust
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           7
+    status          =value
+    ?manual>
+    state           free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-double
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 =value
+     para-2                 0.5
+     para-3
+     para-4
+    =goal>
+    phase                  mid-thrust
+    stage                   8
+)
+
+(p engine-fire-verify-good-throttle-adjusted-attend-e1
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    stage           8
+    ?manual>
+    state           free
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1600
+    screen-y        760
+    =goal>
+    stage           visual-encode-aircraft-component
+    +imaginal>
+    isa             eicas-situation
+    e1-n1           nil
+    e2-n1           nil
+)
+
+(p engine-fire-form-e1-representation
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    stage           form-representation-aircraft-component
+    ?imaginal>
+    state           free
+    =imaginal>
+    isa             eicas-situation
+    e1-n1           nil
+    e2-n1           nil
+!bind! =value (read_input e1_n1)
+==>
+    +imaginal>
+    isa             eicas-situation
+    e1-n1           =value
+    =goal>
+    stage           9
+)
+
+(p engine-fire-verify-good-throttle-adjusted-attend-e2
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    stage           9
+    ?manual>
+    state           free
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1630
+    screen-y        760
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p engine-fire-form-e2-representation
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    stage           form-representation-aircraft-component
+    =imaginal>
+    isa             eicas-situation
+    -e1-n1          nil
+    e1-n1           =value_e1
+    ?imaginal>
+    state           free
+!bind! =value (read_input e2_n1)
+==>
+    +imaginal>
+    isa             eicas-situation
+    e1-n1           =value_e1
+    e2-n1           =value
+    =goal>
+    stage           10
+)
+
+(p l-engine-fire-good-throttle-was-adjusted-continue
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    status          l_throttle
+    stage           10
+    =imaginal>
+    isa             eicas-situation
+    <=e1-n1         30
+    >=e2-n1         80
+    ?manual>
+    state           free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-double
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 l_throttle
+     para-2                 0
+     para-3
+     para-4
+     =goal>
+     phase                  check-task-on-tars
+     stage                  1
+)
+
+(p r-engine-fire-good-throttle-was-adjusted-continue
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           mid-thrust
+    status          r_throttle
+    stage           10
+    =imaginal>
+    isa             eicas-situation
+    >=e1-n1         80
+    <=e2-n1         30
+    ?manual>
+    state           free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-double
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 r_throttle
+     para-2                 0
+     para-3
+     para-4
+     =goal>
+     phase                  check-task-on-tars
+     stage                  1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; end of THROTTLE AFFECTED ENGINE - IDLE ;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; CHRONO - START ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-chrono-attend-chrono-human-performer
+    =goal>
+    isa         task
+    task-object chrono
+    task-value  start
+    human-role  performer
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    440
+    screen-y    1200
+    =goal>
+    stage       2
+)
+(spp start-chrono-attend-chrono-human-performer :u 1000)
+
+(p launch-chrono-human-performer
+    =goal>
+    isa         task
+    task-object chrono
+    task-value  start
+    human-role  performer
+    phase       perform-task
+    stage       2
+    ?visual>
+    state       free
+==>
+     =goal>
+     phase                  check-task-on-tars
+     stage                  1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; end of CHRONO - START ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; ILLUMINATED ENGINE FIRE SWITCH - LIFT COVER AND PUSH ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-task-form-engine-fire-switch-representation
+    =goal>
+    isa         task
+    task-object illuminated-engine-fire-switch
+    task-value  lift-cover-and-push
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+!bind! =value_l (read_input l_engine_fire)
+!bind! =value_r (read_input r_engine_fire)
+==>
+    +imaginal>
+    isa         eicas-situation
+    l-eng-fire  =value_l
+    r-eng-fire  =value_r
+    =goal>
+    stage       2
+)
+(spp start-task-form-engine-fire-switch-representation :u 1000)
+
+(p left-engine-fire-switch-is-on-visually-attend
+    =goal>
+    isa         task
+    task-object illuminated-engine-fire-switch
+    task-value  lift-cover-and-push
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa         eicas-situation
+    l-eng-fire  true
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1570
+    screen-y    540
+    =goal>
+    stage       3
+    status      l_eng_fire_switch
+)
+
+(p right-engine-fire-switch-is-on-visually-attend
+    =goal>
+    isa         task
+    task-object illuminated-engine-fire-switch
+    task-value  lift-cover-and-push
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa         eicas-situation
+    r-eng-fire  true
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    2050
+    screen-y    540
+    =goal>
+    stage       3
+    status      r_eng_fire_switch
+)
+
+(p engine-fire-switch-lift-cover-take-action
+    =goal>
+    isa         task
+    task-object illuminated-engine-fire-switch
+    task-value  lift-cover-and-push
+    phase       perform-task
+    stage       3
+    status      =value
+    ?manual>
+    state       free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-impulsion
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 =value
+     para-2                 impulsion
+     para-3                 nil
+     para-4                 nil
+     =goal>
+     stage                  4
+)
+
+(p engine-fire-switch-push-take-action
+    =goal>
+    isa         task
+    task-object illuminated-engine-fire-switch
+    task-value  lift-cover-and-push
+    phase       perform-task
+    stage       4
+    status      =value
+    ?manual>
+    state       free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-impulsion
+     preparation-duration   0.000
+     initiation-duration    0.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 =value
+     para-2                 impulsion
+     para-3                 nil
+     para-4                 nil
+     =goal>
+     phase                  check-task-on-tars
+     stage                  1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; end of ILLUMINATED ENGINE FIRE SWITCH - LIFT COVER AND PUSH ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; end of ENGINE FIRE ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -8045,7 +10139,7 @@
     stage		check-2-2
 )
 ;; visually encode current task value on TARS interface
-(p 2-2-visually-encode-task-value-item
+(p check-2-2-visually-encode-task-value-item
    =goal>
     isa		    task
     phase		check-task-on-tars
@@ -8061,7 +10155,7 @@
     stage		check-2-3
 )
 ;; form task value item representation in imaginal buffer
-(p 2-3-form-task-value-item-representation
+(p check-2-3-form-task-value-item-representation
    =goal>
     isa		    task
     phase		check-task-on-tars
@@ -8112,7 +10206,7 @@
     status          checked
     !output! (task-object =task-object)
     !output! (task-value =task-value)
-    !output! (status =status)
+    !output! (status checked)
     !output! (human-role =human-role)
     !output! (autonomy-role =autonomy-role)
     !output! (tars-input =tars-input)
@@ -8150,7 +10244,7 @@
     status          checked
     !output! (task-object =task-object)
     !output! (task-value =task-value)
-    !output! (status =status)
+    !output! (status checked)
     !output! (human-role =human-role)
     !output! (autonomy-role =autonomy-role)
     !output! (tars-input =tars-input)

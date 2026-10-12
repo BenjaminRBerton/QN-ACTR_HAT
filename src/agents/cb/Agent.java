@@ -28,7 +28,8 @@ public class Agent implements IopListener, ServiceListener {
     private QnactrSimulation simulation = null;
     private Mediator mediator = null;
     private static final float INTERVAL_BETWEEN_WORDS = 3.00f; // seconds
-    private static final String[] CYUL_RUNWAY_NAMES = {"06L", "06R", "24R", "24L"};
+    private static final float RUNWAY_DETECTION_MAX_AIRSPEED_KTS = 20.0f;
+    private static final String[] CYUL_RUNWAY_NAMES = {"zero-six-left", "zero-six-right", "two-four-right", "two-four-left"};
     private static final double[][] CYUL_RUNWAY_THRESHOLDS = {
             {45.461222, -73.76474},  // 06L
             {45.457832, -73.741171}, // 06R
@@ -62,6 +63,7 @@ public class Agent implements IopListener, ServiceListener {
     public volatile Double latitude_i = null;
     public volatile Double longitude_i = null;
     public volatile String current_runway = null;
+    private boolean hasReceivedAirspeed = false;
 
     // For boolean inputs
     public volatile boolean l_bottle_arm_i = false;
@@ -107,6 +109,7 @@ public class Agent implements IopListener, ServiceListener {
     public volatile int test_knob_i = 0;
     public volatile int heading_sel_i = 0;
     public volatile int alt_sel_i = 0;
+    public volatile int autopilot_airspeed_i = 0;
     public volatile int l_gen_switch_i = 0;
     public volatile int r_gen_switch_i = 0;
     public volatile int chrono_time_i = 0;
@@ -300,6 +303,7 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("test_knob", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("heading_sel", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("alt_sel", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.inputCreate("autopilot_airspeed", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("yaw_damper", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("l_ign_switch", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.inputCreate("r_ign_switch", IopType.IGS_BOOL_T);
@@ -353,7 +357,7 @@ public class Agent implements IopListener, ServiceListener {
                 "flaps", "landing_gear", "spoilers", "parking_brake", "n1_match_bug",
                 "pax_safety", "master_warning", "master_caution", "flight_director",
                 "flc_mode", "heading_mode", "l_fuel_boost", "r_fuel_boost", "test_knob",
-                "heading_sel", "alt_sel", "yaw_damper", "l_ign_switch", "r_ign_switch",
+                "heading_sel", "alt_sel", "autopilot_airspeed", "yaw_damper", "l_ign_switch", "r_ign_switch",
                 "l_gen_switch", "r_gen_switch", "transfer_knob", "e1_n1", "e2_n1",
                 "l_engine_fire", "r_engine_fire", "baro_setting", "cabin_alt",
                 "l_gen_load", "r_gen_load", "pitot_heat", "l_eng_ai", "r_eng_ai",
@@ -389,6 +393,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("pax_safety", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("flight_director", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("speed_mode_toggle", IopType.IGS_IMPULSION_T);
+        ingescapeAgent.definition.outputCreate("nose_up", IopType.IGS_IMPULSION_T);
+        ingescapeAgent.definition.outputCreate("nose_down", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("heading_mode_toggle", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("autopilot", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("autopilot_on_off", IopType.IGS_BOOL_T);
@@ -473,10 +479,6 @@ public class Agent implements IopListener, ServiceListener {
             } else {
                 longitude_i = null;
             }
-            if (current_runway != null) {
-                current_runway = null;
-                outputSetString("runway_number", "");
-            }
             return;
         }
 
@@ -485,7 +487,17 @@ public class Agent implements IopListener, ServiceListener {
         } else {
             longitude_i = value;
         }
-        if (latitude_i == null || longitude_i == null) {
+        detectInitialRunway();
+    }
+
+    private synchronized void detectInitialRunway() {
+        // Keep the departure runway once selected, even when another threshold
+        // becomes closer in flight or the aircraft slows down after landing.
+        // A stationary airspeed reading can be slightly negative.
+        if (current_runway != null || !hasReceivedAirspeed
+                || !Float.isFinite(airspeed_i)
+                || airspeed_i >= RUNWAY_DETECTION_MAX_AIRSPEED_KTS
+                || latitude_i == null || longitude_i == null) {
             return;
         }
 
@@ -508,15 +520,13 @@ public class Agent implements IopListener, ServiceListener {
         }
 
         String closestRunway = CYUL_RUNWAY_NAMES[closestRunwayIndex];
-        if (!closestRunway.equals(current_runway)) {
-            current_runway = closestRunway;
-            outputSetString("runway_number", closestRunway);
-            System.out.printf(Locale.ROOT,
-                    "Runway detected: %s (nearest threshold at %.6f, %.6f)%n",
-                    closestRunway,
-                    CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][0],
-                    CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][1]);
-        }
+        current_runway = closestRunway;
+        outputSetString("runway_number", closestRunway);
+        System.out.printf(Locale.ROOT,
+                "Runway detected: %s (nearest threshold at %.6f, %.6f)%n",
+                closestRunway,
+                CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][0],
+                CYUL_RUNWAY_THRESHOLDS[closestRunwayIndex][1]);
     }
 
     @Override
@@ -534,7 +544,11 @@ public class Agent implements IopListener, ServiceListener {
                     updateGpsPosition(name, myDouble);
                     break;
                 case "airspeed":
-                    airspeed_i = inputDouble;
+                    synchronized (this) {
+                        airspeed_i = inputDouble;
+                        hasReceivedAirspeed = true;
+                        detectInitialRunway();
+                    }
                     break;
                 case "altitude":
                     altitude_i = inputDouble;
@@ -791,6 +805,9 @@ public class Agent implements IopListener, ServiceListener {
                     case "alt_sel":
                         alt_sel_i = inputInt;
                         break;
+                    case "autopilot_airspeed":
+                        autopilot_airspeed_i = inputInt;
+                        break;
                     case "l_gen_switch":
                         l_gen_switch_i = inputInt;
                         break;
@@ -818,6 +835,14 @@ public class Agent implements IopListener, ServiceListener {
                             Thread.sleep(100);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
+                        }
+
+                        synchronized (this) {
+                            current_runway = null;
+                            latitude_i = null;
+                            longitude_i = null;
+                            hasReceivedAirspeed = false;
+                            outputSetString("runway_number", "");
                         }
 
                         // Start a new simulation

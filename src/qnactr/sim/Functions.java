@@ -2639,7 +2639,7 @@ public class Functions {
 							}
 						}
 						else if (the_key.charAt(0) == ':') System.out.println( "DeclarativeModuleFun__Find_Add_Retrieval_Matched_DM_Chunk_IDs_By_Chunk_Spec NOT match has undefined key: " +  the_key);
-						else if (  ProgramUtilitiesFun__StringsEqualByStringOrDouble(sim.funs.ChunkFun__Get_Chunk_Slot_Value( sim.funs.ProgramUtilitiesFun__LinkedList_Get_i_th_Chunk_Pointer(sim.vars.declarativeModule.DM_Chunk, Matched_Chunk_Index[i] ), the_key), new_slot_value)){
+						else if ( !ProgramUtilitiesFun__StringsEqualByStringOrDouble(sim.funs.ChunkFun__Get_Chunk_Slot_Value( sim.funs.ProgramUtilitiesFun__LinkedList_Get_i_th_Chunk_Pointer(sim.vars.declarativeModule.DM_Chunk, Matched_Chunk_Index[i] ), the_key), new_slot_value)){
 							Temp_Index[Temp_Index_Current] = Matched_Chunk_Index[i];
 							Temp_Index_Current++;
 						}
@@ -5416,6 +5416,9 @@ return return_string;
                           case "alt_sel":
                               return_string = String.valueOf(agent().alt_sel_i);
                               break;
+                          case "autopilot_airspeed":
+                              return_string = String.valueOf(agent().autopilot_airspeed_i);
+                              break;
                           case "yaw_damper":
                               return_string = String.valueOf(agent().yaw_damper_i);
                               break;
@@ -5504,10 +5507,14 @@ return return_string;
                               if (agent().getCurrentTaskObject().isBlank()){
                                   //System.out.println("warning: current_task_object_is_blank");
                               }
-                              return_string = agent().getCurrentTaskObject();
+                              return_string = agent().getCurrentTaskObject()
+                                      .replace("(", "").replace(")", "")
+                                      .toLowerCase(Locale.ROOT).replace(' ', '-');
                               break;
                           case "current_task_value":
-                              return_string = agent().getCurrentTaskValue();
+                              return_string = agent().getCurrentTaskValue()
+                                      .replace("(", "").replace(")", "")
+                                      .toLowerCase(Locale.ROOT).replace(' ', '-');
                               break;
                           case "current_task_autonomy_role":
                               return_string = agent().getCurrentTaskAutonomyRole();
