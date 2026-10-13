@@ -799,6 +799,13 @@
     status
 )
 
+(chunk-type immediate-action-item
+    altitude
+    engine-fire-light
+    throttle
+    engine-fire-button
+)
+
 (chunk-type callsign
     content
 )
@@ -905,11 +912,29 @@
 	airspeed            120
 	autopilot-airspeed  nil
 	)
-	(current-failure-situation
-	isa     failure-situation
-	has-failure nil
-	engine-side nil
+    ;;;;;;;;;TO BE UNCOMMENTED IN SIMULATION;;;;;;;;;
+	;(current-failure-situation
+	;isa     failure-situation
+	;has-failure nil
+	;engine-side nil
+	;)
+
+	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	(current-failure-situation-test
+	    isa         failure-situation
+	    has-failure t
+	    engine-side left
 	)
+
+	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	(ill-eng-fire-switch-task-done-test
+	    isa         task
+	    task-object illuminated-engine-fire-switch
+	    task-value  lift-cover-and-push
+	    status      checked
+    )
+	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
     (current-wind-belief
         isa                 current-wind
         speech-value        wind-0-9-0-at-4
@@ -1001,6 +1026,34 @@
     stage           encode-sound
 )
 (spp detected-sound :u 1) ; is a salient production
+
+; ATC words can take longer to encode than the remaining silence-timer
+; interval. Stop that timer when the word is detected, not after encoding.
+(p detected-atc-sound-during-mayday-readback
+   =goal>
+    isa             task
+    task-object     atc
+    task-value      contact
+    phase           perform-task
+    status          atc-listening-clearance
+   =aural-location>
+    isa             audio-event
+    -location       self
+   ?aural>
+    state           free
+   ?retrieval>
+    state           free
+   ?imaginal>
+    state           free
+==>
+   +aural>
+    event           =aural-location
+   +temporal>
+    isa             clear
+   =goal>
+    stage           encode-sound
+)
+(spp detected-atc-sound-during-mayday-readback :u 1000)
 
 ; encode sound and location of sound into imaginal buffer
 (p sound-from-self-resume-task
@@ -3087,12 +3140,10 @@
 )
 (spp wait-for-next-word :u 1000) ;higher than default of value-pair not found
 
+; Shared by takeoff clearance and the post-mayday ATC reply.
 (p start-timing
     =goal>
     isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-    phase       perform-task
     stage       start-timing
     ;=imaginal>
     ;isa         clearance
@@ -3109,16 +3160,12 @@
 (p atc-not-speaking-end-of-message
     =goal>
     isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-    phase       perform-task
     stage       waiting
     =imaginal>
     isa         clearance
-    procedure   takeoff
    =temporal>
     isa         time
-    ticks       31
+    ticks       36
 ==>
     =imaginal>
     +temporal>
@@ -3128,6 +3175,10 @@
 )
 
 (p stop-runaway-timer-on-new-sound
+   =goal>
+    isa         task
+    task-object takeoff-clearance
+    task-value  confirm
    =temporal>
     isa         time
     ticks       35
@@ -3496,18 +3547,17 @@
     stage       ptt-off
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;; PTT OFF ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; PTT OFF (BOTH ATC READBACKS) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p finish-readback
     =goal>
     isa         task
-    task-object takeoff-clearance
-    task-value  confirm
     phase       perform-task
     stage       ptt-off
     =imaginal>
     isa         clearance
-    procedure   takeoff
     ?manual>
+    state       free
+    ?vocal>
     state       free
 ==>
     =imaginal>
@@ -3525,6 +3575,7 @@
     =goal>
     phase                   check-task-on-tars
     stage                   1
+    status                  nil
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; END TAKEOFF-CLEARANCE CONFIRMATION TASK ;;;;;;;;;;;;;;;;;
@@ -9656,7 +9707,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;; ATC - CONTACT ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; ATC - CONTACT MAYDAY ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p start-atc-contact-mayday
     =goal>
@@ -9665,6 +9716,7 @@
     task-value          contact
     phase               perform-task
     stage               1
+    status              nil
     human-role          performer
     ?imaginal>
     state               free
@@ -9684,7 +9736,9 @@
     task-value          contact
     phase               perform-task
     stage               2
+    -status             awaiting-callsign
     human-role          performer
+    tars-input          nil
     =imaginal>
     isa                 emergency-communication
     type                mayday
@@ -9705,6 +9759,7 @@
     task-value          contact
     phase               perform-task
     stage               2-1
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9732,6 +9787,7 @@
     task-value          contact
     phase               perform-task
     stage               2-2
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9759,6 +9815,7 @@
     task-value          contact
     phase               perform-task
     stage               2-3
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9782,6 +9839,30 @@
     stage               2-4
 )
 
+(p atc-contact-mayday-failure-situation-not-retrieved
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-3
+    -status             awaiting-callsign
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   nil
+    heading             nil
+    altitude            nil
+    ?retrieval>
+    state               error
+==>
+    =goal>
+    stage              2
+)
+
+
 (p atc-contact-mayday-attend-heading
     =goal>
     isa                 task
@@ -9789,6 +9870,7 @@
     task-value          contact
     phase               perform-task
     stage               2-4
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9816,6 +9898,7 @@
     task-value          contact
     phase               perform-task
     stage               form-representation-aircraft-component
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9843,6 +9926,7 @@
     task-value          contact
     phase               perform-task
     stage               2-5
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9870,6 +9954,7 @@
     task-value          contact
     phase               perform-task
     stage               form-representation-aircraft-component
+    -status             awaiting-callsign
     human-role          performer
     =imaginal>
     isa                 emergency-communication
@@ -9898,8 +9983,9 @@
     task-value          contact
     phase               perform-task
     stage               2
+    -status             awaiting-callsign
     human-role          performer
-    tars-input          mayday-mayday-mayday--cessna-papa-oscar-lima-yankee-engine-fire-5000-feet-continuing-235-degrees-heading-two-souls-on-board
+    -tars-input         nil
     ?manual>
     state               free
 ==>
@@ -9925,6 +10011,7 @@
     task-value          contact
     phase               perform-task
     stage               3
+    -status             awaiting-callsign
     human-role          performer
     ?visual>
     state               free
@@ -9944,13 +10031,14 @@
     task-value          contact
     phase               perform-task
     stage               4
+    -status             awaiting-callsign
     human-role          performer
     ?visual>
     state               free
 ==>
     +vocal>
     cmd                 speak
-    string              mayday-mayday-mayday--cessna-papa-oscar-lima-yankee-engine-fire-5000-feet-continuing-235-degrees-heading-two-souls-on-board
+    string              mayday-mayday-mayday--cessna-papa-oscar-lima-yankee-engine-fire-value-feet-continuing-value-degrees-heading-two-souls-on-board
     =goal>
     stage               5
 )
@@ -9962,6 +10050,7 @@
     task-value          contact
     phase               perform-task
     stage               5
+    -status             awaiting-callsign
     human-role          performer
     ?vocal>
     state               free
@@ -9980,8 +10069,36 @@
         para-3              nil
         para-4              nil
     =goal>
-    phase               check-task-on-tars
-    stage               1
+    stage                   6
+)
+
+(p atc-contact-send-request-declare-mayday
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               6
+    human-role          performer
+    ?vocal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.000
+        finish-duration      0.000
+        para-1               declare_mayday
+        para-2               1
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage               await-atc-callsign
+    status              atc-awaiting-callsign
 )
 
 (p atc-contact-wait-for-autonomy
@@ -9999,13 +10116,341 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;; end of ATC - CONTACT ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; end of ATC - CONTACT MAYDAY ;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; ATC - READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; detected-sound already brings an ATC word to the aural buffer and changes
+; the goal stage to encode-sound. Check the addressed callsign before storing
+; any clearance. The TARS-scripted contact has no callsign in imaginal, so use
+; the same self-callsign represented by the self-callsign declarative chunk.
+(p atc-readback-heard-own-callsign
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    =imaginal>
+    isa                 emergency-communication
+    callsign            =ours
+    =aural>
+    isa                 sound
+    location            atc
+    content             =ours
+==>
+    +imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    callsign            =ours
+    =goal>
+    stage               start-timing
+    status              atc-listening-clearance
+)
+(spp atc-readback-heard-own-callsign :u 2000)
+
+(p atc-readback-heard-own-callsign-with-tars
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    =imaginal>
+    isa                 emergency-communication
+    callsign            nil
+    =aural>
+    isa                 sound
+    location            atc
+    content             c-poly
+==>
+    +imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    callsign            c-poly
+    =goal>
+    stage               start-timing
+    status              atc-listening-clearance
+)
+(spp atc-readback-heard-own-callsign-with-tars :u 2000)
+
+(p atc-readback-ignore-word-before-callsign
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    =imaginal>
+    isa                 emergency-communication
+    =aural>
+    isa                 sound
+    location            atc
+==>
+    =imaginal>
+    =goal>
+    stage               await-atc-callsign
+)
+(spp atc-readback-ignore-word-before-callsign :u 1000)
+
+; After the callsign, each word restarts the existing takeoff-clearance
+; silence timer. Only the heading instruction and landing runway need slots
+; for this readback; the tower identification and advisories are heard but
+; do not change the clearance representation.
+(p atc-readback-heard-runway-heading
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    =aural>
+    isa                 sound
+    location            atc
+    content             continue-runway-heading
+==>
+    =imaginal>
+    heading             continue-runway-heading
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-heard-runway-heading :u 1000)
+
+(p atc-readback-heard-landing-runway-24r
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    =aural>
+    isa                 sound
+    location            atc
+    content             you-are-cleared-to-return-to-runway-24r-to-land
+==>
+    =imaginal>
+    runway              runway-two-four-right
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-heard-landing-runway-24r :u 1000)
+
+(p atc-readback-heard-landing-runway-24l
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    =aural>
+    isa                 sound
+    location            atc
+    content             you-are-cleared-to-return-to-runway-24l-to-land
+==>
+    =imaginal>
+    runway              runway-two-four-left
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-heard-landing-runway-24l :u 1000)
+
+(p atc-readback-heard-landing-runway-06l
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    =aural>
+    isa                 sound
+    location            atc
+    content             you-are-cleared-to-return-to-runway-06l-to-land
+==>
+    =imaginal>
+    runway              runway-zero-six-left
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-heard-landing-runway-06l :u 1000)
+
+(p atc-readback-heard-other-word
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    =aural>
+    isa                 sound
+    location            atc
+==>
+    =imaginal>
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-heard-other-word :u 100)
+
+(p atc-readback-start-after-silence
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               end-detected
+    status              atc-listening-clearance
+    human-role          performer
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    callsign            =callsign
+    heading             =heading
+    runway              =runway
+    ?manual>
+    state               free
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +manual>
+    isa                 customized-manual-action
+    name                agent-set-bool
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              push_to_talk
+    para-2              true
+    para-3              nil
+    para-4              nil
+    =goal>
+    stage               atc-readback-callsign
+)
+
+(p atc-readback-say-callsign
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               atc-readback-callsign
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    callsign            =callsign
+    ?manual>
+    state               free
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =callsign
+    =goal>
+    stage               atc-readback-heading
+)
+
+(p atc-readback-say-heading
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               atc-readback-heading
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    heading             =heading
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =heading
+    =goal>
+    stage               atc-readback-cleared-to-land
+)
+
+(p atc-readback-say-cleared-to-land
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               atc-readback-cleared-to-land
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              cleared-to-land
+    =goal>
+    stage               atc-readback-runway
+)
+
+(p atc-readback-say-runway
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               atc-readback-runway
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    runway              =runway
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =runway
+    =goal>
+    stage               ptt-off
+)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; end of ATC - READBACK ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -10606,6 +11051,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; end of ILLUMINATED ENGINE FIRE SWITCH - LIFT COVER AND PUSH ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; CHECKLIST - ORDER START ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p start-task-checklist-order-start
     =goal>
     isa         task
@@ -10619,12 +11068,1294 @@
     state       free
 ==>
     =goal>
-    phase       attend-aoi
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp start-task-checklist-order-start :u 1000)
+
+(p checklist-order-start-check-navigate
+    =goal>
+    isa         task
+    task-object checklist
+    task-value  order-start
+    phase       perform-task
+    stage       2
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    =goal>
+    phase                   request-nd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  3
+)
+
+(p checklist-order-start-action
+    =goal>
+    isa         task
+    task-object checklist
+    task-value  order-start
+    phase       perform-task
+    stage       3
+==>
+    =goal>
+    phase       check-task-on-tars
     stage       1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; end of CHECKLIST - ORDER START ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; IMMEDIATE ACTION ITEMS - CHECK DONE ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-immediate-action-items-check-done-attend-item
+    =goal>
+    isa             task
+    phase           perform-task
+    task-object     immediate-action-item
+    task-value      check-done
+    stage           1
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        440
+    screen-y        1250
+    =goal>
+    stage           2
+)
+(spp start-immediate-action-items-check-done-attend-item :u 1000)
+
+(p imm-act-items-attend-altitude
+    =goal>
+    isa             task
+    phase           perform-task
+    task-object     immediate-action-item
+    task-value      check-done
+    stage           2
+    =imaginal>
+    isa             task
+    ?visual>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    +imaginal>
+    isa             immediate-action-item
+    +visual-location>
+    isa             visual-location
+    screen-x        1350
+    screen-y        750
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p imm-act-items-retrieve-failure-situation
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 failure-situation
+    has-failure         t
+    -engine-side        nil
+    =goal>
+    stage               2-1
+)
+
+(p imm-act-items-retrieve-task-lift-cover-and-push
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            t
+    engine-fire-button  nil
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 task
+    task-object         illuminated-engine-fire-switch
+    task-value          lift-cover-and-push
+    =goal>
+    stage               2-1
+)
+
+(p imm-act-item-has-retrieved-failure-situation-left-attend-light
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2-1
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         left
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    =retrieval>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1570
+    screen-y            540
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p imm-act-item-has-retrieved-failure-situation-right-attend-light
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2-1
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         right
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    =retrieval>
+    +visual-location>
+    isa                 visual-location
+    screen-x            2050
+    screen-y            540
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+
+(p imm-act-item-has-retrieved-failure-situation-right-attend-throttle
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2-1
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         right
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    =retrieval>
+    +visual-location>
+    isa                 visual-location
+    screen-x            2170
+    screen-y            1340
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p imm-act-item-has-retrieved-failure-situation-left-attend-throttle
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2-1
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         left
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    =retrieval>
+    +visual-location>
+    isa                 visual-location
+    screen-x            2020
+    screen-y            1330
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p imm-act-items-form-altitude-representation
+    =goal>
+    isa             task
+    phase           perform-task
+    task-object     immediate-action-item
+    task-value      check-done
+    stage           form-representation-aircraft-component
+    =imaginal>
+    isa             immediate-action-item
+    altitude        nil
+    ?imaginal>
+    state           free
+!bind! =value (read_input altitude)
+==>
+    +imaginal>
+    isa             immediate-action-item
+    altitude        =value
+    =goal>
+    stage           4
+)
+
+(p imm-act-items-form-l-engine-fire-light-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               form-representation-aircraft-component
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         left
+    ?imaginal>
+    state               free
+!bind! =value (read_input l_engine_fire)
+==>
+    +imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   =value
+    =goal>
+    stage               4
+)
+
+(p imm-act-items-form-r-engine-fire-light-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               form-representation-aircraft-component
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         right
+    ?imaginal>
+    state               free
+!bind! =value (read_input r_engine_fire)
+==>
+    +imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   =value
+    =goal>
+    stage               4
+)
+
+(p imm-act-items-form-r-throttle-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               form-representation-aircraft-component
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         right
+    ?imaginal>
+    state               free
+!bind! =value (read_input r_throttle)
+==>
+    +imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            =value
+    =goal>
+    stage               4
+)
+
+(p imm-act-items-form-l-throttle-representation
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               form-representation-aircraft-component
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    engine-side         left
+    ?imaginal>
+    state               free
+!bind! =value (read_input l_throttle)
+==>
+    +imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            =value
+    =goal>
+    stage               4
+)
+
+(p imm-act-items-altitude-reached-continue
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               4
+    =imaginal>
+    isa                 immediate-action-item
+    >altitude           100 ; should be 1500, FOR TESTING TBD!!!
+    engine-fire-light   nil
+==>
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    =goal>
+    stage               1
+)
+
+(p imm-act-items-engine-fire-light-on-continue
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               4
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    -engine-fire-light  0
+    throttle            nil
+==>
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    =goal>
+    stage               1
+)
+
+(p imm-act-items-throttle-idle-continue
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               4
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    <=throttle            0
+==>
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            t
+    =goal>
+    stage               1
+)
+
+(p imm-act-item-has-retrieved-lift-cover-and-push-task-is-checked
+    =goal>
+    isa                 task
+    phase               perform-task
+    task-object         immediate-action-item
+    task-value          check-done
+    stage               2-1
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            t
+    engine-fire-button  nil
+    =retrieval>
+    isa                 task
+    task-object         illuminated-engine-fire-switch
+    task-value          lift-cover-and-push
+    status              checked
+==>
+    =imaginal>
+    isa                 immediate-action-item
+    altitude            t
+    engine-fire-light   t
+    throttle            t
+    engine-fire-button  t
+    =goal>
+    phase               check-task-on-tars
+    stage               1
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; end of IMMEDIATE ACTION ITEMS - CHECK DONE ;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; FUEL BOOST SWITCH - OFF ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-fuel-boost-switch-off-task-tars-input-left
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    tars-input      fuel-boost-switch-left-is-on
+    crosscheck      yes
+    phase           perform-task
+    stage           1
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1223
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+(spp start-fuel-boost-switch-off-task-tars-input-left :u 1000)
+
+(p start-fuel-boost-switch-off-task-tars-input-right
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    tars-input      fuel-boost-switch-right-is-on
+    crosscheck      yes
+    phase           perform-task
+    stage           1
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1270
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+(spp start-fuel-boost-switch-off-task-tars-input-right :u 1000)
+
+(p start-fuel-boost-switch-off-task-tars-input-not-right-not-left
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    -tars-input      fuel-boost-switch-right-is-on
+    -tars-input      fuel-boost-switch-left-is-on
+    phase           perform-task
+    stage           1
+    ?visual>
+    state           free
+==>
+    =goal>
+    crosscheck      no
+)
+(spp start-fuel-boost-switch-off-task-tars-input-not-right-not-left :u 1000)
+
+(p start-fuel-boost-switch-off-task-no-crosscheck
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           perform-task
+    stage           1
+    ?retrieval>
+    state           free
+==>
+    +retrieval>
+    isa             failure-situation
+    has-failure     t
+    -engine-side    nil
+    =goal>
+    stage           1-1
+)
+(spp start-fuel-boost-switch-off-task-no-crosscheck :u 1000)
+
+(p fuel-boost-switch-failure-situation-retrieved-left
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           perform-task
+    stage           1-1
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     left
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1223
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p fuel-boost-switch-failure-situation-retrieved-right
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           perform-task
+    stage           1-1
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     right
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1270
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p fuel-boost-switch-failure-situation-not-retrieved
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           perform-task
+    stage           1-1
+    ?retrieval>
+    state           error
+    ?visual>
+    state           free
+==>
+    +imaginal>
+    isa             eicas-situation
+    =goal>
+    phase           waiting-for-eicas
+    stage           1-2
+    +goal-2>
+    isa             task
+    task-object     eicas
+    phase           read-eicas
+    stage           1
+)
+
+(p fuel-boost-switch-has-eicas-situation-l-eng-failure
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           waiting-for-eicas
+    stage           1-2
+    =goal-2>
+    isa             task
+    task-object     eicas
+    phase           eicas-complete
+    =imaginal>
+    isa             eicas-situation
+    <e1-n1          30
+    >e2-n1          80
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1223
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p fuel-boost-switch-has-eicas-situation-r-eng-failure
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      no
+    phase           waiting-for-eicas
+    stage           1-2
+    =goal-2>
+    isa             task
+    task-object     eicas
+    phase           eicas-complete
+    =imaginal>
+    isa             eicas-situation
+    >e1-n1          80
+    <e2-n1          30
+    ?visual>
+    state           free
+==>
+    +visual-location>
+    isa             visual-location
+    screen-x        1270
+    screen-y        1170
+    =goal>
+    stage           visual-encode-aircraft-component
+)
+
+(p form-l-fuel-boost-component-representation
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           form-representation-aircraft-component
+    ?imaginal>
+    state           free
+!bind! =value (read_input l_fuel_boost)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      l_fuel_boost
+    component-status    =value
+    =goal>
+    stage               2
+)
+
+(p form-r-fuel-boost-component-representation
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           form-representation-aircraft-component
+    ?imaginal>
+    state           free
+!bind! =value (read_input r_fuel_boost)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      r_fuel_boost
+    component-status    =value
+    =goal>
+    stage               2
+)
+
+(p fuel-boost-is-on-take-action
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      =value
+    component-status    2
+    ?manual>
+    state               free
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-set-int
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1               =value
+    para-2               1
+    para-3               nil
+    para-4               nil
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
+(p fuel-boost-is-off-no-action
+    =goal>
+    isa                 task
+    task-object         fuel-boost-switch-affected-side
+    task-value          off
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      =value
+    -component-status   2
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;; end of FUEL BOOST SWITCH - OFF ;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;; ILLUMINATED BOTTLE ARMED SWITCH - PUSH ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-illuminated-bottle-armed-switch-task-attend-l-bottle
+    =goal>
+    isa         task
+    task-object illuminated-bottle-armed-switch
+    task-value  push
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1570
+    screen-y    590
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+(spp start-illuminated-bottle-armed-switch-task-attend-l-bottle :u 1000)
+
+(p form-l-bottle-representation
+    =goal>
+    isa         task
+    task-object illuminated-bottle-armed-switch
+    task-value  push
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    -status     right
+    ?imaginal>
+    state       free
+!bind! =value (read_input l_engine_fire)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      l_bottle
+    component-status    =value
+    =goal>
+    stage           2
+)
+
+(p task-attend-r-bottle
+    =goal>
+    isa         task
+    task-object illuminated-bottle-armed-switch
+    task-value  push
+    phase       perform-task
+    stage       3
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    2050
+    screen-y    590
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+
+(p form-r-bottle-representation
+    =goal>
+    isa         task
+    task-object illuminated-bottle-armed-switch
+    task-value  push
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    status      right
+    ?imaginal>
+    state       free
+!bind! =value (read_input r_engine_fire)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      r_bottle
+    component-status    =value
+    =goal>
+    stage               2
+)
+
+(p bottle-on-take-action
+    =goal>
+    isa                 task
+    task-object         illuminated-bottle-armed-switch
+    task-value          push
+    phase               perform-task
+    stage               2
+    =imaginal>
+    isa                 aircraft-component
+    component-status    true
+    ?imaginal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+     isa                    customized-manual-action
+     name                   agent-set-impulsion
+     preparation-duration   1.000
+     initiation-duration    1.000
+     execution-duration     1.000
+     finish-duration        1.000
+     para-1                 =value
+     para-2                 impulsion
+     para-3                 nil
+     para-4                 nil
+     =goal>
+     phase                  check-task-on-tars
+     stage                  1
+)
+
+(p bottle-off-continue
+    =goal>
+    isa                 task
+    task-object         illuminated-bottle-armed-switch
+    task-value          push
+    phase               perform-task
+    stage               2
+    -status             right
+    =imaginal>
+    isa                 aircraft-component
+    -component-status   true
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    stage               3
+    status              right
+)
+
+(p both-bottle-off-check-task
+    =goal>
+    isa                 task
+    task-object         illuminated-bottle-armed-switch
+    task-value          push
+    phase               perform-task
+    stage               2
+    status              right
+    =imaginal>
+    isa                 aircraft-component
+    -component-status   true
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; end of ILLUMINATED BOTTLE ARMED SWITCH - PUSH ;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;; TEST - FIRE WARN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-test-fire-warn-task-attend-test
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    2200
+    screen-y    570
+    =goal>
+    stage       visual-encode-aircraft-component
+)
+(spp start-test-fire-warn-task-attend-test :u 1000)
+
+(p form-test-knob-representation
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    -status     l-bottle
+    -status     r-bottle
+    ?imaginal>
+    state       free
+!bind! =value (read_input test_knob)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      test-knob
+    component-status    =value
+    =goal>
+    stage               2
+)
+
+(p test-knob-off-take-action
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      test-knob
+    component-status    0
+    ?manual>
+    state               free
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-set-int
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1               test_knob
+    para-2               1
+    para-3               nil
+    para-4               nil
+    =goal>
+    stage               3
+)
+
+(p test-knob-on-attend-l-bottle
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       3
+    ?visual>
+    state       free
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    1570
+    screen-y    590
+    =goal>
+    stage       visual-encode-aircraft-component
+    status      l-bottle
+)
+
+(p test-knob-form-l-bottle-representation
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    status      l-bottle
+    ?imaginal>
+    state       free
+!bind! =value (read_input l_engine_fire)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      l-engine-fire
+    component-status    =value
+    =goal>
+    stage           4
+)
+
+(p test-knob-on-l-bottle-on-attend-r-bottle
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       4
+    status      l-bottle
+    ?visual>
+    state       free
+    =imaginal>
+    isa                 aircraft-component
+    component-name      l-engine-fire
+    component-status    true
+==>
+    +visual-location>
+    isa         visual-location
+    screen-x    2050
+    screen-y    590
+    =goal>
+    stage       visual-encode-aircraft-component
+    status      r-bottle
+)
+
+(p test-knob-form-r-bottle-representation
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       form-representation-aircraft-component
+    status      r-bottle
+    ?imaginal>
+    state       free
+!bind! =value (read_input r_engine_fire)
+==>
+    +imaginal>
+    isa                 aircraft-component
+    component-name      r-engine-fire
+    component-status    =value
+    =goal>
+    stage           5
+)
+
+(p both-lights-illuminated-take-action
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       5
+    status      r-bottle
+    =imaginal>
+    isa                 aircraft-component
+    component-name      r-engine-fire
+    component-status    true
+==>
+    =goal>
+    stage               1
+    status              both-lights-on
+)
+
+
+
+(p test-knob-on-take-action
+    =goal>
+    isa         task
+    task-object test
+    task-value  fire-warn
+    phase       perform-task
+    stage       2
+    =imaginal>
+    isa                 aircraft-component
+    component-name      test-knob
+    component-status    1
+    ?manual>
+    state               free
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-set-int
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1               test_knob
+    para-2               0
+    para-3               nil
+    para-4               nil
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;; end of TEST - FIRE WARN ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; ENGINE FIRE LIGHTS - CHECK BOTH ILLUMINATE ;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-engine-fire-lights-check-both-illuminate-task
+    =goal>
+    isa             task
+    task-object     engine-fire-lights
+    task-value      check-both-illuminate
+    phase           perform-task
+    stage           1
+    ?retrieval>
+    state           free
+==>
+    +retrieval>
+    isa             task
+    task-object     test
+    task-value      fire-warn
+    =goal>
+    stage           2
+)
+(spp start-engine-fire-lights-check-both-illuminate-task :u 1000)
+
+(p retrieved-test-fire-warn-task-status-checked
+    =goal>
+    isa             task
+    task-object     engine-fire-lights
+    task-value      check-both-illuminate
+    phase           perform-task
+    stage           2
+    =retrieval>
+    isa             task
+    task-object     test
+    task-value      fire-warn
+    status          checked
+    ?manual>
+    state           free
+==>
+    =goal>
+    phase           check-task-on-tars
+    stage           1
+)
+
+(p test-fire-warn-task-retrieval-failure-perform-test-again
+    =goal>
+    isa             task
+    task-object     engine-fire-lights
+    task-value      check-both-illuminate
+    phase           perform-task
+    stage           2
+    ?retrieval>
+    state           error
+==>
+    =goal>
+    isa             task
+    task-object     test
+    task-value      fire-warn
+    phase           perform-task
+    stage           1
+    status          nil
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; end of  ENGINE FIRE LIGHTS - CHECK BOTH ILLUMINATE ;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;; NEXT CHECKLIST - ENGINE FAILURE/PRECAUTIONARY SHUTDOWN ;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p next-checklist-engine-failure-start-task-attend-pfd
+    =goal>
+    task-object     next-checklist
+    task-value      engine-failure-precautionary-shutdown
+    phase           perform-task
+    stage           1
+    ?visual>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(spp next-checklist-engine-failure-start-task :u 1000)
+
+(p next-checklist-start-check-navigate
+    =goal>
+    task-object     next-checklist
+    task-value      engine-failure-precautionary-shutdown
+    phase           perform-task
+    stage           2
+    ?visual>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    =goal>
+    phase                   request-nd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  3
+)
+
+(p next-checklist-start-action
+    =goal>
+    task-object     next-checklist
+    task-value      engine-failure-precautionary-shutdown
+    phase           perform-task
+    stage           3
+==>
+    =goal>
+    phase           check-task-on-tars
+    stage           1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; end of NEXT CHECKLIST - ENGINE FAILURE/PRECAUTIONARY SHUTDOWN ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; end of ENGINE FIRE ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; DECLARE PANPAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; ATC ANNOUNCE PANPAN AND REQUEST VECTOR DECLARE PANPAN ;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-atc-declare-panpan-request-vectors
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               1
+    status              nil
+    human-role          performer
+    ?imaginal>
+    state               free
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                panpan
+    =goal>
+    stage               2
+)
+(spp start-atc-declare-panpan-request-vectors :u 1000)
+
+(p
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; end of ATC ANNOUNCE PANPAN AND REQUEST VECTOR DECLARE PANPAN ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;; end of DECLARE PANPAN ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 

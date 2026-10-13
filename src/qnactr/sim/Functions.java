@@ -5509,11 +5509,13 @@ return return_string;
                               }
                               return_string = agent().getCurrentTaskObject()
                                       .replace("(", "").replace(")", "")
+                                      .replace("/", "-")
                                       .toLowerCase(Locale.ROOT).replace(' ', '-');
                               break;
                           case "current_task_value":
                               return_string = agent().getCurrentTaskValue()
                                       .replace("(", "").replace(")", "")
+                                      .replace("/", "-")
                                       .toLowerCase(Locale.ROOT).replace(' ', '-');
                               break;
                           case "current_task_autonomy_role":

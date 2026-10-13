@@ -435,6 +435,9 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("task_check", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("task_cancel", IopType.IGS_IMPULSION_T);
         ingescapeAgent.definition.outputCreate("push_to_talk", IopType.IGS_BOOL_T);
+        ingescapeAgent.definition.outputCreate("declare_mayday", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("declare_panpan", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("request_vectors", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("production_selected", IopType.IGS_STRING_T);
         ingescapeAgent.definition.outputCreate("start", IopType.IGS_BOOL_T);
         ingescapeAgent.definition.outputCreate("runway_number", IopType.IGS_STRING_T);
