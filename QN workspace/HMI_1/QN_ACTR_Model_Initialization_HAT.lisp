@@ -715,6 +715,8 @@
     phase
     stage
     status
+	trim-attempts
+	trim-position
 	procedure
     human-role
     autonomy-role
@@ -783,6 +785,16 @@
     altitude
     heading
     navigation
+    frequency
+    status
+)
+
+(chunk-type  emergency-communication
+    type
+    callsign
+    failure-situation
+    heading
+    altitude
     frequency
     status
 )
@@ -1382,7 +1394,295 @@
     slip        =value_slip ; is getting the value from imaginal buffer
     altitude    =value ; is getting the value from agent.pfd_altitude
     =goal-2>
+    stage       check-opportunistic-rudder-trim
+)
+
+; Slip and altitude are both available here. Keep the partial PFD situation
+; in imaginal while an opportunistic trim is performed.
+(p pfd-skip-opportunistic-rudder-trim-low-altitude
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       check-opportunistic-rudder-trim
+   =imaginal>
+    isa         aviate-situation
+    <=altitude  4500
+   ?imaginal>
+    state       free
+==>
+   =imaginal>
+   =goal-2>
     stage       4
+)
+
+(p pfd-skip-opportunistic-rudder-trim-centered-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       check-opportunistic-rudder-trim
+   =imaginal>
+    isa         aviate-situation
+    >altitude   4500
+    >=slip      -3
+    <=slip      3
+   ?imaginal>
+    state       free
+==>
+   =imaginal>
+   =goal-2>
+    stage       4
+)
+
+(p pfd-start-opportunistic-rudder-trim-positive-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       check-opportunistic-rudder-trim
+   =imaginal>
+    isa         aviate-situation
+    >altitude   4500
+    >slip       3
+   ?imaginal>
+    state       free
+==>
+   =imaginal>
+   =goal-2>
+    stage       pfd-trim-read-position
+    trim-attempts 0
+)
+
+(p pfd-start-opportunistic-rudder-trim-negative-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       check-opportunistic-rudder-trim
+   =imaginal>
+    isa         aviate-situation
+    >altitude   4500
+    <slip       -3
+   ?imaginal>
+    state       free
+==>
+   =imaginal>
+   =goal-2>
+    stage       pfd-trim-read-position
+    trim-attempts 0
+)
+
+(p pfd-trim-read-position
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       pfd-trim-read-position
+   ?imaginal>
+    state       free
+!bind! =trim (read_input trim_rudder)
+==>
+   =goal-2>
+    stage       pfd-trim-evaluate
+    trim-position =trim
+)
+
+; Positive slip uses the same left trim pulse as the procedural rudder task.
+(p pfd-trim-positive-slip
+   =goal-2>
+    isa           task
+    task-object   pfd
+    phase         read-pfd
+    stage         pfd-trim-evaluate
+    trim-attempts =attempts
+    <trim-attempts 50
+    trim-position =trim
+    >trim-position -5
+   =imaginal>
+    isa           aviate-situation
+    >slip         1
+   ?manual>
+    state         free
+!bind! =next-attempt (+ =attempts 1)
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-actuate-trim-rudder
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1               left
+    para-2               nil
+    para-3               nil
+    para-4               nil
+   =imaginal>
+   =goal-2>
+    stage         pfd-trim-await-action
+    trim-attempts =next-attempt
+)
+
+; Negative slip uses the same right trim pulse as the procedural rudder task.
+(p pfd-trim-negative-slip
+   =goal-2>
+    isa           task
+    task-object   pfd
+    phase         read-pfd
+    stage         pfd-trim-evaluate
+    trim-attempts =attempts
+    <trim-attempts 50
+    trim-position =trim
+    <trim-position 5
+   =imaginal>
+    isa           aviate-situation
+    <slip         -1
+   ?manual>
+    state         free
+!bind! =next-attempt (+ =attempts 1)
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-actuate-trim-rudder
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1               right
+    para-2               nil
+    para-3               nil
+    para-4               nil
+   =imaginal>
+   =goal-2>
+    stage         pfd-trim-await-action
+    trim-attempts =next-attempt
+)
+
+(p pfd-trim-slip-centered-continue-pfd
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       pfd-trim-evaluate
+   =imaginal>
+    isa         aviate-situation
+    >=slip      -1
+    <=slip      1
+==>
+   =imaginal>
+   =goal-2>
+    stage       4
+    trim-attempts nil
+    trim-position nil
+)
+
+(p pfd-trim-left-limit-continue-pfd
+   =goal-2>
+    isa           task
+    task-object   pfd
+    phase         read-pfd
+    stage         pfd-trim-evaluate
+    trim-position =trim
+    <=trim-position -5
+   =imaginal>
+    isa           aviate-situation
+    >slip         1
+==>
+   =imaginal>
+   =goal-2>
+    stage         4
+    trim-attempts nil
+    trim-position nil
+)
+
+(p pfd-trim-right-limit-continue-pfd
+   =goal-2>
+    isa           task
+    task-object   pfd
+    phase         read-pfd
+    stage         pfd-trim-evaluate
+    trim-position =trim
+    >=trim-position 5
+   =imaginal>
+    isa           aviate-situation
+    <slip         -1
+==>
+   =imaginal>
+   =goal-2>
+    stage         4
+    trim-attempts nil
+    trim-position nil
+)
+
+; Live slip or trim feedback can remain stale; cap pulses so PFD reading resumes.
+(p pfd-trim-attempt-limit-continue-pfd
+   =goal-2>
+    isa           task
+    task-object   pfd
+    phase         read-pfd
+    stage         pfd-trim-evaluate
+    trim-attempts =attempts
+    >=trim-attempts 50
+==>
+   =goal-2>
+    stage         4
+    trim-attempts nil
+    trim-position nil
+)
+
+(p pfd-trim-await-action-reattend-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       pfd-trim-await-action
+   ?manual>
+    state       free
+   ?visual>
+    state       free
+==>
+   +visual-location>
+    isa         visual-location
+    screen-x    1260
+    screen-y    690
+   =goal-2>
+    stage       pfd-trim-encode-slip
+)
+
+(p pfd-trim-encode-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       pfd-trim-encode-slip
+   =visual-location>
+   ?visual>
+    state       free
+==>
+   +visual>
+    isa         move-attention
+    screen-pos  =visual-location
+   =goal-2>
+    stage       pfd-trim-update-slip
+)
+
+(p pfd-trim-update-slip
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+    stage       pfd-trim-update-slip
+   =visual>
+   =imaginal>
+    isa         aviate-situation
+   ?imaginal>
+    state       free
+!bind! =value (read_input slip)
+==>
+   =imaginal>
+    slip        =value
+   =goal-2>
+    stage       pfd-trim-read-position
 )
 
 (p visually-attend-pfd-airspeed
@@ -2744,7 +3044,6 @@
     state           free
 ==>
     =goal>
-    isa             task
     human-role      nil
     autonomy-role   nil
     phase           attending-aoi
@@ -6552,7 +6851,6 @@
         para-3
         para-4
    =goal>
-   isa                      task
    task-object              fadec-bug
    task-value               check-to
    stage                    1
@@ -6601,7 +6899,6 @@
 !bind! =value (read_input n1_match_bug)
 ==>
     =imaginal>
-    isa         fadec-bug
     status      =value
     =goal>
     stage       2
@@ -6619,7 +6916,6 @@
     status      true
 ==>
     =goal>
-    isa         task
     phase       perform-task
     task-object engine-spool
     task-value  check-even
@@ -6685,7 +6981,6 @@
 !bind! =value (read_input e1_n1)
 ==>
     =imaginal>
-    isa         engine-spool
     e1          =value
     =goal>
     stage       2
@@ -6732,7 +7027,6 @@
 !bind! =value (read_input e2_n1)
 ==>
     =imaginal>
-    isa         engine-spool
     e1          =value_e1
     e2          =value
     =goal>
@@ -6837,7 +7131,6 @@
         para-3
         para-4
    =goal>
-   isa                      task
    task-object              takeoff
    task-value               acceleration
    status                   airspeed-is-alive
@@ -7146,7 +7439,6 @@
     cmd                         speak
     string                      v1-rotate
    =goal>
-   isa                          task
    task-object                  takeoff
    task-value                   initial-climb
    status                       rotation
@@ -7487,7 +7779,6 @@
     -component-status    0
 ==>
     =goal>
-    isa                 task
     task-object         pitch
     task-value          maintain-10
     phase               perform-task
@@ -7545,7 +7836,6 @@
     -component-status   0
 ==>
     =goal>
-    isa                 task
     task-object         pitch
     task-value          maintain-10
     phase               perform-task
@@ -7566,7 +7856,6 @@
     component-status   0
 ==>
     =goal>
-    isa                 task
     task-object         pitch
     task-value          maintain-10
     phase               perform-task
@@ -7609,7 +7898,6 @@
     >pitch     6
 ==>
     =goal>
-    isa         task
     task-object landing-gear
     task-value  up
     stage       1
@@ -7696,7 +7984,6 @@
     component-status    false
 ==>
     =goal>
-    isa         task
     task-object airspeed
     task-value  check-v2
     phase       perform-task
@@ -7760,7 +8047,6 @@
     isa         airspeed-v2
 ==>
     =goal>
-    isa         task
     task-object rudder
     task-value  trim
     stage       1
@@ -7823,7 +8109,6 @@
     -tars-input  airspeed-below-v2-97-kts
 ==>
     =goal>
-    isa         task
     task-object rudder
     task-value  trim
     stage       1
@@ -8031,6 +8316,8 @@
     isa                 aircraft-component
     component-name      slip
     <=component-status  -1
+    ?manual>
+    state               free
 ==>
     +manual>
         isa                     customized-manual-action
@@ -8062,6 +8349,8 @@
     isa                 aircraft-component
     component-name      slip
     >=component-status  1
+    ?manual>
+    state               free
 ==>
     +manual>
         isa                     customized-manual-action
@@ -8608,6 +8897,17 @@
     ?manual>
     state               free
 ==>
+    +manual>
+    isa 			        customized-manual-action		; representing hand reach to altitude selector (time duration should be estimated based on human pilot video recordings)
+    name			        agent-set-int
+    preparation-duration	0.050
+    initiation-duration	    0.050
+    execution-duration	    5.0
+    finish-duration		    1.0
+    para-1			        alt_sel
+    para-2			        5000 ; assuming cleared altitude is 5000 feet
+    para-3                  nil
+    para-4                  nil
     =goal>
     phase               check-task-on-tars
     stage               1
@@ -9366,6 +9666,240 @@
     phase               perform-task
     stage               1
     human-role          performer
+    ?imaginal>
+    state               free
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    =goal>
+    stage               2
+)
+(spp start-atc-contact-mayday :u 1000)
+
+(p atc-contact-mayday-is-not-using-tars-input-retrieve-callsign
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 callsign
+    =goal>
+    stage               2-1
+)
+
+(p atc-contact-mayday-callsign-retrieved
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-1
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            nil
+    failure-situation   nil
+    heading             nil
+    altitude            nil
+    =retrieval>
+    isa                 callsign
+    content             =value
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value
+    =goal>
+    stage               2-2
+)
+
+(p atc-contact-mayday-retrieve-failure-situation
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-2
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    -callsign            nil
+    failure-situation   nil
+    heading             nil
+    altitude            nil
+    ?retrieval>
+    state               free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 failure-situation
+    has-failure         t
+    -engine-side        nil
+    =goal>
+    stage               2-3
+)
+
+(p atc-contact-mayday-failure-situation-retrieved
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-3
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   nil
+    heading             nil
+    altitude            nil
+    =retrieval>
+    isa                 failure-situation
+    has-failure         t
+    -engine-side        nil
+    engine-side         =value_engine_failure
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   =value_engine_failure
+    =goal>
+    stage               2-4
+)
+
+(p atc-contact-mayday-attend-heading
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-4
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    -callsign           nil
+    -failure-situation  nil
+    heading             nil
+    altitude            nil
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1260
+    screen-y            790
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p atc-contact-mayday-form-heading-representation
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   =value_failure_situation
+    heading             nil
+    altitude            nil
+!bind! =value (read_input heading)
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   =value_failure_situation
+    heading             =value
+    =goal>
+    stage               2-5
+)
+
+(p atc-contact-mayday-attend-altitude
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2-5
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    -callsign           nil
+    -failure-situation  nil
+    -heading            nil
+    altitude            nil
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1350
+    screen-y            750
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p atc-contact-mayday-form-altitude-representation
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   =value_failure_situation
+    heading             =value_heading
+    altitude            nil
+!bind! =value (read_input altitude)
+==>
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    callsign            =value_callsign
+    failure-situation   =value_failure_situation
+    heading             =value_heading
+    altitude            =value
+    =goal>
+    stage               4
+)
+
+(p atc-contact-mayday-is-using-tars-input
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               2
+    human-role          performer
+    tars-input          mayday-mayday-mayday--cessna-papa-oscar-lima-yankee-engine-fire-5000-feet-continuing-235-degrees-heading-two-souls-on-board
     ?manual>
     state               free
 ==>
@@ -9381,25 +9915,44 @@
         para-3              nil
         para-4              nil
     =goal>
-    stage               2
+    stage               3
 )
 
-(p atc-contact-speak-mayday
+(p atc-contact-mayday-with-tars-input-visually-attend-tars-input
     =goal>
     isa                 task
     task-object         atc
     task-value          contact
     phase               perform-task
-    stage               2
+    stage               3
     human-role          performer
-    ?vocal>
+    ?visual>
+    state               free
+==>
+    +visual-location>
+    isa                 visual-location
+    screen-x            440
+    screen-y            1250
+    =goal>
+    stage               4
+)
+
+(p atc-contact-mayday-speak
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               4
+    human-role          performer
+    ?visual>
     state               free
 ==>
     +vocal>
     cmd                 speak
-    string              mayday
+    string              mayday-mayday-mayday--cessna-papa-oscar-lima-yankee-engine-fire-5000-feet-continuing-235-degrees-heading-two-souls-on-board
     =goal>
-    stage               3
+    stage               5
 )
 
 (p atc-contact-release-ptt
@@ -9408,7 +9961,7 @@
     task-object         atc
     task-value          contact
     phase               perform-task
-    stage               3
+    stage               5
     human-role          performer
     ?vocal>
     state               free
@@ -9930,6 +10483,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;; ILLUMINATED ENGINE FIRE SWITCH - LIFT COVER AND PUSH ;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (p start-task-form-engine-fire-switch-representation
     =goal>
     isa         task
@@ -10052,7 +10606,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; end of ILLUMINATED ENGINE FIRE SWITCH - LIFT COVER AND PUSH ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+(p start-task-checklist-order-start
+    =goal>
+    isa         task
+    task-object checklist
+    task-value  order-start
+    phase       perform-task
+    stage       1
+    ?visual>
+    state       free
+    ?imaginal>
+    state       free
+==>
+    =goal>
+    phase       attend-aoi
+    stage       1
+)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; end of ENGINE FIRE ;;;;;;;;;;;;;;;;;;;;;;;;;;
