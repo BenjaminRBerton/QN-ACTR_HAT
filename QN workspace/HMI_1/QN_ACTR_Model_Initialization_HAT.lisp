@@ -889,22 +889,40 @@
 	    isa             safe-altitude
 	    altitude        1500
 	)
-	(runway-24-r
+	(runway-24-r-short
 	    isa             runway
 	    current         nil
 	    runway          two-four-right
 	    runway-hdg      237
     )
-	(runway-06-l
+	(runway-06-l-short
 	    isa             runway
 	    current         nil
 	    runway          zero-six-left
 	    runway-hdg      57
     )
-	(runway-24-l
+	(runway-24-l-short
 	    isa             runway
 	    current         nil
 	    runway          two-four-left
+	    runway-hdg      237
+    )
+	(runway-24-r-long
+	    isa             runway
+	    current         nil
+	    runway          runway-two-four-right
+	    runway-hdg      237
+    )
+	(runway-06-l-short
+	    isa             runway
+	    current         nil
+	    runway          runway-zero-six-left
+	    runway-hdg      57
+    )
+	(runway-24-l-short
+	    isa             runway
+	    current         nil
+	    runway          runway-two-four-left
 	    runway-hdg      237
     )
 	(checklist-airspeed-v2
@@ -913,26 +931,25 @@
 	autopilot-airspeed  nil
 	)
     ;;;;;;;;;TO BE UNCOMMENTED IN SIMULATION;;;;;;;;;
-	;(current-failure-situation
-	;isa     failure-situation
-	;has-failure nil
-	;engine-side nil
-	;)
-
-	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	(current-failure-situation-test
-	    isa         failure-situation
-	    has-failure t
-	    engine-side left
+	(current-failure-situation
+	isa     failure-situation
+	has-failure nil
+	engine-side nil
 	)
 
 	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	(ill-eng-fire-switch-task-done-test
-	    isa         task
-	    task-object illuminated-engine-fire-switch
-	    task-value  lift-cover-and-push
-	    status      checked
-    )
+	;(current-failure-situation-test
+	    ;isa         failure-situation
+	    ;has-failure t
+	    ;engine-side left
+	;)
+	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;(ill-eng-fire-switch-task-done-test
+	    ;isa         task
+	    ;task-object illuminated-engine-fire-switch
+	    ;task-value  lift-cover-and-push
+	    ;status      checked
+    ;)
 	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     (current-wind-belief
@@ -960,6 +977,7 @@
     (w-cpoly isa word value c-poly category callsign)
     (w-montreal-tower isa word value montreal-tower category sender)
     (w-zero-niner-zero isa word value wind-0-9-0-at-4 category wind)
+    (w-two-niner-zero-at-four isa word value wind-twi-niner-zero-at-four category wind)
     (w-zero-six-left isa word value runway-zero-six-left category runway)
     (w-zero-six-right isa word value runway-zero-six-right category runway)
     (w-two-four-right isa word value runway-two-four-right category runway)
@@ -1029,11 +1047,10 @@
 
 ; ATC words can take longer to encode than the remaining silence-timer
 ; interval. Stop that timer when the word is detected, not after encoding.
-(p detected-atc-sound-during-mayday-readback
+(p detected-atc-sound-during-emergency-readback
    =goal>
     isa             task
     task-object     atc
-    task-value      contact
     phase           perform-task
     status          atc-listening-clearance
    =aural-location>
@@ -1053,7 +1070,36 @@
    =goal>
     stage           encode-sound
 )
-(spp detected-atc-sound-during-mayday-readback :u 1000)
+(spp detected-atc-sound-during-emergency-readback :u 1000)
+
+; Stop the takeoff-clearance silence timer only when another ATC word arrives.
+; Audio encoding may finish after the timer would otherwise reach tick 36.
+(p detected-atc-sound-during-takeoff-clearance
+   =goal>
+    isa             task
+    task-object     takeoff-clearance
+    task-value      confirm
+    phase           perform-task
+    human-role      performer
+    stage           waiting
+   =aural-location>
+    isa             audio-event
+    -location       self
+   ?aural>
+    state           free
+   ?retrieval>
+    state           free
+   ?imaginal>
+    state           free
+==>
+   +aural>
+    event           =aural-location
+   +temporal>
+    isa             clear
+   =goal>
+    stage           encode-sound
+)
+(spp detected-atc-sound-during-takeoff-clearance :u 1000)
 
 ; encode sound and location of sound into imaginal buffer
 (p sound-from-self-resume-task
@@ -3140,7 +3186,7 @@
 )
 (spp wait-for-next-word :u 1000) ;higher than default of value-pair not found
 
-; Shared by takeoff clearance and the post-mayday ATC reply.
+; Shared by takeoff clearance and emergency ATC replies.
 (p start-timing
     =goal>
     isa         task
@@ -3174,20 +3220,6 @@
     stage       end-detected
 )
 
-(p stop-runaway-timer-on-new-sound
-   =goal>
-    isa         task
-    task-object takeoff-clearance
-    task-value  confirm
-   =temporal>
-    isa         time
-    ticks       35
-==>
-    +temporal>
-    isa         clear
-    =goal>
-    stage       1
-)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;RETRIEVAL ATTEMPT FOR WORD IN MEMORY;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This production follow up the encode-sound production to check if the message is from ATC
 ; retrieve self callsign from declarative memory if the message comes from ATC
@@ -3333,10 +3365,12 @@
 
 (p t-i-end-of-communication-go-check-allocation ;end of the clearance
     =goal>
+    isa             task
+    task-object     takeoff-clearance
+    task-value      confirm
     phase           perform-task
     stage           end-detected
     human-role      nil
-    autonomy-role   nil
     =imaginal>
         isa         clearance
         procedure   takeoff
@@ -3349,10 +3383,12 @@
 
 (p t-i-end-of-communication-and-we-have-allocation ;end of the clearance
     =goal>
+    isa             task
+    task-object     takeoff-clearance
+    task-value      confirm
     phase           perform-task
     stage           end-detected
-    - human-role    nil
-    - autonomy-role nil
+    human-role      performer
     =imaginal>
         isa         clearance
         procedure   takeoff
@@ -3547,7 +3583,7 @@
     stage       ptt-off
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;; PTT OFF (BOTH ATC READBACKS) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; PTT OFF (TAKEOFF AND MAYDAY READBACKS) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p finish-readback
     =goal>
     isa         task
@@ -3555,6 +3591,7 @@
     stage       ptt-off
     =imaginal>
     isa         clearance
+    -procedure  panpan-vectors
     ?manual>
     state       free
     ?vocal>
@@ -6489,7 +6526,7 @@
 )
 (spp start-throttles-to-detent-task :u 1000); higher than default of value-pair not found
 
-(p throttles-to-subvocalize-takeoff-speeds-had-tars-input
+(p throttles-to-subvocalize-takeoff-speeds-has-tars-input
     =goal>
     isa         task
     phase       perform-task
@@ -6681,7 +6718,6 @@
     stage       7
 )
 
-
 (p subvocalize-current-runway
     =goal>
     isa         task
@@ -6755,7 +6791,6 @@
     =goal>
     stage       10
 )
-
 
 (p throttles-detent-task-check-console
     =goal>
@@ -9459,7 +9494,7 @@
     stage               2
     =imaginal>
     isa                 aviate-situation
-    >=airspeed          130
+    >airspeed           110
 ==>
     =goal>
     phase               check-task-on-tars
@@ -9476,21 +9511,21 @@
     stage               2
     =imaginal>
     isa                 aviate-situation
-    <airspeed           130
+    <=airspeed           110
     ?manual>
     state               free
 ==>
     +manual>
         isa                 customized-manual-action
-        name                agent-set-string
+        name                agent-set-impulsion
         preparation-duration 0.000
         initiation-duration  0.000
         execution-duration   0.000
         finish-duration      0.000
-        para-1              dummy_manual_action
-        para-2              adjust-pitch
-        para-3              nil
-        para-4              nil
+        para-1               nose_up
+        para-2               impulsion
+        para-3               nil
+        para-4               nil
     =goal>
     stage               1
 )
@@ -9726,22 +9761,25 @@
     type                mayday
     =goal>
     stage               2
+    status              atc-building-emergency-call
 )
 (spp start-atc-contact-mayday :u 1000)
 
-(p atc-contact-mayday-is-not-using-tars-input-retrieve-callsign
+; Shared Mayday/PanPan contact path. The starter selects the communication
+; type; these stages retain it while constructing the call. Speech and
+; Ingescape requests branch by task-value after the shared stages.
+(p atc-emergency-without-tars-retrieve-callsign
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     tars-input          nil
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     ?retrieval>
     state               free
 ==>
@@ -9752,18 +9790,17 @@
     stage               2-1
 )
 
-(p atc-contact-mayday-callsign-retrieved
+(p atc-emergency-callsign-retrieved
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-1
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            nil
     failure-situation   nil
     heading             nil
@@ -9774,24 +9811,23 @@
 ==>
     +imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value
     =goal>
     stage               2-2
 )
 
-(p atc-contact-mayday-retrieve-failure-situation
+(p atc-emergency-retrieve-failure-situation
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-2
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     -callsign            nil
     failure-situation   nil
     heading             nil
@@ -9808,18 +9844,17 @@
     stage               2-3
 )
 
-(p atc-contact-mayday-failure-situation-retrieved
+(p atc-emergency-failure-situation-retrieved
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-3
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   nil
     heading             nil
@@ -9832,25 +9867,24 @@
 ==>
     +imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   =value_engine_failure
     =goal>
     stage               2-4
 )
 
-(p atc-contact-mayday-failure-situation-not-retrieved
+(p atc-emergency-failure-situation-not-retrieved
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-3
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   nil
     heading             nil
@@ -9863,18 +9897,17 @@
 )
 
 
-(p atc-contact-mayday-attend-heading
+(p atc-emergency-attend-heading
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-4
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     -callsign           nil
     -failure-situation  nil
     heading             nil
@@ -9891,18 +9924,17 @@
     stage               visual-encode-aircraft-component
 )
 
-(p atc-contact-mayday-form-heading-representation
+(p atc-emergency-form-heading-representation
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               form-representation-aircraft-component
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   =value_failure_situation
     heading             nil
@@ -9911,7 +9943,7 @@
 ==>
     +imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   =value_failure_situation
     heading             =value
@@ -9919,18 +9951,17 @@
     stage               2-5
 )
 
-(p atc-contact-mayday-attend-altitude
+(p atc-emergency-attend-altitude
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               2-5
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     -callsign           nil
     -failure-situation  nil
     -heading            nil
@@ -9947,18 +9978,17 @@
     stage               visual-encode-aircraft-component
 )
 
-(p atc-contact-mayday-form-altitude-representation
+(p atc-emergency-form-altitude-representation
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               form-representation-aircraft-component
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     =imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   =value_failure_situation
     heading             =value_heading
@@ -9967,23 +9997,52 @@
 ==>
     +imaginal>
     isa                 emergency-communication
-    type                mayday
+    type                =emergency_type
     callsign            =value_callsign
     failure-situation   =value_failure_situation
     heading             =value_heading
     altitude            =value
     =goal>
-    stage               4
+    stage               atc-emergency-push-ptt
 )
 
-(p atc-contact-mayday-is-using-tars-input
+(p atc-emergency-without-tars-push-ptt
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
+    phase               perform-task
+    stage               atc-emergency-push-ptt
+    status              atc-building-emergency-call
+    tars-input          nil
+    =imaginal>
+    isa                 emergency-communication
+    type                =emergency_type
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              push_to_talk
+        para-2              true
+        para-3              nil
+        para-4              nil
+    =goal>
+    stage               4
+)
+
+(p atc-emergency-with-tars-push-ptt
+    =goal>
+    isa                 task
+    task-object         atc
     phase               perform-task
     stage               2
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     -tars-input         nil
     ?manual>
@@ -10004,14 +10063,13 @@
     stage               3
 )
 
-(p atc-contact-mayday-with-tars-input-visually-attend-tars-input
+(p atc-emergency-with-tars-attend-input
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               3
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     ?visual>
     state               free
@@ -10031,9 +10089,13 @@
     task-value          contact
     phase               perform-task
     stage               4
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     ?visual>
+    state               free
+    ?manual>
+    state               free
+    ?vocal>
     state               free
 ==>
     +vocal>
@@ -10043,14 +10105,13 @@
     stage               5
 )
 
-(p atc-contact-release-ptt
+(p atc-emergency-release-ptt
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               5
-    -status             awaiting-callsign
+    status              atc-building-emergency-call
     human-role          performer
     ?vocal>
     state               free
@@ -10079,6 +10140,7 @@
     task-value          contact
     phase               perform-task
     stage               6
+    status              atc-building-emergency-call
     human-role          performer
     ?vocal>
     state               free
@@ -10101,13 +10163,13 @@
     status              atc-awaiting-callsign
 )
 
-(p atc-contact-wait-for-autonomy
+(p atc-emergency-wait-for-autonomy
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               1
+    status              nil
     -human-role         performer
 ==>
     =goal>
@@ -10132,12 +10194,12 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-awaiting-callsign
     =imaginal>
     isa                 emergency-communication
+    type                mayday
     callsign            =ours
     =aural>
     isa                 sound
@@ -10158,12 +10220,12 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-awaiting-callsign
     =imaginal>
     isa                 emergency-communication
+    type                mayday
     callsign            nil
     =aural>
     isa                 sound
@@ -10180,11 +10242,64 @@
 )
 (spp atc-readback-heard-own-callsign-with-tars :u 2000)
 
+(p atc-readback-panpan-heard-own-callsign
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    =imaginal>
+    isa                 emergency-communication
+    type                panpan
+    callsign            =ours
+    =aural>
+    isa                 sound
+    location            atc
+    content             =ours
+==>
+    +imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    callsign            =ours
+    =goal>
+    stage               start-timing
+    status              atc-listening-clearance
+)
+(spp atc-readback-panpan-heard-own-callsign :u 2000)
+
+(p atc-readback-panpan-heard-own-callsign-with-tars
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    =imaginal>
+    isa                 emergency-communication
+    type                panpan
+    callsign            nil
+    =aural>
+    isa                 sound
+    location            atc
+    content             c-poly
+==>
+    +imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    callsign            c-poly
+    =goal>
+    stage               start-timing
+    status              atc-listening-clearance
+)
+(spp atc-readback-panpan-heard-own-callsign-with-tars :u 2000)
+
 (p atc-readback-ignore-word-before-callsign
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-awaiting-callsign
@@ -10200,15 +10315,13 @@
 )
 (spp atc-readback-ignore-word-before-callsign :u 1000)
 
-; After the callsign, each word restarts the existing takeoff-clearance
-; silence timer. Only the heading instruction and landing runway need slots
-; for this readback; the tower identification and advisories are heard but
-; do not change the clearance representation.
+; After the callsign, each word restarts the existing silence timer. Mayday
+; uses heading and runway; PanPan uses heading, altitude, and navigation.
+; Tower identification and acknowledgements do not change the clearance.
 (p atc-readback-heard-runway-heading
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-listening-clearance
@@ -10233,7 +10346,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-listening-clearance
@@ -10258,7 +10370,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-listening-clearance
@@ -10283,7 +10394,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-listening-clearance
@@ -10304,17 +10414,189 @@
 )
 (spp atc-readback-heard-landing-runway-06l :u 1000)
 
-(p atc-readback-heard-other-word
+; PanPan vectors use one of three runway-specific heading/ILS pairs.
+; The altitude instruction is the same in all three replies.
+(p atc-readback-panpan-heard-heading-330
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               encode-sound
     status              atc-listening-clearance
     =imaginal>
     isa                 clearance
-    procedure           emergency-landing
+    procedure           panpan-vectors
+    =aural>
+    isa                 sound
+    location            atc
+    content             turn-right-heading-330
+==>
+    =imaginal>
+    heading             turn-right-heading-330
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-heading-330 :u 1000)
+
+(p atc-readback-panpan-heard-left-heading-150
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    =aural>
+    isa                 sound
+    location            atc
+    content             turn-left-heading-150
+==>
+    =imaginal>
+    heading             turn-left-heading-150
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-left-heading-150 :u 1000)
+
+(p atc-readback-panpan-heard-right-heading-150
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    =aural>
+    isa                 sound
+    location            atc
+    content             turn-right-heading-150
+==>
+    =imaginal>
+    heading             turn-right-heading-150
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-right-heading-150 :u 1000)
+
+(p atc-readback-panpan-heard-altitude-3000
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    =aural>
+    isa                 sound
+    location            atc
+    content             descend-to-3000-feet
+==>
+    =imaginal>
+    altitude            descend-to-3000-feet
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-altitude-3000 :u 1000)
+
+(p atc-readback-panpan-heard-ils-runway-24r
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-330
+    =aural>
+    isa                 sound
+    location            atc
+    content             expect-ils-runway-24r
+==>
+    =imaginal>
+    navigation          expect-ils-runway-24r
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-ils-runway-24r :u 1000)
+
+(p atc-readback-panpan-heard-ils-runway-24l
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-left-heading-150
+    =aural>
+    isa                 sound
+    location            atc
+    content             expect-ils-runway-24l
+==>
+    =imaginal>
+    navigation          expect-ils-runway-24l
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-ils-runway-24l :u 1000)
+
+(p atc-readback-panpan-heard-ils-runway-06r
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-150
+    =aural>
+    isa                 sound
+    location            atc
+    content             expect-ils-runway-06r
+==>
+    =imaginal>
+    navigation          expect-ils-runway-06r
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               start-timing
+)
+(spp atc-readback-panpan-heard-ils-runway-06r :u 1000)
+
+(p atc-readback-heard-other-word
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-listening-clearance
+    =imaginal>
+    isa                 clearance
+    procedure           =procedure
     =aural>
     isa                 sound
     location            atc
@@ -10331,7 +10613,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               end-detected
     status              atc-listening-clearance
@@ -10363,16 +10644,52 @@
     stage               atc-readback-callsign
 )
 
+(p atc-readback-panpan-start-after-silence
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               end-detected
+    status              atc-listening-clearance
+    human-role          performer
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    -callsign           nil
+    -heading            nil
+    -altitude           nil
+    -navigation         nil
+    ?manual>
+    state               free
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +manual>
+    isa                 customized-manual-action
+    name                agent-set-bool
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              push_to_talk
+    para-2              true
+    para-3              nil
+    para-4              nil
+    =goal>
+    stage               atc-readback-callsign
+)
+
 (p atc-readback-say-callsign
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               atc-readback-callsign
     =imaginal>
     isa                 clearance
-    procedure           emergency-landing
+    procedure           =procedure
     callsign            =callsign
     ?manual>
     state               free
@@ -10391,7 +10708,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               atc-readback-heading
     =imaginal>
@@ -10413,7 +10729,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               atc-readback-cleared-to-land
     =imaginal>
@@ -10434,7 +10749,6 @@
     =goal>
     isa                 task
     task-object         atc
-    task-value          contact
     phase               perform-task
     stage               atc-readback-runway
     =imaginal>
@@ -10448,6 +10762,69 @@
     +vocal>
     cmd                 speak
     string              =runway
+    =goal>
+    stage               ptt-off
+)
+
+(p atc-readback-panpan-say-heading
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               atc-readback-heading
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             =heading
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =heading
+    =goal>
+    stage               atc-readback-panpan-altitude
+)
+
+(p atc-readback-panpan-say-altitude
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               atc-readback-panpan-altitude
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    altitude            =altitude
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =altitude
+    =goal>
+    stage               atc-readback-panpan-navigation
+)
+
+(p atc-readback-panpan-say-navigation
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               atc-readback-panpan-navigation
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    navigation          =navigation
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              =navigation
     =goal>
     stage               ptt-off
 )
@@ -11164,6 +11541,7 @@
     =imaginal>
     isa                 immediate-action-item
     altitude            t
+    throttle            nil
     ?retrieval>
     state               free
 ==>
@@ -11590,13 +11968,13 @@
 )
 (spp start-fuel-boost-switch-off-task-tars-input-right :u 1000)
 
-(p start-fuel-boost-switch-off-task-tars-input-not-right-not-left
+(p start-fuel-boost-switch-off-task-tars-input-unavailable
     =goal>
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    -tars-input      fuel-boost-switch-right-is-on
-    -tars-input      fuel-boost-switch-left-is-on
+    tars-input      n-a
+    crosscheck      yes
     phase           perform-task
     stage           1
     ?visual>
@@ -11605,7 +11983,7 @@
     =goal>
     crosscheck      no
 )
-(spp start-fuel-boost-switch-off-task-tars-input-not-right-not-left :u 1000)
+(spp start-fuel-boost-switch-off-task-tars-input-unavailable :u 1000)
 
 (p start-fuel-boost-switch-off-task-no-crosscheck
     =goal>
@@ -11929,6 +12307,7 @@
     stage               2
     =imaginal>
     isa                 aircraft-component
+    component-name      =value
     component-status    true
     ?imaginal>
     state               free
@@ -12011,6 +12390,7 @@
     screen-y    570
     =goal>
     stage       visual-encode-aircraft-component
+    status      test-knob
 )
 (spp start-test-fire-warn-task-attend-test :u 1000)
 
@@ -12021,8 +12401,7 @@
     task-value  fire-warn
     phase       perform-task
     stage       form-representation-aircraft-component
-    -status     l-bottle
-    -status     r-bottle
+    status      test-knob
     ?imaginal>
     state       free
 !bind! =value (read_input test_knob)
@@ -12045,7 +12424,7 @@
     =imaginal>
     isa                 aircraft-component
     component-name      test-knob
-    component-status    0
+    -component-status   1
     ?manual>
     state               free
 ==>
@@ -12093,12 +12472,11 @@
     status      l-bottle
     ?imaginal>
     state       free
-!bind! =value (read_input l_engine_fire)
 ==>
     +imaginal>
     isa                 aircraft-component
     component-name      l-engine-fire
-    component-status    =value
+    component-status    true
     =goal>
     stage           4
 )
@@ -12137,12 +12515,11 @@
     status      r-bottle
     ?imaginal>
     state       free
-!bind! =value (read_input r_engine_fire)
 ==>
     +imaginal>
     isa                 aircraft-component
     component-name      r-engine-fire
-    component-status    =value
+    component-status    true
     =goal>
     stage           5
 )
@@ -12162,10 +12539,8 @@
 ==>
     =goal>
     stage               1
-    status              both-lights-on
+    status              test-knob
 )
-
-
 
 (p test-knob-on-take-action
     =goal>
@@ -12269,6 +12644,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p next-checklist-engine-failure-start-task-attend-pfd
     =goal>
+    isa             task
     task-object     next-checklist
     task-value      engine-failure-precautionary-shutdown
     phase           perform-task
@@ -12283,10 +12659,11 @@
     situation-return-phase  perform-task
     situation-return-stage  2
 )
-(spp next-checklist-engine-failure-start-task :u 1000)
+(spp next-checklist-engine-failure-start-task-attend-pfd :u 1000)
 
 (p next-checklist-start-check-navigate
     =goal>
+    isa             task
     task-object     next-checklist
     task-value      engine-failure-precautionary-shutdown
     phase           perform-task
@@ -12304,6 +12681,7 @@
 
 (p next-checklist-start-action
     =goal>
+    isa             task
     task-object     next-checklist
     task-value      engine-failure-precautionary-shutdown
     phase           perform-task
@@ -12346,12 +12724,246 @@
     type                panpan
     =goal>
     stage               2
+    status              atc-building-emergency-call
 )
 (spp start-atc-declare-panpan-request-vectors :u 1000)
 
-(p
+(p atc-declare-panpan-speak
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               4
+    status              atc-building-emergency-call
+    human-role          performer
+    =imaginal>
+    isa                 emergency-communication
+    type                panpan
+    ?visual>
+    state               free
+    ?manual>
+    state               free
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +vocal>
+    cmd                 speak
+    string              panpan-panpan-panpan--cessna-papa-oscar-lima-yankee-engine-fire-value-feet-continuing-value-degrees-heading-request-vectors-two-souls-on-board
+    =goal>
+    stage               5
+)
+
+(p atc-declare-panpan-request-vectors
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               6
+    status              atc-building-emergency-call
+    human-role          performer
+    ?vocal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.000
+        finish-duration      0.000
+        para-1               request_vectors
+        para-2               1
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage               await-atc-callsign
+    status              atc-awaiting-callsign
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; end of ATC ANNOUNCE PANPAN AND REQUEST VECTOR DECLARE PANPAN ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;; READBACK PANPAN VECTORS ;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p finish-panpan-vectors-readback
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               ptt-off
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    ?manual>
+    state               free
+    ?vocal>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.01
+        finish-duration      0.050
+        para-1              push_to_talk
+        para-2              false
+        para-3              nil
+        para-4              nil
+    =goal>
+    stage               follow-vectors
+    status              nil
+)
+
+(p start-follow-vectors-visually-attend-pfd-heading
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               follow-vectors
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1200
+    screen-y            800
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p start-follow-vectors-turn-heading-330
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              nil
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-330
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 1.000
+        initiation-duration  1.000
+        execution-duration   5.000
+        finish-duration      0.050
+        para-1               heading_sel
+        para-2               330
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   follow-vectors-altitude
+    status                  altitude
+)
+
+(p start-follow-vectors-turn-heading-150
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              nil
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    -heading            turn-right-heading-330
+    ?manual>
+    state               free
+==>
+    =imaginal>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 1.000
+        initiation-duration  1.000
+        execution-duration   5.000
+        finish-duration      0.050
+        para-1               heading_sel
+        para-2               150
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   follow-vectors-altitude
+    status                  altitude
+)
+
+(p follow-vectors-alt-attend-pfd-ap-altitude
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               follow-vectors-altitude
+    status              altitude
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1350
+    screen-y            810
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p follow-vector-descend-and-maintain-3000-ft
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              altitude
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-int
+        preparation-duration 1.000
+        initiation-duration  1.000
+        execution-duration   5.000
+        finish-duration      0.050
+        para-1               alt_sel
+        para-2               3000
+        para-3               nil
+        para-4               nil
+    =goal>
+    phase                   check-task-on-tars
+    stage                   1
+)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;; end of READBACK PANPAN VECTORS ;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
