@@ -846,11 +846,9 @@ public class Functions {
 		
 		if(sim.vars.animatorModule.Vocalize_Speech){
             agent().outputSetString("speech_output", the_content);
-		  System.out.println("TODO Sound_Plugin AnimatorModuleFun__Produce_Speech");
-		  
-		//TODO // Sound_Plugin.SelectVoiceForTextToSpeech("Microsoft Server Speech Text to Speech Voice (en-GB, Hazel)");   // (en-US, ZiraPro)
-			//Sound_Plugin.SelectVoiceForTextToSpeech("Microsoft Server Speech Text to Speech Voice (zh-CN, HuiHui)");
-		//TODO // Sound_Plugin.TextToSpeech(the_content);
+		  if (sim.vars.animatorModule.Play_Sound_Through_Speaker) {
+		    PlatformSpeech.speak(the_content);
+		  }
 		}
 	}
 	
@@ -13174,6 +13172,12 @@ return return_string;
 	  for (j = 0; j < The_Chunk_Spec_Request.length; j+=2){
 	    sim.funs.ChunkFun__Add_Chunk_Slot_Name_And_Value(Temp_Entity.Chunk, The_Chunk_Spec_Request[j], The_Chunk_Spec_Request[j+1]);  //can handel exception for ISA chunk-type
 	  }
+	  // ACT-R vocal productions use "cmd speak" or "cmd subvocalize". The
+	  // speech module dispatches on Chunk_Type, so populate it when ISA is absent.
+	  if (Temp_Entity.Chunk.Chunk_Type.equals("")) {
+	    String command = Temp_Entity.Chunk.Slot.get("cmd");
+	    if (command != null) Temp_Entity.Chunk.Chunk_Type = command;
+	  }
 	  sim.publishVocalDiagram(Temp_Entity.Tag, "QUEUED", Temp_Entity.Chunk);
 
 	}
@@ -14376,6 +14380,16 @@ return return_string;
 	        ProductionModuleFun__Clear_Visual_Location_Buffer_Request();
 	        break;
 	      }
+      case "-aural>":
+      {
+        ProductionModuleFun__Clear_Aural_Buffer_Request();
+        break;
+      }
+      case "-aural-location>":
+      {
+        ProductionModuleFun__Clear_Aural_Location_Buffer_Request();
+        break;
+      }
 	      case "-temporal-location>":
 	      {
 	        ProductionModuleFun__Clear_Temporal_Buffer_Request();

@@ -2,6 +2,10 @@ package agents.cb;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import jmt.gui.jmodel.mainGui.MainWindow;
 //import org.slf4j.Logger;
@@ -28,6 +32,8 @@ public class Agent implements IopListener, ServiceListener {
     private QnactrSimulation simulation = null;
     private Mediator mediator = null;
     private static final float INTERVAL_BETWEEN_WORDS = 3.00f; // seconds
+    private static final double MASTER_WARNING_TONE_HZ = 880.0;
+    private static final double MASTER_WARNING_TONE_SECONDS = 0.8;
     private static final float RUNWAY_DETECTION_MAX_AIRSPEED_KTS = 20.0f;
     private static final String[] CYUL_RUNWAY_NAMES = {"zero-six-left", "zero-six-right", "two-four-right", "two-four-left"};
     private static final double[][] CYUL_RUNWAY_THRESHOLDS = {
@@ -122,6 +128,12 @@ public class Agent implements IopListener, ServiceListener {
 
     private com.ingescape.Agent ingescapeAgent;
     private Global globalContext;
+    private final ScheduledExecutorService masterWarningScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread thread = new Thread(r, "master-warning-tone");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private ScheduledFuture<?> masterWarningTask;
 
     private Agent() {
         // Empty constructor - initialization happens in start()
@@ -134,8 +146,46 @@ public class Agent implements IopListener, ServiceListener {
         return instance;
     }
 
-    public void setSimulation(QnactrSimulation sim) {
+    public synchronized void setSimulation(QnactrSimulation sim) {
         this.simulation = sim;
+        updateMasterWarningTone();
+    }
+
+    public synchronized void clearSimulation(QnactrSimulation sim) {
+        if (this.simulation == sim) {
+            this.simulation = null;
+            updateMasterWarningTone();
+        }
+    }
+
+    private synchronized void queueSpeech(String[] words, String location) {
+        if (simulation == null) {
+            return;
+        }
+        double currentTime = SimSystem.clock();
+        for (int i = 0; i < words.length; i++) {
+            simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
+                    words[i], Double.toString(currentTime + i * INTERVAL_BETWEEN_WORDS), location);
+        }
+    }
+
+    private synchronized void updateMasterWarningTone() {
+        if (!master_warning_i || simulation == null) {
+            if (masterWarningTask != null) {
+                masterWarningTask.cancel(false);
+                masterWarningTask = null;
+            }
+        } else if (masterWarningTask == null) {
+            masterWarningTask = masterWarningScheduler.scheduleAtFixedRate(() -> {
+                synchronized (Agent.this) {
+                    if (master_warning_i && simulation != null) {
+                        simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Tone_Sound(
+                                MASTER_WARNING_TONE_HZ, MASTER_WARNING_TONE_SECONDS,
+                                Double.toString(SimSystem.clock()));
+                    }
+                }
+            }, 0, 1, TimeUnit.SECONDS);
+        }
     }
 
     // Getter methods for thread-safe string access
@@ -632,6 +682,7 @@ public class Agent implements IopListener, ServiceListener {
                     break;
                 case "master_warning":
                     master_warning_i = inputBool;
+                    updateMasterWarningTone();
                     break;
                 case "master_caution":
                     master_caution_i = inputBool;
@@ -691,54 +742,23 @@ public class Agent implements IopListener, ServiceListener {
                             break;
                         }
                         ATC_msg_i.set(inputString);
-                        if (simulation != null) {
-                            // Split the message into words
-                            inputString = inputString.toLowerCase();
-                            inputString = inputString.replace(",", "");
-                            inputString = inputString.replace(".", "");
-                            String[] words = inputString.trim().split("\\s+");
-
-                            // Get current simulation time
-                            double currentTime = SimSystem.clock();
-
-                            // Schedule each word with cumulative onset time
-                            for (int i = 0; i < words.length; i++) {
-                                double onsetTime = currentTime + (i * INTERVAL_BETWEEN_WORDS);
-                                simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
-                                    words[i],
-                                    String.valueOf(onsetTime),
-                                    "atc"
-                                );
-                            }
-                        }
+                        // Split the message into words.
+                        inputString = inputString.toLowerCase();
+                        inputString = inputString.replace(",", "");
+                        inputString = inputString.replace(".", "");
+                        queueSpeech(inputString.trim().split("\\s+"), "atc");
                         break;
                         case "TARS_speech":
                             if (inputString.isEmpty()){
                                 break;
                             }
                             TARS_msg_i.set(inputString);
-                            if (simulation != null) {
-                                // Split the message into words
-                                inputString = inputString.toLowerCase();
-                                inputString = inputString.replace(" ", "-");
-                                inputString = inputString.replace(",", "");
-                                inputString = inputString.replace("\"", "");
-                                inputString = inputString.replace(".", "");
-                                String[] words = inputString.trim().split("\\s+");
-
-                                // Get current simulation time
-                                double currentTime = SimSystem.clock();
-
-                                // Schedule each word with cumulative onset time
-                                for (int i = 0; i < words.length; i++) {
-                                    double onsetTime = currentTime + (i * INTERVAL_BETWEEN_WORDS);
-                                    simulation.funs.DeviceModuleFun__Audio_Display_Prepare_Word_Sound(
-                                            words[i],
-                                            String.valueOf(onsetTime),
-                                            "tars"
-                                    );
-                                }
-                            }
+                            inputString = inputString.toLowerCase();
+                            inputString = inputString.replace(" ", "-");
+                            inputString = inputString.replace(",", "");
+                            inputString = inputString.replace("\"", "");
+                            inputString = inputString.replace(".", "");
+                            queueSpeech(inputString.trim().split("\\s+"), "tars");
                             break;
                     case "current_procedure":
                         current_procedure_i.set(inputString);
@@ -869,6 +889,10 @@ public class Agent implements IopListener, ServiceListener {
      * Stop and cleanup the agent
      */
     public void stop() {
+        synchronized (this) {
+            master_warning_i = false;
+            updateMasterWarningTone();
+        }
         if (ingescapeAgent != null) {
             ingescapeAgent.stop();
             //_logger.info("IngeScape agent stopped");

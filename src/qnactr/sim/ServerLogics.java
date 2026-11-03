@@ -5160,7 +5160,7 @@ public class ServerLogics {
             Entity.Time_Computed = false;
             //1. beginning effect; 2. timing; 3. ending effect
             if (Entity.From.equals( "Speech Initiation") && Entity.To.equals( "Speech Execution") && Entity.Entity_Type.equals( "Add Vocal")){ //copy an entity to control for Speech execution results
-              if(!Entity.Chunk.Chunk_Type.equals( "clear") && !Entity.Chunk.Chunk_Type.equals( "subvocalize")){ //subvocalize should not have output sound
+              if(Entity.Chunk.Chunk_Type.equals( "speak")){ //only overt speech reaches the voice key
                 
                 Entity Temp_Entity = sim.funs.createEntity( "Control Voice Key" , "Speech Execution", "Control Voice Key", "Speech Execution Result", 0.0);
                 //                Entity Temp_Entity = new Entity();  
@@ -7718,7 +7718,7 @@ public class ServerLogics {
             break;
             
           case Ending:
-            if (Entity.From.equals( "Speech Execution") && Entity.To.equals( "Control Voice Key" ) && Entity.Entity_Type.equals( "Speech Execution Result")){
+            if (Entity.From.equals( "Speech Execution") && Entity.To.equals( "Control Voice Key" ) && Entity.Entity_Type.equals( "Speech Execution Result") && Entity.Chunk.Chunk_Type.equals( "speak")){
               String output = sim.funs.ChunkFun__Get_Chunk_Slot_Value(Entity.Chunk, "string");
               sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "SPEECH" + "\t\t" + "OUTPUT-SPEECH" + " " + output); 
               Entity.From = "Control Voice Key";

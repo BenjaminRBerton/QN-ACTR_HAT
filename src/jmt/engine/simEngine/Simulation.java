@@ -66,6 +66,7 @@ import org.w3c.dom.Document;
 
 import qnactr.sim.GlobalUtilities;
 import qnactr.sim.QnactrSimulation; //QN-Java
+import agents.cb.Agent;
 
 /**
  * This class creates a new Simulation. It provides an easy way to initialize
@@ -701,6 +702,7 @@ public class Simulation {
 			//QN-Java
 			GlobalUtilities.setMainWindowStatusLabelText("Clock (s): "); 
 			for(QnactrSimulation QnSim : qnactrSims){
+			  Agent.getInstance().clearSimulation(QnSim);
 			  QnSim.funs.ProgramUtilitiesFun__SimulationFinalizationCode();
 
 			  double simulationUsedRealTimeDuration = (QnactrSimulation.simEndRealClockTime - QnactrSimulation.simStartRealClockTime) / 1000.0; //second

@@ -1,6 +1,5 @@
 ;; QN_ACTR_Model_Initialization HAT citation Mustang Takeoff with TARS
-;; QN-ACTR, Sample piloting model
-;; For questions and comments, please send to Shi Cao (shi.cao@uwaterloo.ca).
+;; For questions and comments, please send to Benjamin R. Berton (benjaminberton64@gmail.com)
 
 (sgp :v t)
 ;;;;;;;;;;;;;;;;;;;;;
@@ -715,6 +714,8 @@
     phase
     stage
     status
+    flying
+    master-warning-pending
 	trim-attempts
 	trim-position
 	procedure
@@ -882,6 +883,7 @@
         procedure       IDLE
 		task-object	    Idle
         task-value      Waiting
+        flying          nil
         phase           send-start
         stage           1
 	)
@@ -1026,7 +1028,158 @@
 ;;;;;;; PERCEPTION AND ENCODING OF SOUND ;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Hear the nonverbal master warning without interrupting the current task.
+(p detected-master-warning-tone
+   =goal>
+    isa             task
+   =aural-location>
+    isa             audio-event
+    kind            tone
+    location        external
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =aural-location
+)
+(spp detected-master-warning-tone :u 1000)
+
+(p register-master-warning-tone
+   =goal>
+    isa             task
+   =aural>
+    isa             sound
+    kind            tone
+    content         880.0
+==>
+   =goal>
+    master-warning-pending t
+   -aural>
+   -aural-location>
+)
+(spp register-master-warning-tone :u 1000)
+
+; The idle waiting state is the entry point; AOI scans and assigned tasks finish first.
+(p idle-attend-master-warning-getter
+   =goal>
+    isa             task
+    phase           attend-aoi
+    stage           1
+    master-warning-pending t
+   ?visual>
+    state           free
+==>
+   +visual-location>
+    isa             visual-location
+    screen-x        1240
+    screen-y        600
+   =goal>
+    phase           acknowledge-master-warning
+    stage           attend-getter
+)
+
+(p visually-encode-master-warning-getter
+   =goal>
+    isa             task
+    phase           acknowledge-master-warning
+    stage           attend-getter
+   =visual-location>
+   ?visual>
+    state           free
+==>
+   +visual>
+    isa             move-attention
+    screen-pos      =visual-location
+   =goal>
+    stage           request-cas
+)
+
+(p master-warning-attend-cas
+   =goal>
+    isa             task
+    phase           acknowledge-master-warning
+    stage           request-cas
+   =visual>
+    value           "M_W"
+   ?visual>
+    state           free
+==>
+   +visual-location>
+    isa             visual-location
+    screen-x        1600
+    screen-y        920
+   =goal>
+    stage           attend-cas
+)
+
+(p visually-encode-master-warning-cas
+   =goal>
+    isa             task
+    phase           acknowledge-master-warning
+    stage           attend-cas
+   =visual-location>
+   ?visual>
+    state           free
+==>
+   +visual>
+    isa             move-attention
+    screen-pos      =visual-location
+   =goal>
+    stage           acknowledge
+)
+
+(p acknowledge-master-warning
+   =goal>
+    isa             task
+    phase           acknowledge-master-warning
+    stage           acknowledge
+   =visual>
+    value           "CAS"
+   ?manual>
+    state           free
+==>
+   +manual>
+    isa                 customized-manual-action
+    name                agent-set-impulsion
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              master_warning
+    para-2              impulsion
+    para-3
+    para-4
+   =goal>
+    master-warning-pending nil
+    phase               attend-aoi
+    stage               1
+)
+
 ; process incoming aural information except from self, can happen at any time
+(p detected-tars-sound
+   =aural-location>
+    isa             audio-event
+    location        tars
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =aural-location
+)
+(spp detected-tars-sound :u 1000)
+
+(p tars-sound-encoded
+   =aural>
+    isa             sound
+    location        tars
+    content         =content
+==>
+   !output! (=content)
+   -aural>
+   -aural-location>
+)
+(spp tars-sound-encoded :u 1000)
+
 (p detected-sound
    =aural-location>
     isa             audio-event
@@ -1132,19 +1285,6 @@
      location       =location
     =goal>
      stage          sound-encoded
-)
-
-(p sound-encoded-from-tars
-   =goal>
-    stage       sound-encoded
-   =imaginal>
-     isa         sound
-     location    tars
-     content     =content
-==>
-    !output!    (=content); debug
-    =goal>
-     stage       1
 )
 
 (p sound-encoded-from-atc-human-role-not-determined
@@ -1332,6 +1472,30 @@
     stage       initialize
     situation-return-phase =return_phase
     situation-return-stage =return_stage
+)
+
+; Keep the manual module loaded during a PFD read while hand-flying.
+(p hand-flying-load-during-pfd-situation
+   =goal>
+    isa         task
+    flying      t
+   =goal-2>
+    isa         task
+    phase       read-pfd
+   ?manual>
+    state       free
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-set-string
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1               dummy_manual_action
+    para-2               hand-flying-pfd
+    para-3
+    para-4
 )
 
 (p initialize-pfd-situation
@@ -1915,6 +2079,30 @@
     stage       initialize
     situation-return-phase =return_phase
     situation-return-stage =return_stage
+)
+
+; Repeat when the manual module becomes free until the ND read finishes.
+(p hand-flying-load-during-nd-situation
+   =goal>
+    isa         task
+    flying      t
+   =goal-2>
+    isa         task
+    phase       read-nd
+   ?manual>
+    state       free
+==>
+   +manual>
+    isa                  customized-manual-action
+    name                 agent-set-string
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1               dummy_manual_action
+    para-2               hand-flying-nd
+    para-3
+    para-4
 )
 
 (p initialize-nd-situation
@@ -6937,6 +7125,7 @@
         para-3
         para-4
    =goal>
+   flying                   t
    task-object              fadec-bug
    task-value               check-to
    stage                    1
@@ -7803,6 +7992,7 @@
     isa         aircraft-component
     component-name  flight-director
     =goal>
+    phase       perform-task
     stage       visual-encode-aircraft-component
 )
 
@@ -9106,6 +9296,7 @@
         para-3               nil
         para-4               nil
     =goal>
+    flying                  nil
     stage                   4
 )
 
@@ -10155,9 +10346,12 @@
         execution-duration   0.000
         finish-duration      0.000
         para-1               declare_mayday
-        para-2               1
+        para-2               5
         para-3               nil
         para-4               nil
+    +temporal>
+    isa                 time
+    ticks               0
     =goal>
     stage               await-atc-callsign
     status              atc-awaiting-callsign
@@ -10186,10 +10380,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;; ATC - READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; detected-sound already brings an ATC word to the aural buffer and changes
-; the goal stage to encode-sound. Check the addressed callsign before storing
-; any clearance. The TARS-scripted contact has no callsign in imaginal, so use
-; the same self-callsign represented by the self-callsign declarative chunk.
+; Attend ATC words while awaiting the callsign. TARS words are encoded
+; independently and leave this wait intact. The TARS-scripted contact has no
+; callsign in imaginal, so use the self-callsign declarative chunk.
+(p atc-readback-detect-callsign-audio
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               await-atc-callsign
+    status              atc-awaiting-callsign
+    =aural-location>
+    isa                 audio-event
+    location            atc
+    ?aural>
+    state               free
+==>
+    +aural>
+    event               =aural-location
+    =goal>
+    stage               encode-sound
+)
+(spp atc-readback-detect-callsign-audio :u 2000)
+
 (p atc-readback-heard-own-callsign
     =goal>
     isa                 task
@@ -10210,6 +10423,8 @@
     isa                 clearance
     procedure           emergency-landing
     callsign            =ours
+    +temporal>
+    isa                 clear
     =goal>
     stage               start-timing
     status              atc-listening-clearance
@@ -10236,6 +10451,8 @@
     isa                 clearance
     procedure           emergency-landing
     callsign            c-poly
+    +temporal>
+    isa                 clear
     =goal>
     stage               start-timing
     status              atc-listening-clearance
@@ -10263,6 +10480,8 @@
     isa                 clearance
     procedure           panpan-vectors
     callsign            =ours
+    +temporal>
+    isa                 clear
     =goal>
     stage               start-timing
     status              atc-listening-clearance
@@ -10290,6 +10509,8 @@
     isa                 clearance
     procedure           panpan-vectors
     callsign            c-poly
+    +temporal>
+    isa                 clear
     =goal>
     stage               start-timing
     status              atc-listening-clearance
@@ -12777,9 +12998,12 @@
         execution-duration   0.000
         finish-duration      0.000
         para-1               request_vectors
-        para-2               1
+        para-2               5
         para-3               nil
         para-4               nil
+    +temporal>
+    isa                 time
+    ticks               0
     =goal>
     stage               await-atc-callsign
     status              atc-awaiting-callsign
