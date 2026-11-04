@@ -1156,6 +1156,28 @@
 )
 
 ; process incoming aural information except from self, can happen at any time
+(p detected-internal-speech
+   =aural-location>
+    isa             audio-event
+    location        internal
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =aural-location
+)
+(spp detected-internal-speech :u 1000)
+
+(p discard-internal-speech
+   =aural>
+    isa             sound
+    location        internal
+==>
+   -aural>
+   -aural-location>
+)
+(spp discard-internal-speech :u 1000)
+
 (p detected-tars-sound
    =aural-location>
     isa             audio-event
@@ -1183,7 +1205,7 @@
 (p detected-sound
    =aural-location>
     isa             audio-event
-    - location      self
+    location        atc
    ?aural>
      state          free
    ?retrieval>
@@ -1208,7 +1230,7 @@
     status          atc-listening-clearance
    =aural-location>
     isa             audio-event
-    -location       self
+    location        atc
    ?aural>
     state           free
    ?retrieval>
@@ -1237,7 +1259,7 @@
     stage           waiting
    =aural-location>
     isa             audio-event
-    -location       self
+    location        atc
    ?aural>
     state           free
    ?retrieval>

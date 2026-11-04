@@ -3524,7 +3524,7 @@ public  boolean DeviceModuleFun__Any_Display_Pending(String the_display_name){
 
 		//prepare the audio icon chunk
 		String event_name = audio_event_chunk.Chunk_Name ;
-		Chunk temp_chunk =  sim.funs.ChunkFun__Make_Chunk_From_Descritption( new String[] {"isa", "sound", "kind", the_kind, "content", the_content, "event", event_name} );
+		Chunk temp_chunk =  sim.funs.ChunkFun__Make_Chunk_From_Descritption( new String[] {"isa", "sound", "kind", the_kind, "content", the_content, "event", event_name, "location", the_location} );
 		temp_chunk = sim.funs.ChunkFun__Define_Chunk(temp_chunk);
 
 		//schedule the onset of the audicon

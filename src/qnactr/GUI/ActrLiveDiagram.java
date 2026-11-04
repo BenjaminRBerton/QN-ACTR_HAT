@@ -1,6 +1,7 @@
 package qnactr.GUI;
 
 import java.awt.BasicStroke;
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -15,8 +16,10 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +33,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.ToolTipManager;
 
 import qnactr.objectDesigner.Chunk;
@@ -51,8 +55,14 @@ import qnactr.objectDesigner.Vocal_Buffer;
 
 /** Swing rendering of the 700 x 800 ACT-R diagram. */
 public class ActrLiveDiagram extends JPanel {
-  private static final int DESIGN_WIDTH = 700;
-  private static final int DESIGN_HEIGHT = 800;
+  private static final int DESIGN_WIDTH = 940;
+  private static final int HEAD_OFFSET = 84;
+  private static final int DESIGN_HEIGHT = 900 + HEAD_OFFSET;
+  private static final long TRAIL_LIFETIME_NANOS = 5_000_000_000L;
+  private static final long WORD_INTERVAL_NANOS = 220_000_000L;
+  private static final int EYE_RADIUS = 70;
+  private static final double MIN_PUPIL_RADIUS = 5.0;
+  private static final double MAX_PUPIL_RADIUS = 20.0;
   private static final Color BACKGROUND = new Color(0xEDEDED);
   private static final Color MODULE = new Color(0xD9D9D9);
   private static final Color OUTLINE = Color.BLACK;
@@ -63,6 +73,7 @@ public class ActrLiveDiagram extends JPanel {
   private static final Font BUFFER_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 10);
   private static final Font BILLBOARD_FONT = new Font(Font.MONOSPACED, Font.BOLD, 11);
   private static final Font COUNTER_FONT = new Font(Font.MONOSPACED, Font.BOLD, 12);
+  private static final Font THOUGHT_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 15);
   private static final Color BILLBOARD_BACKGROUND = new Color(0xF5F5F5);
   private final LiveBufferDisplay imaginal = new LiveBufferDisplay("IMAGINAL", "FREE");
   private final LiveBufferDisplay retrieval = new LiveBufferDisplay("RETRIEVAL", "FREE");
@@ -89,6 +100,31 @@ public class ActrLiveDiagram extends JPanel {
   private JTextArea proceduralDetailsText;
   private int goalShade1;
   private int goalShade2;
+  private final Deque<ThoughtWord> visibleThoughts = new ArrayDeque<>();
+  private final Deque<ThoughtWord> pendingThoughts = new ArrayDeque<>();
+  private final Deque<ThoughtWord> visibleSpeech = new ArrayDeque<>();
+  private final Deque<ThoughtWord> pendingSpeech = new ArrayDeque<>();
+  private final Deque<ThoughtWord> visibleHearing = new ArrayDeque<>();
+  private final Deque<ThoughtWord> pendingHearing = new ArrayDeque<>();
+  private final Timer thoughtTimer = new Timer(50, event -> advanceThoughts());
+  private long nextThoughtNanos;
+  private long nextSpeechNanos;
+  private long nextHearingNanos;
+  private String lastHeardChunkName = "";
+  private String lastLocationChunkName = "";
+  private ThoughtWord lastAuralLocation;
+  private final Deque<GazePoint> gazeTrail = new ArrayDeque<>();
+  private double gazeX;
+  private double gazeY;
+  private double pupilRadius = MIN_PUPIL_RADIUS;
+  private double targetPupilRadius = MIN_PUPIL_RADIUS;
+  private final Deque<HandPhase> pendingHandPhases = new ArrayDeque<>();
+  private HandPhase handPhase = HandPhase.IDLE;
+  private double handExtension;
+  private double handOpenness;
+  private double handPress;
+  private long handFinishNanos;
+  private long handPhaseSinceNanos;
 
   public ActrLiveDiagram() {
     setBackground(Color.WHITE);
@@ -132,7 +168,7 @@ public class ActrLiveDiagram extends JPanel {
                             (double) getHeight() / DESIGN_HEIGHT);
     if (scale <= 0) return 0;
     double x = (event.getX() - (getWidth() - DESIGN_WIDTH * scale) / 2.0) / scale;
-    double y = (event.getY() - (getHeight() - DESIGN_HEIGHT * scale) / 2.0) / scale;
+    double y = (event.getY() - (getHeight() - DESIGN_HEIGHT * scale) / 2.0) / scale - HEAD_OFFSET;
     if (y >= 40 && y <= 210) {
       if (x >= 60 && x <= 220) return 1;
       if (x >= 480 && x <= 640) return 2;
@@ -289,11 +325,51 @@ public class ActrLiveDiagram extends JPanel {
     String state = module.State_Error ? "ERROR" : !module.State_Preparation_Free ? "PREP BUSY"
         : module.State_Free ? "FREE" : "BUSY";
     Chunk auralChunk = buffer.Aural_Buffer_Chunk;
-    pendingAudio.set(new AudioPairSnapshot(
-        BufferSnapshot.capture(state, goalEmpty(auralChunk), auralCleared, auralChunk),
-        BufferSnapshot.capture(state, location.Empty, locationCleared,
-                               location.Aural_Location_Buffer_Chunk)));
+    BufferSnapshot heard = BufferSnapshot.capture(state, goalEmpty(auralChunk), auralCleared, auralChunk);
+    BufferSnapshot located = BufferSnapshot.capture(state, location.Empty, locationCleared,
+                                                    location.Aural_Location_Buffer_Chunk);
+    pendingAudio.set(new AudioPairSnapshot(heard, located));
+    if (!heard.empty) SwingUtilities.invokeLater(() -> enqueueHeard(heard));
+    if (!located.empty) SwingUtilities.invokeLater(() -> registerLocation(located));
     queueAudioUpdate();
+  }
+
+  private void registerLocation(BufferSnapshot located) {
+    if (located.name.equals(lastLocationChunkName)) return;
+    lastLocationChunkName = located.name;
+    String value = located.slotValues.get("location");
+    if (value == null || value.isEmpty() || "nil".equalsIgnoreCase(value)) return;
+    lastAuralLocation = new ThoughtWord(value.replace('"', ' ').trim(), System.nanoTime());
+    if (!thoughtTimer.isRunning()) thoughtTimer.start();
+    repaint();
+  }
+
+  private void enqueueHeard(BufferSnapshot heard) {
+    if (heard.name.equals(lastHeardChunkName)) return;
+    lastHeardChunkName = heard.name;
+    String content = heard.slotValues.get("content");
+    if (content == null || content.isEmpty() || "nil".equalsIgnoreCase(content)) {
+      content = heard.slotValues.get("value");
+    }
+    String kind = heard.slotValues.get("kind");
+    if ("tone".equals(kind)) {
+      content = content == null || content.isEmpty() ? "tone" : "tone " + content + " Hz";
+    } else if (content == null || content.isEmpty()) {
+      content = kind == null || kind.isEmpty() ? heard.type : kind;
+    }
+    enqueueWords(content, pendingHearing, 2);
+  }
+
+  public void resetAudioTrails() {
+    SwingUtilities.invokeLater(() -> {
+      visibleHearing.clear();
+      pendingHearing.clear();
+      lastHeardChunkName = "";
+      lastLocationChunkName = "";
+      lastAuralLocation = null;
+      nextHearingNanos = 0L;
+      repaint();
+    });
   }
 
   private void queueAudioUpdate() {
@@ -337,6 +413,66 @@ public class ActrLiveDiagram extends JPanel {
     queueVisualUpdate();
   }
 
+  public void updateGaze(String screenX, String screenY, int screenWidth, int screenHeight) {
+    if (screenX == null || screenY == null || screenWidth <= 0 || screenHeight <= 0) return;
+    try {
+      double x = Double.parseDouble(screenX);
+      double y = Double.parseDouble(screenY);
+      if (!Double.isFinite(x) || !Double.isFinite(y)) return;
+      double mirroredX = clamp(1.0 - 2.0 * x / screenWidth);
+      double normalizedY = clamp(2.0 * y / screenHeight - 1.0);
+      SwingUtilities.invokeLater(() -> moveGaze(mirroredX, normalizedY));
+    } catch (NumberFormatException ignored) {
+      // World-space attention targets have no screen coordinates to draw.
+    }
+  }
+
+  public void resetGaze() {
+    SwingUtilities.invokeLater(() -> {
+      gazeTrail.clear();
+      gazeX = 0.0;
+      gazeY = 0.0;
+      pupilRadius = MIN_PUPIL_RADIUS;
+      targetPupilRadius = MIN_PUPIL_RADIUS;
+      repaint();
+    });
+  }
+
+  public void updateOverallUtilization(double utilization) {
+    if (!Double.isFinite(utilization)) return;
+    double normalized = Math.max(0.0, Math.min(1.0, utilization));
+    SwingUtilities.invokeLater(() -> {
+      targetPupilRadius = MIN_PUPIL_RADIUS
+          + normalized * (MAX_PUPIL_RADIUS - MIN_PUPIL_RADIUS);
+      if (!thoughtTimer.isRunning()) thoughtTimer.start();
+    });
+  }
+
+  private void moveGaze(double x, double y) {
+    if (x == gazeX && y == gazeY) return;
+    gazeTrail.addLast(new GazePoint(gazeX, gazeY, System.nanoTime()));
+    gazeX = x;
+    gazeY = y;
+    if (!thoughtTimer.isRunning()) thoughtTimer.start();
+    repaint();
+  }
+
+  private static double clamp(double value) {
+    return Math.max(-1.0, Math.min(1.0, value));
+  }
+
+  private static final class GazePoint {
+    final double x;
+    final double y;
+    final long timeNanos;
+
+    GazePoint(double x, double y, long timeNanos) {
+      this.x = x;
+      this.y = y;
+      this.timeNanos = timeNanos;
+    }
+  }
+
   private void queueVisualUpdate() {
     if (!visualUpdateQueued.compareAndSet(false, true)) return;
     SwingUtilities.invokeLater(() -> {
@@ -364,11 +500,162 @@ public class ActrLiveDiagram extends JPanel {
   public void updateVocal(String stage, Chunk command, Vocal_Buffer buffer, Speech_Module module) {
     vocal.update(OutputSnapshot.capture(stage, command, buffer.Vocal_Buffer_Chunk,
         module.State_Free, module.Preparation_Free, module.Processor_Free, module.Execution_Free));
+    if ("QUEUED".equals(stage) && command != null) {
+      String phrase = command.Slot.get("string");
+      if (phrase != null && "subvocalize".equals(command.Chunk_Type)) {
+        SwingUtilities.invokeLater(() -> enqueueWords(phrase, pendingThoughts, 0));
+      } else if (phrase != null && "speak".equals(command.Chunk_Type)) {
+        SwingUtilities.invokeLater(() -> enqueueWords(phrase, pendingSpeech, 1));
+      }
+    }
+  }
+
+  private void enqueueWords(String phrase, Deque<ThoughtWord> pending, int channel) {
+    String normalized = phrase.replace('"', ' ').trim();
+    if (normalized.isEmpty()) return;
+    long now = System.nanoTime();
+    long next = Math.max(now, channel == 0 ? nextThoughtNanos
+        : channel == 1 ? nextSpeechNanos : nextHearingNanos);
+    for (String word : normalized.split("[\\s-]+")) {
+      if (word.isEmpty()) continue;
+      pending.addLast(new ThoughtWord(word, next));
+      next += WORD_INTERVAL_NANOS;
+    }
+    if (channel == 0) nextThoughtNanos = next;
+    else if (channel == 1) nextSpeechNanos = next;
+    else nextHearingNanos = next;
+    if (!thoughtTimer.isRunning()) thoughtTimer.start();
+    advanceThoughts();
+  }
+
+  private void advanceThoughts() {
+    long now = System.nanoTime();
+    pupilRadius = Math.abs(pupilRadius - targetPupilRadius) < 0.02
+        ? targetPupilRadius : pupilRadius + (targetPupilRadius - pupilRadius) * 0.28;
+    advanceWords(pendingThoughts, visibleThoughts, now);
+    advanceWords(pendingSpeech, visibleSpeech, now);
+    advanceWords(pendingHearing, visibleHearing, now);
+    advanceHands(now);
+    while (!gazeTrail.isEmpty()
+        && now - gazeTrail.peekFirst().timeNanos >= TRAIL_LIFETIME_NANOS) {
+      gazeTrail.removeFirst();
+    }
+    if (lastAuralLocation != null
+        && now - lastAuralLocation.timeNanos >= TRAIL_LIFETIME_NANOS) lastAuralLocation = null;
+    if (visibleThoughts.isEmpty() && pendingThoughts.isEmpty()
+        && visibleSpeech.isEmpty() && pendingSpeech.isEmpty()
+        && visibleHearing.isEmpty() && pendingHearing.isEmpty()
+        && lastAuralLocation == null && gazeTrail.isEmpty()
+        && pendingHandPhases.isEmpty() && handPhase != HandPhase.EXECUTION
+        && handPhase != HandPhase.FINISH && handsAtTarget()
+        && pupilRadius == targetPupilRadius) thoughtTimer.stop();
+    repaint();
+  }
+
+  private void advanceHands(long now) {
+    boolean showPress = handPhase == HandPhase.EXECUTION
+        && now - handPhaseSinceNanos < 100_000_000L;
+    if (!pendingHandPhases.isEmpty() && !showPress) {
+      handPhase = pendingHandPhases.removeFirst();
+      handPhaseSinceNanos = now;
+      if (handPhase == HandPhase.FINISH) handFinishNanos = now;
+      if (handPhase == HandPhase.EXECUTION) {
+        handExtension = targetExtension();
+        handOpenness = targetOpenness();
+        handPress = 1.0;
+      }
+    } else if (handPhase == HandPhase.FINISH && now - handFinishNanos >= 300_000_000L) {
+      handPhase = HandPhase.IDLE;
+    }
+    handExtension = approach(handExtension, targetExtension());
+    handOpenness = approach(handOpenness, targetOpenness());
+    handPress = approach(handPress, handPhase == HandPhase.EXECUTION ? 1.0 : 0.0);
+  }
+
+  private double targetExtension() {
+    switch (handPhase) {
+      case INITIATION: return 100;
+      case EXECUTION: return 170;
+      default: return 0;
+    }
+  }
+
+  private double targetOpenness() {
+    switch (handPhase) {
+      case PREPARATION:
+      case INITIATION: return 1;
+      case EXECUTION: return 0.35;
+      case FINISH: return 0.15;
+      default: return 0;
+    }
+  }
+
+  private boolean handsAtTarget() {
+    return Math.abs(handExtension - targetExtension()) < 0.05
+        && Math.abs(handOpenness - targetOpenness()) < 0.01
+        && Math.abs(handPress - (handPhase == HandPhase.EXECUTION ? 1.0 : 0.0)) < 0.01;
+  }
+
+  private static double approach(double current, double target) {
+    return Math.abs(current - target) < 0.01 ? target : current + (target - current) * 0.42;
+  }
+
+  private static void advanceWords(Deque<ThoughtWord> pending, Deque<ThoughtWord> visible, long now) {
+    while (!pending.isEmpty() && pending.peekFirst().timeNanos <= now) {
+      visible.addLast(pending.removeFirst());
+    }
+    while (!visible.isEmpty()
+        && now - visible.peekFirst().timeNanos >= TRAIL_LIFETIME_NANOS) {
+      visible.removeFirst();
+    }
+  }
+
+  private static final class ThoughtWord {
+    final String text;
+    final long timeNanos;
+
+    ThoughtWord(String text, long timeNanos) {
+      this.text = text;
+      this.timeNanos = timeNanos;
+    }
   }
 
   public void updateManual(String stage, Chunk command, Manual_Buffer buffer, Motor_Module module) {
     manual.update(OutputSnapshot.capture(stage, command, buffer.Manual_Buffer_Chunk,
         module.State_Free, module.Preparation_Free, module.Processor_Free, module.Execution_Free));
+    HandPhase phase = HandPhase.fromStage(stage);
+    if (phase != null) SwingUtilities.invokeLater(() -> enqueueHandPhase(phase));
+  }
+
+  private void enqueueHandPhase(HandPhase phase) {
+    if (phase == HandPhase.IDLE) {
+      pendingHandPhases.clear();
+      handPhase = phase;
+      handExtension = 0;
+      handOpenness = 0;
+      handPress = 0;
+      repaint();
+      return;
+    }
+    if (pendingHandPhases.size() >= 12) pendingHandPhases.removeFirst();
+    pendingHandPhases.addLast(phase);
+    if (!thoughtTimer.isRunning()) thoughtTimer.start();
+  }
+
+  private enum HandPhase {
+    IDLE, PREPARATION, INITIATION, EXECUTION, FINISH;
+
+    static HandPhase fromStage(String stage) {
+      if (stage == null) return null;
+      switch (stage) {
+        case "IDLE": return IDLE;
+        case "PREPARATION": return PREPARATION;
+        case "INITIATION": return INITIATION;
+        case "EXECUTION": return EXECUTION;
+        case "COMPLETED": return FINISH;
+        default: return null;
+      }
+    }
   }
 
   /** Capture both goal buffers and their recency shading as one event-time snapshot. */
@@ -657,9 +944,19 @@ public class ActrLiveDiagram extends JPanel {
       g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
       g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+      g.translate(0, HEAD_OFFSET);
       drawBackground(g);
+      Graphics2D headText = (Graphics2D) g.create();
+      try {
+        headText.translate(0, -HEAD_OFFSET);
+        drawThoughts(headText);
+      } finally {
+        headText.dispose();
+      }
+      drawEyes(g);
       drawConnections(g);
       drawBuffers(g);
+      drawPupils(g);
       drawConflictResolution(g);
       drawOutputs(g);
     } finally {
@@ -667,12 +964,45 @@ public class ActrLiveDiagram extends JPanel {
     }
   }
 
+  private void drawThoughts(Graphics2D g) {
+    g.setColor(new Color(0xF7F4E9));
+    g.fill(new RoundRectangle2D.Double(70, 12, 560, 64, 24, 24));
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(0.8f));
+    g.draw(new RoundRectangle2D.Double(70, 12, 560, 64, 24, 24));
+    g.setFont(LABEL_FONT);
+    g.drawString("SUBVOCALIZE", 86, 29);
+
+    Graphics2D words = (Graphics2D) g.create();
+    try {
+      words.clipRect(86, 36, 528, 32);
+      words.setFont(THOUGHT_FONT);
+      FontMetrics metrics = words.getFontMetrics();
+      List<ThoughtWord> current = new ArrayList<>(visibleThoughts);
+      int width = 0;
+      for (ThoughtWord word : current) width += metrics.stringWidth(word.text) + 12;
+      int x = Math.min(86, 614 - width);
+      long now = System.nanoTime();
+      for (ThoughtWord word : current) {
+        float opacity = Math.max(0f, 1f - (float) (now - word.timeNanos) / TRAIL_LIFETIME_NANOS);
+        words.setComposite(AlphaComposite.SrcOver.derive(opacity));
+        words.setColor(new Color(0x343040));
+        words.drawString(word.text, x, 58);
+        x += metrics.stringWidth(word.text) + 12;
+      }
+    } finally {
+      words.dispose();
+    }
+  }
+
   private void drawBackground(Graphics2D g) {
     g.setColor(BACKGROUND);
-    g.fill(new RoundRectangle2D.Double(0.25, 0.25, 699.5, 699.5, 180, 180));
+    g.fill(new RoundRectangle2D.Double(0.25, 0.25 - HEAD_OFFSET,
+        699.5, 699.5 + HEAD_OFFSET, 180, 180));
     g.setColor(OUTLINE);
     g.setStroke(new BasicStroke(0.5f));
-    g.draw(new RoundRectangle2D.Double(0.25, 0.25, 699.5, 699.5, 180, 180));
+    g.draw(new RoundRectangle2D.Double(0.25, 0.25 - HEAD_OFFSET,
+        699.5, 699.5 + HEAD_OFFSET, 180, 180));
 
     Path2D lowerPanel = new Path2D.Double();
     lowerPanel.moveTo(350, 700);
@@ -703,6 +1033,70 @@ public class ActrLiveDiagram extends JPanel {
     arrow(g, false, true, 490, 723, 490, 680, 490, 545);
   }
 
+  private void drawEyes(Graphics2D g) {
+    drawEye(g, 225, 285);
+    drawEye(g, 475, 285);
+  }
+
+  private void drawEye(Graphics2D g, int centerX, int centerY) {
+    g.setColor(new Color(0xF7F4E9));
+    g.fill(new Ellipse2D.Double(centerX - EYE_RADIUS, centerY - EYE_RADIUS,
+        EYE_RADIUS * 2, EYE_RADIUS * 2));
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(1.2f));
+    g.draw(new Ellipse2D.Double(centerX - EYE_RADIUS, centerY - EYE_RADIUS,
+        EYE_RADIUS * 2, EYE_RADIUS * 2));
+  }
+
+  private void drawPupils(Graphics2D g) {
+    drawPupil(g, 225, 285);
+    drawPupil(g, 475, 285);
+  }
+
+  private void drawPupil(Graphics2D g, int centerX, int centerY) {
+    Graphics2D marks = (Graphics2D) g.create();
+    try {
+      marks.setStroke(new BasicStroke(2f));
+      List<GazePoint> previous = new ArrayList<>(gazeTrail);
+      long now = System.nanoTime();
+      for (int i = 0; i < previous.size(); i++) {
+        GazePoint point = previous.get(i);
+        double nextX = i + 1 < previous.size() ? previous.get(i + 1).x : gazeX;
+        double nextY = i + 1 < previous.size() ? previous.get(i + 1).y : gazeY;
+        double nextRadius = i + 1 < previous.size() ? 5 : pupilRadius;
+        float opacity = Math.max(0f, 1f - (float) (now - point.timeNanos)
+            / TRAIL_LIFETIME_NANOS);
+        marks.setComposite(AlphaComposite.SrcOver.derive(0.45f * opacity));
+        marks.setColor(Color.BLACK);
+        marks.drawLine(pupilX(centerX, point.x, point.y, 5),
+            pupilY(centerY, point.x, point.y, 5),
+            pupilX(centerX, nextX, nextY, nextRadius),
+            pupilY(centerY, nextX, nextY, nextRadius));
+        int oldX = pupilX(centerX, point.x, point.y, 5);
+        int oldY = pupilY(centerY, point.x, point.y, 5);
+        marks.fill(new Ellipse2D.Double(oldX - 5, oldY - 5, 10, 10));
+      }
+      marks.setComposite(AlphaComposite.SrcOver);
+      marks.setColor(Color.BLACK);
+      int x = pupilX(centerX, gazeX, gazeY, pupilRadius);
+      int y = pupilY(centerY, gazeX, gazeY, pupilRadius);
+      marks.fill(new Ellipse2D.Double(x - pupilRadius, y - pupilRadius,
+          pupilRadius * 2, pupilRadius * 2));
+    } finally {
+      marks.dispose();
+    }
+  }
+
+  private static int pupilX(int centerX, double x, double y, double radius) {
+    double travel = EYE_RADIUS - radius - 1;
+    return centerX + (int) Math.round(x * travel / Math.max(1.0, Math.hypot(x, y)));
+  }
+
+  private static int pupilY(int centerY, double x, double y, double radius) {
+    double travel = EYE_RADIUS - radius - 1;
+    return centerY + (int) Math.round(y * travel / Math.max(1.0, Math.hypot(x, y)));
+  }
+
   private void drawBuffers(Graphics2D g) {
     module(g, "IMAGINAL", 60, 40, 160, 170, procedural.usesBuffer("imaginal"));
     box(g, 70, 60, 140, 140, procedural.usesBuffer("imaginal"));
@@ -726,9 +1120,54 @@ public class ActrLiveDiagram extends JPanel {
     drawTemporalCounter(g);
 
     module(g, "AURAL-LOCATION", 0, 295, 90, 165, procedural.usesBuffer("aural-location"));
-    drawAudioBuffer(g, auralLocation.snapshot, 0, 295);
+    drawAudioBuffer(g, auralLocation.snapshot, 0, 295, true);
+    drawLastAuralLocation(g);
     module(g, "AURAL", 610, 295, 90, 165, procedural.usesBuffer("aural"));
-    drawAudioBuffer(g, aural.snapshot, 610, 295);
+    drawAudioBuffer(g, aural.snapshot, 610, 295, false);
+    drawHearing(g);
+  }
+
+  private void drawLastAuralLocation(Graphics2D g) {
+    g.setColor(new Color(0xF7F4E9));
+    g.fill(new RoundRectangle2D.Double(5, 418, 80, 36, 8, 8));
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(0.8f));
+    g.draw(new RoundRectangle2D.Double(5, 418, 80, 36, 8, 8));
+    g.setFont(LABEL_FONT);
+    g.drawString("LAST LOCATION", 10, 429);
+    if (lastAuralLocation == null) return;
+
+    Graphics2D text = (Graphics2D) g.create();
+    try {
+      text.clipRect(10, 432, 70, 18);
+      float opacity = Math.max(0f, 1f - (float) (System.nanoTime() - lastAuralLocation.timeNanos)
+          / TRAIL_LIFETIME_NANOS);
+      text.setComposite(AlphaComposite.SrcOver.derive(opacity));
+      text.setColor(new Color(0x343040));
+      text.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+      bufferLine(text, text.getFontMetrics(), lastAuralLocation.text, 10, 445, 70);
+    } finally {
+      text.dispose();
+    }
+  }
+
+  private void drawHearing(Graphics2D g) {
+    g.setColor(new Color(0xF7F4E9));
+    g.fill(new RoundRectangle2D.Double(724, 310, 205, 137, 18, 18));
+    Path2D ear = new Path2D.Double();
+    ear.moveTo(700, 377);
+    ear.lineTo(725, 355);
+    ear.lineTo(725, 399);
+    ear.closePath();
+    g.fill(ear);
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(0.8f));
+    g.draw(new RoundRectangle2D.Double(724, 310, 205, 137, 18, 18));
+    g.drawLine(700, 377, 725, 355);
+    g.drawLine(700, 377, 725, 399);
+    g.setFont(LABEL_FONT);
+    g.drawString("HEARD", 737, 329);
+    drawFlowingWords(g, visibleHearing, 737, 340, 179, 94);
   }
 
   private void drawCompactVisualBuffer(Graphics2D g, BufferSnapshot snapshot, int x, int y) {
@@ -774,7 +1213,8 @@ public class ActrLiveDiagram extends JPanel {
     g.drawString(value, x + 3, y + 11);
   }
 
-  private void drawAudioBuffer(Graphics2D g, BufferSnapshot snapshot, int x, int y) {
+  private void drawAudioBuffer(Graphics2D g, BufferSnapshot snapshot, int x, int y,
+                               boolean reserveLocationTrail) {
     Graphics2D clipped = (Graphics2D) g.create();
     try {
       clipped.clipRect(x + 4, y + 17, 82, 144);
@@ -793,7 +1233,7 @@ public class ActrLiveDiagram extends JPanel {
                  x + 8, y + 100, 74);
       bufferLine(clipped, metrics, "Type: " + (snapshot.empty ? "-" : snapshot.type),
                  x + 8, y + 112, 74);
-      if (!snapshot.empty) {
+      if (!snapshot.empty && !reserveLocationTrail) {
         for (int i = 0; i < Math.min(3, snapshot.slots.size()); i++) {
           bufferLine(clipped, metrics, snapshot.slots.get(i), x + 8, y + 124 + 12 * i, 74);
         }
@@ -1037,14 +1477,149 @@ public class ActrLiveDiagram extends JPanel {
   private void drawOutputs(Graphics2D g) {
     module(g, "VOCAL", 235, 590, 230, 70, procedural.usesBuffer("vocal"));
     drawOutput(g, vocal.snapshot, 235, 590);
+    drawSpeech(g);
 
     module(g, "MANUAL", 286, 723, 230, 70, procedural.usesBuffer("manual"));
     drawOutput(g, manual.snapshot, 286, 723);
+    drawHands(g);
 
     g.setColor(OUTLINE);
     g.setFont(TITLE_FONT);
     g.drawString("QN-ACTR-HAT", 30, 759);
     g.drawString("model loaded: takeoff", 10, 775);
+  }
+
+  private void drawHands(Graphics2D g) {
+    drawHand(g);
+
+    String stage = handPhase == HandPhase.FINISH ? "FINISH / RETURN" : handPhase.name();
+    g.setColor(BILLBOARD_BACKGROUND);
+    g.fill(new RoundRectangle2D.Double(684, 825, 144, 27, 10, 10));
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(0.7f));
+    g.draw(new RoundRectangle2D.Double(684, 825, 144, 27, 10, 10));
+    g.setFont(BUFFER_FONT);
+    FontMetrics metrics = g.getFontMetrics();
+    g.drawString(stage, 756 - metrics.stringWidth(stage) / 2, 843);
+  }
+
+  private void drawHand(Graphics2D g) {
+    int palmX = (int) Math.round(320 + handExtension);
+    int buttonX = 548 + (int) Math.round(handPress * 5);
+    Color skin = new Color(0xD8AA86);
+    Color arm = new Color(0xC99572);
+    Color outline = new Color(0x594334);
+    g.setStroke(new BasicStroke(1.3f));
+
+    g.setColor(new Color(0x949494));
+    g.fill(new RoundRectangle2D.Double(565, 835, 13, 57, 5, 5));
+    g.setColor(outline);
+    g.draw(new RoundRectangle2D.Double(565, 835, 13, 57, 5, 5));
+    g.setColor(new Color(0xD65B4A));
+    g.fill(new RoundRectangle2D.Double(buttonX, 847, 18, 33, 8, 8));
+    g.setColor(outline);
+    g.draw(new RoundRectangle2D.Double(buttonX, 847, 18, 33, 8, 8));
+
+    Path2D forearm = new Path2D.Double();
+    forearm.moveTo(165, 835);
+    forearm.lineTo(palmX - 20, 842);
+    forearm.lineTo(palmX - 20, 879);
+    forearm.lineTo(165, 886);
+    forearm.closePath();
+    g.setColor(arm);
+    g.fill(forearm);
+    g.setColor(outline);
+    g.draw(forearm);
+
+    g.setColor(skin);
+    g.fill(new RoundRectangle2D.Double(palmX - 24, 841, 47, 39, 16, 16));
+    g.setColor(outline);
+    g.draw(new RoundRectangle2D.Double(palmX - 24, 841, 47, 39, 16, 16));
+
+    for (int finger = 0; finger < 4; finger++) {
+      int length = (int) Math.round(17 + handOpenness * (finger == 1 || finger == 2 ? 18 : 14)
+          + (finger == 1 ? handPress * 23 : 0));
+      int x = palmX + 17;
+      int y = 844 + finger * 9;
+      g.setColor(skin);
+      g.fill(new RoundRectangle2D.Double(x, y, length, 8, 8, 8));
+      g.setColor(outline);
+      g.draw(new RoundRectangle2D.Double(x, y, length, 8, 8, 8));
+    }
+
+    g.drawLine(palmX - 20, 844, palmX - 20, 877);
+
+    if (handPhase == HandPhase.EXECUTION && handPress > 0.05) {
+      Graphics2D action = (Graphics2D) g.create();
+      try {
+        action.setComposite(AlphaComposite.SrcOver.derive((float) handPress));
+        double pulse = 0.5 + 0.5 * Math.sin(System.nanoTime() / 90_000_000.0);
+        int reach = 5 + (int) Math.round(4 * pulse);
+        action.setColor(new Color(0xC84435));
+        action.setStroke(new BasicStroke(1.6f));
+        action.drawLine(buttonX + 3, 841, buttonX + 3 - reach, 837 - reach / 2);
+        action.drawLine(buttonX + 3, 885, buttonX + 3 - reach, 889 + reach / 2);
+      } finally {
+        action.dispose();
+      }
+    }
+  }
+
+  private void drawSpeech(Graphics2D g) {
+    g.setColor(new Color(0xF7F4E9));
+    g.fill(new RoundRectangle2D.Double(487, 565, 203, 129, 18, 18));
+    Path2D mouth = new Path2D.Double();
+    mouth.moveTo(465, 625);
+    mouth.lineTo(488, 605);
+    mouth.lineTo(488, 645);
+    mouth.closePath();
+    g.fill(mouth);
+    g.setColor(OUTLINE);
+    g.setStroke(new BasicStroke(0.8f));
+    g.draw(new RoundRectangle2D.Double(487, 565, 203, 129, 18, 18));
+    g.drawLine(465, 625, 488, 605);
+    g.drawLine(465, 625, 488, 645);
+    g.setFont(LABEL_FONT);
+    g.drawString("SPEAK", 500, 584);
+
+    drawFlowingWords(g, visibleSpeech, 500, 596, 178, 91);
+  }
+
+  private void drawFlowingWords(Graphics2D g, Deque<ThoughtWord> visible,
+                                int left, int top, int width, int height) {
+    Graphics2D words = (Graphics2D) g.create();
+    try {
+      words.clipRect(left, top, width, height);
+      words.setFont(THOUGHT_FONT);
+      FontMetrics metrics = words.getFontMetrics();
+      List<ThoughtWord> current = new ArrayList<>(visible);
+      int[] xPositions = new int[current.size()];
+      int[] lines = new int[current.size()];
+      int x = left;
+      int line = 0;
+      for (int i = 0; i < current.size(); i++) {
+        int wordWidth = metrics.stringWidth(current.get(i).text);
+        if (x > left && x + wordWidth > left + width) {
+          x = left;
+          line++;
+        }
+        xPositions[i] = x;
+        lines[i] = line;
+        x += wordWidth + 8;
+      }
+      int firstLine = Math.max(0, line - (height - 15) / 18);
+      long now = System.nanoTime();
+      for (int i = 0; i < current.size(); i++) {
+        if (lines[i] < firstLine) continue;
+        ThoughtWord word = current.get(i);
+        float opacity = Math.max(0f, 1f - (float) (now - word.timeNanos) / TRAIL_LIFETIME_NANOS);
+        words.setComposite(AlphaComposite.SrcOver.derive(opacity));
+        words.setColor(new Color(0x343040));
+        words.drawString(word.text, xPositions[i], top + 15 + (lines[i] - firstLine) * 18);
+      }
+    } finally {
+      words.dispose();
+    }
   }
 
   private void drawOutput(Graphics2D g, OutputSnapshot snapshot, int x, int y) {

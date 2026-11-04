@@ -345,6 +345,8 @@ public class QnactrSimulation
   public void resetAudioDiagram() {
     auralWasCleared = false;
     auralLocationWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) diagram.resetAudioTrails();
     publishAudioDiagram(false, false);
   }
 
@@ -368,7 +370,29 @@ public class QnactrSimulation
   public void resetVisualDiagram() {
     visualWasCleared = false;
     visualLocationWasCleared = false;
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) diagram.resetGaze();
     publishVisualDiagram(false, false);
+  }
+
+  /** Update the displayed eyes only when the model actually moves attention. */
+  public void publishVisualGaze(String locationChunkName) {
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (!actrLiveDiagramEnable || diagram == null || locationChunkName == null) return;
+    Object candidate = vars.centralParametersModule.Chunks.get(locationChunkName);
+    if (!(candidate instanceof Chunk)
+        && locationChunkName.equals(vars.visualLocationBuffer.Visual_Location_Buffer_Chunk.Chunk_Name)) {
+      candidate = vars.visualLocationBuffer.Visual_Location_Buffer_Chunk;
+    }
+    if (!(candidate instanceof Chunk)) return;
+    Chunk location = (Chunk) candidate;
+    diagram.updateGaze(location.Slot.get("screen-x"), location.Slot.get("screen-y"),
+        simulatedWindowDefaultSizeX, simulatedWindowDefaultSizeY);
+  }
+
+  public void publishOverallUtilization(double utilization) {
+    ActrLiveDiagram diagram = actrLiveDiagram;
+    if (actrLiveDiagramEnable && diagram != null) diagram.updateOverallUtilization(utilization);
   }
 
   /** Track the newest vocal request so an older completion cannot replace a newer command. */

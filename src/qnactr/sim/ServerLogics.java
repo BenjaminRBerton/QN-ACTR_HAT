@@ -4608,6 +4608,7 @@ public class ServerLogics {
                     //temp_entity.Chunk = sim.funs.VisionModuleFun__Find_Visicon_By_Chunk_Spec(Entity.Chunk);
                     String visual_location_chunk_name = sim.funs.ChunkFun__Get_Chunk_Slot_Value(Entity.Chunk, "screen-pos");
                     sim.funs.ProgramUtilitiesFun__Output_Trace_Txt("\t" + GlobalUtilities.round (SimSystem.clock(),3) + "\t" + "VISION" + "\t\t" + Entity.Chunk.Chunk_Type + " " + visual_location_chunk_name + " NIL"); 
+                    sim.publishVisualGaze(visual_location_chunk_name);
                     sim.vars.visionModule.State_Free = false;
                     sim.vars.visionModule.Moving_Attention = true;
                     
@@ -6682,6 +6683,7 @@ public class ServerLogics {
               sim.vars.utilization__Motor_SubNetwork_In_A_Second = (sim.vars.utilization__Motor_Module_In_A_Second  + sim.vars.utilization__Speech_Module_In_A_Second ) / 2.0; 
             
               double overall_Utilization_In_A_Second =  (sim.vars.utilization__Perceptual_SubNetwork_In_A_Second + sim.vars.utilization__Cognitive_SubNetwork_In_A_Second + sim.vars.utilization__Motor_SubNetwork_In_A_Second) / 3.0;
+              sim.publishOverallUtilization(overall_Utilization_In_A_Second);
               
               //output results in .txt
               sim.files.Results_mental_workload.writeLine(clock_minus_half + "\t" + sim.vars.utilization__Vision_Module_In_A_Second + "\t" +sim.vars.utilization__Audio_Module_In_A_Second + "\t" + sim.vars.utilization__Perceptual_SubNetwork_In_A_Second + "\t" + sim.vars.utilization__Production_Module_In_A_Second + "\t" + sim.vars.utilization__Declarative_Module_In_A_Second + "\t" + sim.vars.utilization__Imaginary_Module_In_A_Second + "\t" + sim.vars.utilization__Cognitive_SubNetwork_In_A_Second + "\t" + sim.vars.utilization__Motor_Module_In_A_Second + "\t" + sim.vars.utilization__Speech_Module_In_A_Second + "\t" + sim.vars.utilization__Motor_SubNetwork_In_A_Second + "\t" + overall_Utilization_In_A_Second);
