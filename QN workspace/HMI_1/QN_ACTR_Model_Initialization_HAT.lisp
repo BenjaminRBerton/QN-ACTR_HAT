@@ -954,17 +954,11 @@
     ;)
 	;;;;;;;;;;;;;;;;;TEST;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    (current-wind-belief
-        isa                 current-wind
-        speech-value        wind-0-9-0-at-4
-        wind-direction      090
-        wind-speed          4
-    )
     (atis-alpha
         isa                 atis-information
         information         alpha
         time                1500
-        wind                current-wind-belief
+        wind                nil
         visibility          one-sm
         temperature         five
         dewpoint            four
@@ -978,8 +972,9 @@
     )
     (w-cpoly isa word value c-poly category callsign)
     (w-montreal-tower isa word value montreal-tower category sender)
-    (w-zero-niner-zero isa word value wind-0-9-0-at-4 category wind)
-    (w-two-niner-zero-at-four isa word value wind-twi-niner-zero-at-four category wind)
+    (w-zero-niner-zero-at-four isa word value wind-zero-niner-zero-at-four equivalent wind-090-degrees-at-4-kt category wind)
+    (w-one-niner-zero-at-four isa word value  wind-one-niner-zero-at-four  equivalent wind-190-degrees-at-4-kt category wind)
+    (w-two-niner-zero-at-four isa word value  wind-two-niner-zero-at-four  equivalent wind-290-degrees-at-4-kt category wind)
     (w-zero-six-left isa word value runway-zero-six-left category runway)
     (w-zero-six-right isa word value runway-zero-six-right category runway)
     (w-two-four-right isa word value runway-two-four-right category runway)
@@ -3104,6 +3099,7 @@
      situation-return-phase perform-task
      situation-return-stage 1
 )
+(spp t-i-x-7-decide-crosscheck :u 1000) ; FOR TESTING ONLY
 
 (p t-i-x-7-no-crosscheck
     =goal>
@@ -3534,25 +3530,9 @@
     =imaginal>
     wind            =content
     =goal>
-     stage          update-wind-belief
-)
-(spp form-wind-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
-
-(p update-wind-belief-from-takeoff-clearance
-    =goal>
-    phase       perform-task
-    stage       update-wind-belief
-    =imaginal>
-        isa         clearance
-        procedure   takeoff
-        wind        =value
-==>
-    =imaginal>
-    +retrieval>
-    isa             current-wind
-    =goal>
      stage          1
 )
+(spp form-wind-representation-from-takeoff-clearance :u 3) ; high utility for priority before attending to new sound
 
 (p form-altitude-representation-from-takeoff-clearance
     =goal>
@@ -6051,6 +6031,25 @@
 ;;;;;;;;;;;;;;;;; WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; RETRIEVE THE WINDS CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p t-i-winds-tars-input-trusted
+    =goal>
+     isa                task
+     phase              perform-task
+     stage              1
+     task-object        winds
+     task-value         check
+     crosscheck         no
+     - tars-input       nil
+    ?imaginal>
+     state              free
+==>
+    =goal>
+     phase              check-winds-popup
+     stage              1
+)
+(spp t-i-winds-tars-input-trusted :reward 4)
+(spp t-i-winds-tars-input-trusted :u 1000)
+
 (p retrieve-current-wind-belief
     =goal>
      isa		        task
@@ -6058,16 +6057,61 @@
      stage              1
      task-object	    winds
      task-value         check
+     crosscheck         yes
     ?imaginal>
     state               free
 ==>
     =imaginal>
     +retrieval>
-    isa                current-wind
+    isa                clearance
+    -wind               nil
     =goal>
     stage              2
 )
 (spp retrieve-current-wind-belief :u 1000); higher than default of value-pair not found
+
+(p retrieve-current-wind-belief-no-tars-input
+    =goal>
+     isa                task
+     phase              perform-task
+     stage              1
+     task-object        winds
+     task-value         check
+     crosscheck         no
+     tars-input         nil
+    ?imaginal>
+     state              free
+==>
+    =imaginal>
+    +retrieval>
+     isa                clearance
+     -wind              nil
+    =goal>
+     stage              2
+)
+(spp retrieve-current-wind-belief-no-tars-input :u 1000)
+
+(p retrieve-current-wind-belief-tars-input-n-a
+    =goal>
+     isa                task
+     phase              perform-task
+     stage              1
+     task-object        winds
+     task-value         check
+     crosscheck         no
+     tars-input         n-a
+    ?imaginal>
+     state              free
+==>
+    =imaginal>
+    +retrieval>
+     isa                clearance
+     -wind              nil
+    =goal>
+     tars-input         nil
+     stage              2
+)
+(spp retrieve-current-wind-belief-tars-input-n-a :u 2000); select unavailable input before the trusted-input shortcut
 
 (p t-i-retrieve-current-wind-belief-success-and-tars-input-available
     =goal>
@@ -6076,23 +6120,44 @@
      stage              2
      task-object	    winds
      task-value         check
-    =imaginal>
-    tars-input         =value
+     tars-input         =value_tars_input
     =retrieval>
-     isa                current-wind
-     wind-direction     =wind-direction
-     wind-speed         =wind-speed
+     isa                clearance
+     wind               =value
 ==>
+!output! (clearance-wind =value)
+!output! (tars-input =value_tars_input)
    +imaginal>
     isa                 current-wind
-    wind-direction      =wind-direction
-    wind-speed          =wind-speed
+    speech-value        =value
    =goal>
-    tars-input         =value
+    tars-input          =value_tars_input
+    stage               retrieve-word
+)
+
+(p t-i-retrieve-word-for-current-wind-belief-success-and-tars-input-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              retrieve-word
+     task-object	    winds
+     task-value         check
+     -tars-input        nil
+     =imaginal>
+     isa                current-wind
+     speech-value       =value
+     ?retrieval>
+     state              free
+==>
+    =imaginal>
+    +retrieval>
+    isa                 word
+    value               =value
+    =goal>
     stage               compare
 )
 
-(p t-i-wind-comparison-match-tars-supporter ;assumed to always match for now
+(p t-i-wind-comparison-match-tars-input
     =goal>
      isa		        task
      phase		        perform-task
@@ -6100,31 +6165,34 @@
      task-object	    winds
      task-value         check
      autonomy-role      supporter
-    - tars-input         nil
-    =imaginal>
-     isa                current-wind
+     tars-input         =value_tars_input
+    =retrieval>
+     isa                word
+     equivalent         =value_tars_input
 ==>
    =goal>
     phase               check-winds-popup
     stage               1
 )
+(spp t-i-wind-comparison-match-tars-input :reward -4) ; TARS has been trusted, no crosscheck ==> is reinforced
 
-(p t-i-wind-comparison-match-tars-not-supporter ;assumed to always match for now
+(p t-i-wind-comparison-does-not-match-tars-input
     =goal>
      isa		        task
      phase		        perform-task
      stage              compare
      task-object	    winds
      task-value         check
-     -autonomy-role     supporter
-    - tars-input         nil
-    =imaginal>
-     isa                current-wind
+     tars-input         =value_tars_input
+    =retrieval>
+     isa                word
+     -equivalent      =value_tars_input
 ==>
    =goal>
-    phase               check-task-on-tars
+    phase               check-winds-popup
     stage               1
 )
+(spp t-i-wind-comparison-does-not-match-tars-input :reward 4) ; it was a good idea to check TARS input
 
 (p retrieve-current-wind-belief-success-no-tars-input-tars-supporter
     =goal>
@@ -6134,17 +6202,11 @@
      task-object	    winds
      task-value         check
      autonomy-role      supporter
-    =imaginal>
-    tars-input          nil
+     tars-input         nil
     =retrieval>
-     isa                current-wind
-     wind-direction     =wind-direction
-     wind-speed         =wind-speed
+     isa                clearance
+     wind               =value
 ==>
-   +imaginal>
-    isa                 current-wind
-    wind-direction      =wind-direction
-    wind-speed          =wind-speed
    =goal>
     phase               check-winds-popup
     stage               1
@@ -6161,9 +6223,8 @@
     =imaginal>
     tars-input          nil
     =retrieval>
-     isa                current-wind
-     wind-direction     =wind-direction
-     wind-speed         =wind-speed
+    isa                clearance
+    wind               =value
 ==>
    +imaginal>
     isa                 current-wind

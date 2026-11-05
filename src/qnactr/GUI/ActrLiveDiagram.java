@@ -12,6 +12,8 @@ import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
@@ -55,7 +57,7 @@ import qnactr.objectDesigner.Vocal_Buffer;
 
 /** Swing rendering of the 700 x 800 ACT-R diagram. */
 public class ActrLiveDiagram extends JPanel {
-  private static final int DESIGN_WIDTH = 940;
+  private static final int DESIGN_WIDTH = 985;
   private static final int HEAD_OFFSET = 84;
   private static final int DESIGN_HEIGHT = 900 + HEAD_OFFSET;
   private static final long TRAIL_LIFETIME_NANOS = 5_000_000_000L;
@@ -75,6 +77,7 @@ public class ActrLiveDiagram extends JPanel {
   private static final Font COUNTER_FONT = new Font(Font.MONOSPACED, Font.BOLD, 12);
   private static final Font THOUGHT_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 15);
   private static final Color BILLBOARD_BACKGROUND = new Color(0xF5F5F5);
+  private static final Area THOUGHT_CLOUD = createThoughtCloud();
   private final LiveBufferDisplay imaginal = new LiveBufferDisplay("IMAGINAL", "FREE");
   private final LiveBufferDisplay retrieval = new LiveBufferDisplay("RETRIEVAL", "FREE");
   private final LiveBufferDisplay goal1 = new LiveBufferDisplay("GOAL-1", null);
@@ -110,6 +113,9 @@ public class ActrLiveDiagram extends JPanel {
   private long nextThoughtNanos;
   private long nextSpeechNanos;
   private long nextHearingNanos;
+  private boolean vocalSpeaking;
+  private boolean audioEncoding;
+  private long lastHeardNanos;
   private String lastHeardChunkName = "";
   private String lastLocationChunkName = "";
   private ThoughtWord lastAuralLocation;
@@ -347,6 +353,7 @@ public class ActrLiveDiagram extends JPanel {
   private void enqueueHeard(BufferSnapshot heard) {
     if (heard.name.equals(lastHeardChunkName)) return;
     lastHeardChunkName = heard.name;
+    lastHeardNanos = System.nanoTime();
     String content = heard.slotValues.get("content");
     if (content == null || content.isEmpty() || "nil".equalsIgnoreCase(content)) {
       content = heard.slotValues.get("value");
@@ -368,6 +375,8 @@ public class ActrLiveDiagram extends JPanel {
       lastLocationChunkName = "";
       lastAuralLocation = null;
       nextHearingNanos = 0L;
+      lastHeardNanos = 0L;
+      audioEncoding = false;
       repaint();
     });
   }
@@ -379,6 +388,8 @@ public class ActrLiveDiagram extends JPanel {
       if (latest != null) {
         aural.apply(latest.aural);
         auralLocation.apply(latest.location);
+        audioEncoding = "BUSY".equals(latest.aural.state);
+        if (audioEncoding && !thoughtTimer.isRunning()) thoughtTimer.start();
         repaint();
       }
       audioUpdateQueued.set(false);
@@ -500,6 +511,13 @@ public class ActrLiveDiagram extends JPanel {
   public void updateVocal(String stage, Chunk command, Vocal_Buffer buffer, Speech_Module module) {
     vocal.update(OutputSnapshot.capture(stage, command, buffer.Vocal_Buffer_Chunk,
         module.State_Free, module.Preparation_Free, module.Processor_Free, module.Execution_Free));
+    boolean speaking = "EXECUTION".equals(stage) && command != null
+        && "speak".equals(command.Chunk_Type);
+    SwingUtilities.invokeLater(() -> {
+      vocalSpeaking = speaking;
+      if (speaking && !thoughtTimer.isRunning()) thoughtTimer.start();
+      repaint();
+    });
     if ("QUEUED".equals(stage) && command != null) {
       String phrase = command.Slot.get("string");
       if (phrase != null && "subvocalize".equals(command.Chunk_Type)) {
@@ -545,6 +563,8 @@ public class ActrLiveDiagram extends JPanel {
     if (visibleThoughts.isEmpty() && pendingThoughts.isEmpty()
         && visibleSpeech.isEmpty() && pendingSpeech.isEmpty()
         && visibleHearing.isEmpty() && pendingHearing.isEmpty()
+        && !vocalSpeaking
+        && !audioEncoding
         && lastAuralLocation == null && gazeTrail.isEmpty()
         && pendingHandPhases.isEmpty() && handPhase != HandPhase.EXECUTION
         && handPhase != HandPhase.FINISH && handsAtTarget()
@@ -966,10 +986,10 @@ public class ActrLiveDiagram extends JPanel {
 
   private void drawThoughts(Graphics2D g) {
     g.setColor(new Color(0xF7F4E9));
-    g.fill(new RoundRectangle2D.Double(70, 12, 560, 64, 24, 24));
+    g.fill(THOUGHT_CLOUD);
     g.setColor(OUTLINE);
     g.setStroke(new BasicStroke(0.8f));
-    g.draw(new RoundRectangle2D.Double(70, 12, 560, 64, 24, 24));
+    g.draw(THOUGHT_CLOUD);
     g.setFont(LABEL_FONT);
     g.drawString("SUBVOCALIZE", 86, 29);
 
@@ -993,6 +1013,18 @@ public class ActrLiveDiagram extends JPanel {
     } finally {
       words.dispose();
     }
+  }
+
+  private static Area createThoughtCloud() {
+    Area cloud = new Area(new RoundRectangle2D.Double(74, 18, 552, 52, 30, 30));
+    for (int i = 0; i < 10; i++) {
+      int x = 76 + i * 52;
+      cloud.add(new Area(new Ellipse2D.Double(x, 8 + (i % 2) * 2, 70, 35)));
+      cloud.add(new Area(new Ellipse2D.Double(x, 51 - (i % 2) * 2, 70, 30)));
+    }
+    cloud.add(new Area(new Ellipse2D.Double(65, 23, 36, 45)));
+    cloud.add(new Area(new Ellipse2D.Double(600, 21, 37, 48)));
+    return cloud;
   }
 
   private void drawBackground(Graphics2D g) {
@@ -1119,12 +1151,46 @@ public class ActrLiveDiagram extends JPanel {
     module(g, "TEMPORAL", 580, 221, 90, 64, procedural.usesBuffer("temporal"));
     drawTemporalCounter(g);
 
-    module(g, "AURAL-LOCATION", 0, 295, 90, 165, procedural.usesBuffer("aural-location"));
+    drawEarModule(g, "AURAL-LOCATION", 0, 295, false,
+        procedural.usesBuffer("aural-location"));
     drawAudioBuffer(g, auralLocation.snapshot, 0, 295, true);
     drawLastAuralLocation(g);
-    module(g, "AURAL", 610, 295, 90, 165, procedural.usesBuffer("aural"));
+    drawEarModule(g, "AURAL", 610, 295, true, procedural.usesBuffer("aural"));
     drawAudioBuffer(g, aural.snapshot, 610, 295, false);
     drawHearing(g);
+  }
+
+  private void drawEarModule(Graphics2D g, String name, int x, int y,
+                             boolean mirror, boolean usedInLhs) {
+    Path2D ear = new Path2D.Double();
+    ear.moveTo(17, 3);
+    ear.curveTo(4, 8, 0, 26, 0, 47);
+    ear.curveTo(0, 61, 10, 67, 3, 83);
+    ear.curveTo(-2, 98, 1, 118, 2, 136);
+    ear.curveTo(2, 154, 9, 165, 27, 165);
+    ear.curveTo(37, 165, 41, 162, 45, 157);
+    ear.curveTo(49, 162, 59, 165, 70, 165);
+    ear.curveTo(83, 165, 90, 154, 90, 139);
+    ear.curveTo(90, 126, 84, 116, 83, 101);
+    ear.curveTo(82, 88, 90, 78, 90, 63);
+    ear.lineTo(90, 44);
+    ear.curveTo(90, 18, 78, 4, 61, 2);
+    ear.curveTo(45, -1, 31, -1, 17, 3);
+    ear.closePath();
+
+    Graphics2D outline = (Graphics2D) g.create();
+    try {
+      outline.translate(x + (mirror ? 90 : 0), y);
+      if (mirror) outline.scale(-1, 1);
+      outline.setColor(MODULE);
+      outline.fill(ear);
+      outline.setColor(usedInLhs ? MATCH_OUTLINE : OUTLINE);
+      outline.setStroke(new BasicStroke(usedInLhs ? 1.5f : 0.5f));
+      outline.draw(ear);
+    } finally {
+      outline.dispose();
+    }
+    centered(g, name, x, y, 90, LABEL_FONT, y + 12);
   }
 
   private void drawLastAuralLocation(Graphics2D g) {
@@ -1168,6 +1234,26 @@ public class ActrLiveDiagram extends JPanel {
     g.setFont(LABEL_FONT);
     g.drawString("HEARD", 737, 329);
     drawFlowingWords(g, visibleHearing, 737, 340, 179, 94);
+    drawIncomingSoundWaves(g);
+  }
+
+  private void drawIncomingSoundWaves(Graphics2D g) {
+    long now = System.nanoTime();
+    if (!audioEncoding && pendingHearing.isEmpty()
+        && now - lastHeardNanos >= 900_000_000L) return;
+    Graphics2D waves = (Graphics2D) g.create();
+    try {
+      waves.setColor(Color.BLACK);
+      waves.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+      double travel = (now / 30_000_000.0) % 15;
+      for (int i = 0; i < 3; i++) {
+        int height = 19 + i * 11;
+        double x = 938 + i * 15 - travel;
+        waves.draw(new Arc2D.Double(x, 378 - height / 2.0, 14, height, 90, 180, Arc2D.OPEN));
+      }
+    } finally {
+      waves.dispose();
+    }
   }
 
   private void drawCompactVisualBuffer(Graphics2D g, BufferSnapshot snapshot, int x, int y) {
@@ -1477,6 +1563,7 @@ public class ActrLiveDiagram extends JPanel {
   private void drawOutputs(Graphics2D g) {
     module(g, "VOCAL", 235, 590, 230, 70, procedural.usesBuffer("vocal"));
     drawOutput(g, vocal.snapshot, 235, 590);
+    drawLips(g);
     drawSpeech(g);
 
     module(g, "MANUAL", 286, 723, 230, 70, procedural.usesBuffer("manual"));
@@ -1487,6 +1574,27 @@ public class ActrLiveDiagram extends JPanel {
     g.setFont(TITLE_FONT);
     g.drawString("QN-ACTR-HAT", 30, 759);
     g.drawString("model loaded: takeoff", 10, 775);
+  }
+
+  private void drawLips(Graphics2D g) {
+    double movement = vocalSpeaking ? 3 * Math.sin(System.nanoTime() / 95_000_000.0) : 0;
+    double upperY = 584 - movement;
+    double lowerY = 666 + movement;
+    Graphics2D lips = (Graphics2D) g.create();
+    try {
+      lips.setColor(Color.BLACK);
+      lips.setStroke(new BasicStroke(3.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+      Path2D upper = new Path2D.Double();
+      upper.moveTo(280, upperY);
+      upper.curveTo(315, upperY - 5, 385, upperY - 5, 420, upperY);
+      Path2D lower = new Path2D.Double();
+      lower.moveTo(280, lowerY);
+      lower.curveTo(315, lowerY + 5, 385, lowerY + 5, 420, lowerY);
+      lips.draw(upper);
+      lips.draw(lower);
+    } finally {
+      lips.dispose();
+    }
   }
 
   private void drawHands(Graphics2D g) {
