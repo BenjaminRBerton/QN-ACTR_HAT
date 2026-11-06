@@ -726,6 +726,8 @@
     imaginal-pointer
     situation-return-phase
     situation-return-stage
+    tars-speech-return-phase
+    tars-speech-return-stage
 )
 
 ; To call a situation worker from a procedural task, set the goal's phase to
@@ -821,7 +823,7 @@
     category
 )
 
-(chunk-type TARS-status-representation ; representation of the status of TARS visible via the Shared Interface
+(chunk-type tars-status ; representation of the status of TARS visible via the Shared Interface
     tars-component-name
     status
 )
@@ -1150,20 +1152,27 @@
     stage               1
 )
 
-; process incoming aural information except from self, can happen at any time
+; Internal speech must not preempt a TARS word already being encoded.
 (p detected-internal-speech
+   =goal>
+    isa             task
+    - phase         listening-to-tars
    =aural-location>
     isa             audio-event
     location        internal
+    id              =event
    ?aural>
     state           free
 ==>
    +aural>
-    event           =aural-location
+    event           =event
 )
 (spp detected-internal-speech :u 1000)
 
 (p discard-internal-speech
+   =goal>
+    isa             task
+    - phase         listening-to-tars
    =aural>
     isa             sound
     location        internal
@@ -1174,18 +1183,33 @@
 (spp discard-internal-speech :u 1000)
 
 (p detected-tars-sound
+   =goal>
+    isa             task
+    phase           =return_phase
+    - phase         listening-to-tars
+    stage           =return_stage
    =aural-location>
     isa             audio-event
     location        tars
+    id              =event
    ?aural>
     state           free
 ==>
    +aural>
-    event           =aural-location
+    event           =event
+   =goal>
+    tars-speech-return-phase =return_phase
+    tars-speech-return-stage =return_stage
+    phase           listening-to-tars
+    stage           encoding
 )
 (spp detected-tars-sound :u 1000)
 
 (p tars-sound-encoded
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
    =aural>
     isa             sound
     location        tars
@@ -1194,10 +1218,175 @@
    !output! (=content)
    -aural>
    -aural-location>
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    stage           waiting
 )
 (spp tars-sound-encoded :u 1000)
 
+; This AOI return state no longer needs the completed task chunk in imaginal.
+; Other speech reactions should only replace imaginal when their return state
+; can also tolerate that replacement.
+(p tars-sound-encoded-will-not-announce-airspeeds-during-takeoff
+    =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
+    tars-speech-return-phase attend-aoi
+    tars-speech-return-stage 1
+    =aural>
+    isa             sound
+    location        tars
+    content         takeoff-speeds-recap-v1-90-knots-rotation-90-knots-single-engine-climb-speed-120-knots
+    ?imaginal>
+    state           free
+==>
+    +imaginal>
+    isa                 tars-status
+    tars-component-name takeoff-callouts
+    status              will-not-announce-airspeeds-during-takeoff
+    -aural>
+    -aural-location>
+    +temporal>
+    isa             time
+    ticks           0
+    =goal>
+    stage           waiting
+)
+(spp tars-sound-encoded-will-not-announce-airspeeds-during-takeoff :u 2000)
+
+; Clearing the completed imaginal representation harvests it into DM before
+; the interrupted AOI scan resumes.
+(p harvest-tars-speech-status
+    =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    =imaginal>
+    isa             tars-status
+    ?imaginal>
+    state           free
+==>
+    -imaginal>
+)
+(spp harvest-tars-speech-status :u 2000)
+
+; If an internal event was attended during a TARS/aural-location race, the
+; TARS pause must still enter its silence wait instead of remaining in encoding.
+(p tars-listening-discard-internal-speech
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
+   =aural>
+    isa             sound
+    location        internal
+==>
+   -aural>
+   -aural-location>
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    stage           waiting
+)
+(spp tars-listening-discard-internal-speech :u 2000)
+
+; Each new TARS word restarts the silence interval. Keep the interrupted
+; procedure paused until no further TARS speech arrives.
+(p detected-next-tars-word
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+   =aural-location>
+    isa             audio-event
+    location        tars
+    id              =event
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =event
+   +temporal>
+    isa             clear
+   =goal>
+    stage           encoding
+)
+(spp detected-next-tars-word :u 2000)
+
+(p tars-speech-ended-resume-task
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase =return_phase
+    tars-speech-return-stage =return_stage
+   =temporal>
+    isa             time
+    ticks           36
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           =return_phase
+    stage           =return_stage
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-resume-task :u 1000)
+
+; The TARS timer replaces any ATC silence timer that was running. Resume
+; those ATC listening states with a fresh interval after TARS has finished.
+(p tars-speech-ended-restart-atc-message-timer
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage waiting
+   =temporal>
+    isa             time
+    ticks           36
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           perform-task
+    stage           start-timing
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-restart-atc-message-timer :u 2000)
+
+(p tars-speech-ended-restart-atc-callsign-timer
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+   =temporal>
+    isa             time
+    ticks           36
+==>
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    phase           perform-task
+    stage           await-atc-callsign
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-restart-atc-callsign-timer :u 2000)
+
 (p detected-sound
+   =goal>
+    isa             task
+    - phase         listening-to-tars
    =aural-location>
     isa             audio-event
     location        atc
@@ -3412,6 +3601,7 @@
 (p atc-not-speaking-end-of-message
     =goal>
     isa         task
+    phase       perform-task
     stage       waiting
     =imaginal>
     isa         clearance
@@ -6031,7 +6221,7 @@
 ;;;;;;;;;;;;;;;;; WINDS - Check task ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; RETRIEVE THE WINDS CURRENT STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-winds-tars-input-trusted
+(p t-i-winds-check-start-tars-input-trusted
     =goal>
      isa                task
      phase              perform-task
@@ -6047,10 +6237,10 @@
      phase              check-winds-popup
      stage              1
 )
-(spp t-i-winds-tars-input-trusted :reward 4)
-(spp t-i-winds-tars-input-trusted :u 1000)
+(spp t-i-winds-check-start-tars-input-trusted :reward 4) ; TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-winds-check-start-tars-input-trusted :u 1000)
 
-(p retrieve-current-wind-belief
+(p t-i-winds-check-start-tars-input-not-trusted-retrieve-current-wind-belief
     =goal>
      isa		        task
      phase		        perform-task
@@ -6068,52 +6258,9 @@
     =goal>
     stage              2
 )
-(spp retrieve-current-wind-belief :u 1000); higher than default of value-pair not found
+(spp t-i-winds-check-start-tars-input-not-trusted-retrieve-current-wind-belief :u 1000); higher than default of value-pair not found
 
-(p retrieve-current-wind-belief-no-tars-input
-    =goal>
-     isa                task
-     phase              perform-task
-     stage              1
-     task-object        winds
-     task-value         check
-     crosscheck         no
-     tars-input         nil
-    ?imaginal>
-     state              free
-==>
-    =imaginal>
-    +retrieval>
-     isa                clearance
-     -wind              nil
-    =goal>
-     stage              2
-)
-(spp retrieve-current-wind-belief-no-tars-input :u 1000)
-
-(p retrieve-current-wind-belief-tars-input-n-a
-    =goal>
-     isa                task
-     phase              perform-task
-     stage              1
-     task-object        winds
-     task-value         check
-     crosscheck         no
-     tars-input         n-a
-    ?imaginal>
-     state              free
-==>
-    =imaginal>
-    +retrieval>
-     isa                clearance
-     -wind              nil
-    =goal>
-     tars-input         nil
-     stage              2
-)
-(spp retrieve-current-wind-belief-tars-input-n-a :u 2000); select unavailable input before the trusted-input shortcut
-
-(p t-i-retrieve-current-wind-belief-success-and-tars-input-available
+(p t-i-check-winds-retrieve-current-wind-belief-success
     =goal>
      isa		        task
      phase		        perform-task
@@ -6135,7 +6282,7 @@
     stage               retrieve-word
 )
 
-(p t-i-retrieve-word-for-current-wind-belief-success-and-tars-input-available
+(p t-i-retrieve-word-for-current-wind-belief-success
     =goal>
      isa		        task
      phase		        perform-task
@@ -6189,53 +6336,13 @@
      -equivalent      =value_tars_input
 ==>
    =goal>
-    phase               check-winds-popup
-    stage               1
+    phase               perform-task
+    stage               check-windsock
 )
 (spp t-i-wind-comparison-does-not-match-tars-input :reward 4) ; it was a good idea to check TARS input
 
-(p retrieve-current-wind-belief-success-no-tars-input-tars-supporter
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              2
-     task-object	    winds
-     task-value         check
-     autonomy-role      supporter
-     tars-input         nil
-    =retrieval>
-     isa                clearance
-     wind               =value
-==>
-   =goal>
-    phase               check-winds-popup
-    stage               1
-)
 
-(p retrieve-current-wind-belief-success-no-tars-input-tars-no-supporter
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              2
-     task-object	    winds
-     task-value         check
-     -autonomy-role     supporter
-    =imaginal>
-    tars-input          nil
-    =retrieval>
-    isa                clearance
-    wind               =value
-==>
-   +imaginal>
-    isa                 current-wind
-    wind-direction      =wind-direction
-    wind-speed          =wind-speed
-   =goal>
-    phase               check-task-on-tars
-    stage               1
-)
-
-(p t-i-retrieve-current-wind-belief-failure-and-tars-input-available
+(p t-i-retrieve-current-wind-belief-failure
     =goal>
      isa		        task
      phase		        perform-task
@@ -6244,46 +6351,9 @@
      task-value         check
      ?retrieval>
      state             error
-    =imaginal>
-    tars-input         =value
 ==>
    =goal>
-    tars-input         =value
-    stage               check-atis
-)
-
-(p check-atis-for-wind-information
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              check-atis
-     task-object	    winds
-     task-value         check
-==>
-    +visual-location>
-    isa		        visual-location
-    screen-x	    1600			; representing ATIS visual memo location
-    screen-y	    920
-    =goal>
-    stage		    visual-encode-aircraft-component
-)
-
-(p form-atis-wind-status-representation
-   =goal>
-    isa		        task
-    phase           perform-task
-    stage		    form-representation-aircraft-component
-    task-object	    winds
-    task-value      check
-    ?imaginal>
-    state           free
-==>
-   +imaginal>
-    isa                   current-wind
-    wind-direction        090         ; assumed ATIS wind direction
-    wind-speed            4           ; assumed ATIS wind speed
-   =goal>
-    stage		          check-windsock
+    stage               check-windsock
 )
 
 (p check-windsock-for-wind-information
@@ -6296,61 +6366,99 @@
     ?imaginal>
      state               free
 ==>
-    =imaginal>
     +visual-location>
     isa		        visual-location
     screen-x	    760			; representing windsock OTW location
     screen-y	    450
     =goal>
-    stage		    verify-coherence
+    stage		    visual-encode-aircraft-component
 )
 
-(p t-i-verify-wind-information-coherence-and-tars-input-available
+(p form-windsock-representation
     =goal>
      isa		        task
      phase		        perform-task
-     stage              verify-coherence
+     stage              form-representation-aircraft-component
      task-object	    winds
      task-value         check
      - tars-input       nil
     ?imaginal>
     state               free
+!bind! =value_dir (read_input wind_direction)		; hard coded way to get the aircraft-component-status from X-Plane
+!bind! =value_speed (read_input wind_speed)
 ==>
    =goal>
-    stage               compare
+   +imaginal>
+    isa                   current-wind
+    wind-direction        =value_dir         ; assumed ATIS wind direction
+    wind-speed            =value_speed           ; assumed ATIS wind speed
+    stage                 input-winds-on-tars-interface
 )
 
-(p verify-wind-information-coherence-no-tars-input-tars-no-support
+(p input-wind-dir-on-tars-interface
     =goal>
-     isa		        task
-     phase		        perform-task
-     stage              verify-coherence
-     task-object	    winds
-     task-value         check
-     tars-input         nil
-     -autonomy-role     supporter
+        isa		            task
+        phase		        perform-task
+        stage               input-winds-on-tars-interface
+        task-object	        winds
+        task-value          check
+        =imaginal>
+        isa                 current-wind
+        wind-direction      =value_dir         ; assumed ATIS wind direction
+        wind-speed          =value_speed           ; assumed ATIS wind speed
+        ?imaginal>
+        state               free
+        ?manual>
+        state               free
 ==>
-   =goal>
-    phase               check-task-on-tars
-    stage               1
-)
-
-(p verify-wind-information-coherence-no-tars-input-tars-support
+    =imaginal>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-int
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  wind_dir_input
+        para-2                  =value_dir
+        para-3
+        para-4
     =goal>
-     isa		        task
-     phase		        perform-task
-     stage              verify-coherence
-     task-object	    winds
-     task-value         check
-     tars-input         nil
-     autonomy-role      supporter
-==>
-   =goal>
-    phase               check-winds-popup
-    stage               1
+        stage                   input-wind-speed-on-tars-interface
 )
 
-;;;;;;;;;;;; CHECK TASK FOR WINDS ;;;;;;;;;;;;;
+(p input-wind-speed-on-tars-interface
+    =goal>
+        isa		            task
+        phase		        perform-task
+        stage               input-wind-speed-on-tars-interface
+        task-object	        winds
+        task-value          check
+        =imaginal>
+        isa                 current-wind
+        wind-direction      =value_dir         ; assumed ATIS wind direction
+        wind-speed          =value_speed           ; assumed ATIS wind speed
+        ?imaginal>
+        state               free
+        ?manual>
+        state               free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-int
+        preparation-duration    0.050
+        initiation-duration     0.050
+        execution-duration      0.050
+        finish-duration         0.050
+        para-1                  wind_speed_input
+        para-2                  =value_speed
+        para-3
+        para-4
+    =goal>
+        stage                   check-winds-popup
+)
+
+;;;;;;;;;;;; CHECK WINDS POPUP ;;;;;;;;;;;;;
 
 (p check-1-press-check-winds-popup
     =goal>
@@ -6654,9 +6762,7 @@
     desired-status     =value-goal
     ?imaginal>
     state        free
-
 !bind! =value (read_input alt_sel)		; hard coded way to get the selected-altitude from X-Plane
-
 ==>
    +imaginal>
     isa                   aircraft-component
@@ -7503,13 +7609,75 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;; TAKEOFF ACCELERATION BLOCK ;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p takeoff-retrieve-callout-allocation
+    =goal>
+    isa                 task
+    task-object         takeoff
+    task-value          acceleration
+    stage               1
+    ?retrieval>
+    state               free
+==>
+    +retrieval>
+    isa                 tars-status
+    tars-component-name takeoff-callouts
+    =goal>
+    stage               2
+)
+
+(p takeoff-retrieval-succeed-callout-allocation-tars
+    =goal>
+    isa                 task
+    task-object         takeoff
+    task-value          acceleration
+    stage               2
+    =retrieval>
+    isa                 tars-status
+    tars-component-name takeoff-callouts
+    -status             will-not-announce-airspeeds-during-takeoff
+==>
+    =goal>
+    autonomy-role       callout
+    stage               3
+)
+
+(p takeoff-retrieval-succeed-callout-allocation-human
+    =goal>
+    isa                 task
+    task-object         takeoff
+    task-value          acceleration
+    stage               2
+    =retrieval>
+    isa                 tars-status
+    tars-component-name takeoff-callouts
+    status              will-not-announce-airspeeds-during-takeoff
+==>
+    =goal>
+    human-role       callout
+    stage               3
+)
+
+(p takeoff-retrieval-failure-callout-allocation
+    =goal>
+    isa                 task
+    task-object         takeoff
+    task-value          acceleration
+    stage               2
+    ?retrieval>
+    state               error
+==>
+    =goal>
+    human-role              callout
+    stage               3
+)
+
 (p takeoff-engage-human-autopilot
    =goal>
    isa                      task
    task-object              takeoff
    task-value               acceleration
    status                   airspeed-is-alive
-   stage                    1
+   stage                    3
    ?imaginal>
    state                    free
    ?manual>
@@ -7663,19 +7831,38 @@
    stage                        attend-otw
 )
 
-(p takeoff-airspeed-is-alive
+(p takeoff-airspeed-is-alive-human-callout
    =goal>
    isa                          task
    task-object                  takeoff
    task-value                   acceleration
    status                       airspeed-is-alive
    stage                        verify-pfd-situation
+   human-role                   callout
    =imaginal>
    isa                          aviate-situation
    >=airspeed                    30
 ==>
    =goal>
    stage                        vocalize
+   status                       seventy-knots
+)
+
+(p takeoff-airspeed-is-alive-tars-callout
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       airspeed-is-alive
+   stage                        verify-pfd-situation
+   autonomy-role                   callout
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    30
+==>
+   =goal>
+   stage                        attend-otw
+   status                       seventy-knots
 )
 
 (p takeoff-vocalize-airspeed-is-alive-human-is-performer
@@ -7685,7 +7872,7 @@
    task-value                   acceleration
    status                       airspeed-is-alive
    stage                        vocalize
-   human-role                   performer
+   human-role                   callout
    ?vocal>
    state                        free
 ==>
@@ -7694,7 +7881,6 @@
     string                      airspeed-is-alive
    =goal>
    stage                        attend-otw
-   status                       seventy-knots
 )
 
 ;;;;;;;;;;;;;;; end of AIRSPEED IS ALIVE - ANNOUNCE ;;;;;;;;;;;;;;;;;
@@ -7715,19 +7901,38 @@
    stage                        attend-otw
 )
 
-(p takeoff-airspeed-is-seventy
+(p takeoff-airspeed-is-seventy-human-callout
    =goal>
    isa                          task
    task-object                  takeoff
    task-value                   acceleration
    status                       seventy-knots
    stage                        verify-pfd-situation
+   human-role                   callout
    =imaginal>
    isa                          aviate-situation
    >=airspeed                    70
 ==>
    =goal>
    stage                        vocalize
+   status                       v1
+)
+
+(p takeoff-airspeed-is-seventy-tars-callout
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       seventy-knots
+   stage                        verify-pfd-situation
+   autonomy-role                   callout
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    70
+==>
+   =goal>
+   stage                        attend-otw
+   status                       v1
 )
 
 (p takeoff-vocalize-seventy-knots-human-is-performer
@@ -7737,7 +7942,7 @@
    task-value                   acceleration
    status                       seventy-knots
    stage                        vocalize
-   human-role                   performer
+   human-role                   callout
    ?vocal>
    state                        free
 ==>
@@ -7767,19 +7972,40 @@
    stage                        attend-otw
 )
 
-(p takeoff-airspeed-is-v1
+(p takeoff-airspeed-is-v1-human-callout
    =goal>
    isa                          task
    task-object                  takeoff
    task-value                   acceleration
    status                       v1
    stage                        verify-pfd-situation
+   human-role                   callout
    =imaginal>
    isa                          aviate-situation
    >=airspeed                    90
 ==>
    =goal>
    stage                        vocalize
+   status                       v1
+)
+
+(p takeoff-airspeed-is-v1-tars-callout
+   =goal>
+   isa                          task
+   task-object                  takeoff
+   task-value                   acceleration
+   status                       v1
+   stage                        verify-pfd-situation
+   autonomy-role                   callout
+   =imaginal>
+   isa                          aviate-situation
+   >=airspeed                    90
+==>
+   =goal>
+   task-object                  takeoff
+   task-value                   initial-climb
+   status                       rotation
+   stage                        1
 )
 
 (p takeoff-vocalize-v1-human-is-performer
@@ -7789,7 +8015,7 @@
    task-value                   acceleration
    status                       v1
    stage                        vocalize
-   human-role                   performer
+   human-role                   callout
    ?vocal>
    state                        free
 ==>
@@ -11148,6 +11374,68 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;; THROTTLE AFFECTED ENGINE - IDLE ;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p throttle-affected-engine-idle-trust-tars-left
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           1
+    crosscheck      no
+    tars-input      throttle-left-engine-to-idle
+    ?manual>
+    state           free
+==>
+    +manual>
+    isa             customized-manual-action
+    name            agent-set-double
+    preparation-duration 1.000
+    initiation-duration  1.000
+    execution-duration   1.000
+    finish-duration      1.000
+    para-1          l_throttle
+    para-2          0
+    para-3
+    para-4
+    =goal>
+    status          l_throttle
+    phase           check-task-on-tars
+    stage           1
+)
+(spp throttle-affected-engine-idle-trust-tars-left :reward 4)
+(spp throttle-affected-engine-idle-trust-tars-left :u 1000)
+
+(p throttle-affected-engine-idle-trust-tars-right
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           1
+    crosscheck      no
+    tars-input      throttle-right-engine-to-idle
+    ?manual>
+    state           free
+==>
+    +manual>
+    isa             customized-manual-action
+    name            agent-set-double
+    preparation-duration 1.000
+    initiation-duration  1.000
+    execution-duration   1.000
+    finish-duration      1.000
+    para-1          r_throttle
+    para-2          0
+    para-3
+    para-4
+    =goal>
+    status          r_throttle
+    phase           check-task-on-tars
+    stage           1
+)
+(spp throttle-affected-engine-idle-trust-tars-right :reward 4)
+(spp throttle-affected-engine-idle-trust-tars-right :u 1000)
+
 (p start-throttle-affected-engine-idle-retrieve-engine-failure-situation
     =goal>
     isa             task
@@ -11155,6 +11443,7 @@
     task-value      idle
     phase           perform-task
     stage           1
+    - crosscheck    no
     ?retrieval>
     state           free
 ==>
@@ -11166,6 +11455,28 @@
     stage           2
 )
 (spp start-throttle-affected-engine-idle-retrieve-engine-failure-situation :u 1000)
+
+; Fall back to verification for missing or unrecognized TARS input. This rule
+; also matches a valid input, but its lower utility lets the direct path win.
+(p throttle-affected-engine-idle-no-crosscheck-fallback
+    =goal>
+    isa             task
+    task-object     throttle-affected-engine
+    task-value      idle
+    phase           perform-task
+    stage           1
+    crosscheck      no
+    ?retrieval>
+    state           free
+==>
+    +retrieval>
+    isa             failure-situation
+    has-failure     t
+    -engine-side    nil
+    =goal>
+    stage           2
+)
+(spp throttle-affected-engine-idle-no-crosscheck-fallback :u 10)
 
 (p engine-fire-failure-situation-retrieved
     =goal>
@@ -12236,19 +12547,28 @@
     task-object     fuel-boost-switch-affected-side
     task-value      off
     tars-input      fuel-boost-switch-left-is-on
-    crosscheck      yes
+    crosscheck      no
     phase           perform-task
     stage           1
-    ?visual>
+    ?manual>
     state           free
 ==>
-    +visual-location>
-    isa             visual-location
-    screen-x        1223
-    screen-y        1170
+    +manual>
+    isa             customized-manual-action
+    name            agent-set-int
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1          l_fuel_boost
+    para-2          1
+    para-3          nil
+    para-4          nil
     =goal>
-    stage           visual-encode-aircraft-component
+    phase           check-task-on-tars
+    stage           1
 )
+(spp start-fuel-boost-switch-off-task-tars-input-left :reward 4)
 (spp start-fuel-boost-switch-off-task-tars-input-left :u 1000)
 
 (p start-fuel-boost-switch-off-task-tars-input-right
@@ -12257,19 +12577,28 @@
     task-object     fuel-boost-switch-affected-side
     task-value      off
     tars-input      fuel-boost-switch-right-is-on
-    crosscheck      yes
+    crosscheck      no
     phase           perform-task
     stage           1
-    ?visual>
+    ?manual>
     state           free
 ==>
-    +visual-location>
-    isa             visual-location
-    screen-x        1270
-    screen-y        1170
+    +manual>
+    isa             customized-manual-action
+    name            agent-set-int
+    preparation-duration 1.000
+    initiation-duration  0.100
+    execution-duration   0.100
+    finish-duration      0.100
+    para-1          r_fuel_boost
+    para-2          1
+    para-3          nil
+    para-4          nil
     =goal>
-    stage           visual-encode-aircraft-component
+    phase           check-task-on-tars
+    stage           1
 )
+(spp start-fuel-boost-switch-off-task-tars-input-right :reward 4)
 (spp start-fuel-boost-switch-off-task-tars-input-right :u 1000)
 
 (p start-fuel-boost-switch-off-task-tars-input-unavailable
@@ -12289,7 +12618,29 @@
 )
 (spp start-fuel-boost-switch-off-task-tars-input-unavailable :u 1000)
 
-(p start-fuel-boost-switch-off-task-no-crosscheck
+; A distrust decision always verifies the failed side. The lower-utility rule
+; also verifies missing or unrecognized input when the decision was to trust.
+(p start-fuel-boost-switch-off-task-crosscheck
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    crosscheck      yes
+    phase           perform-task
+    stage           1
+    ?retrieval>
+    state           free
+==>
+    +retrieval>
+    isa             failure-situation
+    has-failure     t
+    -engine-side    nil
+    =goal>
+    stage           1-1
+)
+(spp start-fuel-boost-switch-off-task-crosscheck :u 1000)
+
+(p start-fuel-boost-switch-off-task-trust-fallback
     =goal>
     isa             task
     task-object     fuel-boost-switch-affected-side
@@ -12307,20 +12658,115 @@
     =goal>
     stage           1-1
 )
-(spp start-fuel-boost-switch-off-task-no-crosscheck :u 1000)
+(spp start-fuel-boost-switch-off-task-trust-fallback :u 10)
+
+; Compare the TARS side with the retrieved failed side before selecting a switch.
+(p fuel-boost-switch-tars-left-confirmed
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           1-1
+    tars-input      fuel-boost-switch-left-is-on
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     left
+==>
+    =goal>
+    status          left
+    stage           1-2
+)
+(spp fuel-boost-switch-tars-left-confirmed :reward -1)
+(spp fuel-boost-switch-tars-left-confirmed :u 1000)
+
+(p fuel-boost-switch-tars-right-incorrect-for-left-failure
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           1-1
+    tars-input      fuel-boost-switch-right-is-on
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     left
+==>
+    =goal>
+    status          left
+    stage           1-2
+)
+(spp fuel-boost-switch-tars-right-incorrect-for-left-failure :reward 4)
+(spp fuel-boost-switch-tars-right-incorrect-for-left-failure :u 1000)
+
+(p fuel-boost-switch-tars-right-confirmed
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           1-1
+    tars-input      fuel-boost-switch-right-is-on
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     right
+==>
+    =goal>
+    status          right
+    stage           1-2
+)
+(spp fuel-boost-switch-tars-right-confirmed :reward -1)
+(spp fuel-boost-switch-tars-right-confirmed :u 1000)
+
+(p fuel-boost-switch-tars-left-incorrect-for-right-failure
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           1-1
+    tars-input      fuel-boost-switch-left-is-on
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     right
+==>
+    =goal>
+    status          right
+    stage           1-2
+)
+(spp fuel-boost-switch-tars-left-incorrect-for-right-failure :reward 4)
+(spp fuel-boost-switch-tars-left-incorrect-for-right-failure :u 1000)
+
+(p fuel-boost-switch-continue-with-retrieved-side
+    =goal>
+    isa             task
+    task-object     fuel-boost-switch-affected-side
+    task-value      off
+    phase           perform-task
+    stage           1-1
+    =retrieval>
+    isa             failure-situation
+    has-failure     t
+    engine-side     =side
+==>
+    =goal>
+    status          =side
+    stage           1-2
+)
+(spp fuel-boost-switch-continue-with-retrieved-side :u 10)
 
 (p fuel-boost-switch-failure-situation-retrieved-left
     =goal>
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    crosscheck      no
     phase           perform-task
-    stage           1-1
-    =retrieval>
-    isa             failure-situation
-    has-failure     t
-    engine-side     left
+    stage           1-2
+    status          left
     ?visual>
     state           free
 ==>
@@ -12329,6 +12775,7 @@
     screen-x        1223
     screen-y        1170
     =goal>
+    status          left
     stage           visual-encode-aircraft-component
 )
 
@@ -12337,13 +12784,9 @@
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    crosscheck      no
     phase           perform-task
-    stage           1-1
-    =retrieval>
-    isa             failure-situation
-    has-failure     t
-    engine-side     right
+    stage           1-2
+    status          right
     ?visual>
     state           free
 ==>
@@ -12352,6 +12795,7 @@
     screen-x        1270
     screen-y        1170
     =goal>
+    status          right
     stage           visual-encode-aircraft-component
 )
 
@@ -12360,7 +12804,6 @@
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    crosscheck      no
     phase           perform-task
     stage           1-1
     ?retrieval>
@@ -12385,7 +12828,6 @@
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    crosscheck      no
     phase           waiting-for-eicas
     stage           1-2
     =goal-2>
@@ -12404,7 +12846,10 @@
     screen-x        1223
     screen-y        1170
     =goal>
+    phase           perform-task
+    status          left
     stage           visual-encode-aircraft-component
+    -goal-2>
 )
 
 (p fuel-boost-switch-has-eicas-situation-r-eng-failure
@@ -12412,7 +12857,6 @@
     isa             task
     task-object     fuel-boost-switch-affected-side
     task-value      off
-    crosscheck      no
     phase           waiting-for-eicas
     stage           1-2
     =goal-2>
@@ -12431,7 +12875,10 @@
     screen-x        1270
     screen-y        1170
     =goal>
+    phase           perform-task
+    status          right
     stage           visual-encode-aircraft-component
+    -goal-2>
 )
 
 (p form-l-fuel-boost-component-representation
@@ -12441,6 +12888,7 @@
     task-value      off
     phase           perform-task
     stage           form-representation-aircraft-component
+    status          left
     ?imaginal>
     state           free
 !bind! =value (read_input l_fuel_boost)
@@ -12460,6 +12908,7 @@
     task-value      off
     phase           perform-task
     stage           form-representation-aircraft-component
+    status          right
     ?imaginal>
     state           free
 !bind! =value (read_input r_fuel_boost)

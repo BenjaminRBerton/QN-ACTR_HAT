@@ -5345,6 +5345,12 @@ return return_string;
                           case "heading":
                               return_string = String.valueOf(agent().heading_i);
                               break;
+                          case "wind_direction":
+                              return_string = String.valueOf(agent().wind_direction_i);
+                              break;
+                          case "wind_speed":
+                              return_string = String.valueOf(agent().wind_speed_i);
+                              break;
                           case "elevator":
                               return_string = String.valueOf(agent().elevator_i);
                               break;

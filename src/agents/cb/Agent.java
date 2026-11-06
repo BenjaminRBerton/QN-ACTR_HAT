@@ -124,6 +124,8 @@ public class Agent implements IopListener, ServiceListener {
     public volatile int lateral_deviation_i = 0;
     public volatile int transfer_knob_i = 0;
     public volatile int landing_lights_i = 0;
+    public volatile int wind_direction_i = 0;
+    public volatile int wind_speed_i = 0;
     // Add more as needed...
 
     private com.ingescape.Agent ingescapeAgent;
@@ -301,6 +303,8 @@ public class Agent implements IopListener, ServiceListener {
 
             // Create inputs
             createInputs();
+            ingescapeAgent.mapping.add("wind_direction", "Aircraft", "wind_direction");
+            ingescapeAgent.mapping.add("wind_speed", "Aircraft", "wind_speed");
 
             // Observe inputs (register callbacks)
             observeInputs();
@@ -335,6 +339,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.inputCreate("roll", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("slip", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("heading", IopType.IGS_DOUBLE_T);
+        ingescapeAgent.definition.inputCreate("wind_direction", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.inputCreate("wind_speed", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.inputCreate("vertical_speed", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("altitude", IopType.IGS_DOUBLE_T);
         ingescapeAgent.definition.inputCreate("flaps", IopType.IGS_DOUBLE_T);
@@ -403,7 +409,7 @@ public class Agent implements IopListener, ServiceListener {
     private void observeInputs() {
         String[] inputNames = {
                 "reset", "airspeed", "latitude", "longitude", "elevator", "rudder", "aileron", "l_throttle", "r_throttle",
-                "pitch", "roll", "slip", "heading", "vertical_speed", "altitude",
+                "pitch", "roll", "slip", "heading", "wind_direction", "wind_speed", "vertical_speed", "altitude",
                 "flaps", "landing_gear", "spoilers", "parking_brake", "n1_match_bug",
                 "pax_safety", "master_warning", "master_caution", "flight_director",
                 "flc_mode", "heading_mode", "l_fuel_boost", "r_fuel_boost", "test_knob",
@@ -454,6 +460,8 @@ public class Agent implements IopListener, ServiceListener {
         ingescapeAgent.definition.outputCreate("vertical_speed_target", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("altitude_target", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("heading_target", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("wind_dir_input", IopType.IGS_INTEGER_T);
+        ingescapeAgent.definition.outputCreate("wind_speed_input", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("l_fuel_boost", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("r_fuel_boost", IopType.IGS_INTEGER_T);
         ingescapeAgent.definition.outputCreate("test_knob", IopType.IGS_INTEGER_T);
@@ -842,6 +850,12 @@ public class Agent implements IopListener, ServiceListener {
                         break;
                     case "landing_lights":
                         landing_lights_i = inputInt;
+                        break;
+                    case "wind_direction":
+                        wind_direction_i = inputInt;
+                        break;
+                    case "wind_speed":
+                        wind_speed_i = inputInt;
                         break;
                 }
         } else if (iop == Iop.IGS_INPUT_T && type == IopType.IGS_IMPULSION_T) {

@@ -30,7 +30,6 @@ final class PlatformSpeech {
     private static void play(String text) {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         boolean windows = os.startsWith("windows");
-        String spokenText = os.startsWith("linux") ? "hum... " + text : text;
         List<List<String>> commands = new ArrayList<>();
         if (windows) {
             // Read speech from stdin so punctuation is never interpreted as PowerShell code.
@@ -39,9 +38,9 @@ final class PlatformSpeech {
         } else if (os.startsWith("mac") || os.startsWith("darwin")) {
             commands.add(List.of("say", text));
         } else {
-            commands.add(List.of("espeak-ng", spokenText));
-            commands.add(List.of("espeak", spokenText));
-            commands.add(List.of("spd-say", "--wait", spokenText));
+            commands.add(List.of("espeak-ng", text));
+            commands.add(List.of("espeak", text));
+            commands.add(List.of("spd-say", "--wait", text));
         }
 
         for (List<String> command : commands) {

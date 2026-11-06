@@ -351,6 +351,7 @@ public class ActrLiveDiagram extends JPanel {
   }
 
   private void enqueueHeard(BufferSnapshot heard) {
+    if ("internal".equalsIgnoreCase(heard.slotValues.get("location"))) return;
     if (heard.name.equals(lastHeardChunkName)) return;
     lastHeardChunkName = heard.name;
     lastHeardNanos = System.nanoTime();
