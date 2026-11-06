@@ -5193,6 +5193,8 @@ return return_string;
 	        
 	        //the following functions apply to 1 and only 1 parameter
 	        case "abs":
+	        case "heading-step-right":
+	        case "heading-step-left":
 	        case "not":	
 	        case "tracking-control-get-percept":
 	        case "get-string-length":
@@ -5230,6 +5232,16 @@ return return_string;
 	          
 	          
 	          switch ( function_name ){
+	            case "heading-step-right":
+	            case "heading-step-left": {
+	              if (!sim.funs.ProgramUtilitiesFun__Is_String_Int(para_1)) {
+	                System.out.println("Error! " + function_name + " requires an integer heading, not: " + para_1);
+	                return null;
+	              }
+	              int step = function_name.equals("heading-step-right") ? 1 : -1;
+	              return_string = Integer.toString(Math.floorMod(Integer.parseInt(para_1) + step, 360));
+	              break;
+	            }
 	            case "abs": {
 	              //para 1 must be a number
 	              if( sim.funs.ProgramUtilitiesFun__Is_String_Double ( para_1 ) == false ) {
@@ -5611,6 +5623,11 @@ return return_string;
 	        case "tracking-control-get-manual-joystick-duration":
 	        case "get-char-from-string":
 	        case "get-tail-from-string":	
+	        case "heading-at-target":
+	        case "heading-not-at-target":
+	        case "altitude-at-target":
+	        case "altitude-not-at-target":
+	        case "altitude-step-toward":
 	        
 	        { //although Lisp accepts more than 2 parameters, here the number of parameters must be 2.
 	          if ( content_list.size() < 2 ) {
@@ -5655,6 +5672,38 @@ return return_string;
 	          
 	          
 	          switch ( function_name ){
+	            case "altitude-at-target":
+	            case "altitude-not-at-target":
+	            case "altitude-step-toward": {
+	              if (!sim.funs.ProgramUtilitiesFun__Is_String_Int(para_1) ||
+	                  !sim.funs.ProgramUtilitiesFun__Is_String_Int(para_2)) {
+	                System.out.println("Error! " + function_name + " requires integer altitudes: " + para_1 + ", " + para_2);
+	                return null;
+	              }
+	              long current = Integer.parseInt(para_1);
+	              long target = Integer.parseInt(para_2);
+	              if (function_name.equals("altitude-step-toward")) {
+	                long next = current < target ? Math.min(current + 100, target) :
+	                    Math.max(current - 100, target);
+	                return_string = Long.toString(next);
+	              } else {
+	                boolean atTarget = current == target;
+	                return_string = (function_name.equals("altitude-at-target") == atTarget) ? "t" : "nil";
+	              }
+	              break;
+	            }
+	            case "heading-at-target":
+	            case "heading-not-at-target": {
+	              if (!sim.funs.ProgramUtilitiesFun__Is_String_Int(para_1) ||
+	                  !sim.funs.ProgramUtilitiesFun__Is_String_Int(para_2)) {
+	                System.out.println("Error! " + function_name + " requires integer headings: " + para_1 + ", " + para_2);
+	                return null;
+	              }
+	              boolean atTarget = Math.floorMod(Integer.parseInt(para_1), 360) ==
+	                  Math.floorMod(Integer.parseInt(para_2), 360);
+	              return_string = (function_name.equals("heading-at-target") == atTarget) ? "t" : "nil";
+	              break;
+	            }
 	            case "+": {
 	              //para 1 and 2 must be numbers
 	              if( sim.funs.ProgramUtilitiesFun__Is_String_Double ( para_1 ) == false ) {
@@ -13476,19 +13525,8 @@ return return_string;
 	          }
 	          //!eval! part of !bind!
 	          String bind_result = LispFun__Evaluate_A_List ( sim.funs.ProgramUtilitiesFun__StringArray_To_String_Show_Empty( content_array_subst ) );
-	          //store bind_result in slot, 
-	          if(  currentItem.Slot.containsKey ( "bind_result" ) ){
-	            if ( ProgramUtilitiesFun__StringsEqualByStringOrDouble( ((String) currentItem.Slot.get( "bind_result" )), bind_result )) { //same
-	              //no problem, pass, do nothing
-	            }
-	            else{
-	              // Live inputs can legitimately change between rule matches; keep the binding, but do not warn.
-	              //System.out.println( "WARNING! ProductionModuleFun__Bind_Variables_In_Rule_Condition, rule: " + the_rule.Rule_Name + ". !bind! " + content_string + ", has a new bind_result: " + bind_result + " that is different from the old one: " + (String) currentItem.Slot.get( "bind_result" ) );
-	            }
-	          }
-	          else{ //add it for the first time
-	            currentItem.Slot.put ( "bind_result", bind_result ); //should be added only once
-	          }
+	          // Reevaluate live inputs on every match; the matcher reads this stored result.
+	          currentItem.Slot.put("bind_result", bind_result);
 	          //!bind!, different from buffer bind varaibles, here it is ok to have "nil" bound to a variable; also, it is ok if a varaible is already bound, just change it again (no "_MULTI_BOUND_" issue)
 	          sim.funs.ProgramUtilitiesFun__Hashtable_Add_OR_Set_Value(return_variable_value_pair, variable_to_bind , bind_result );
 	          

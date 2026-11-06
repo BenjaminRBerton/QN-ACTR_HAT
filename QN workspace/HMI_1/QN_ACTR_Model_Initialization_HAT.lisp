@@ -13614,27 +13614,13 @@
     isa                 clearance
     procedure           panpan-vectors
     heading             turn-right-heading-330
-    ?manual>
-    state               free
 ==>
     =imaginal>
-    +manual>
-        isa                 customized-manual-action
-        name                agent-set-int
-        preparation-duration 1.000
-        initiation-duration  1.000
-        execution-duration   5.000
-        finish-duration      0.050
-        para-1               heading_sel
-        para-2               330
-        para-3               nil
-        para-4               nil
     =goal>
-    stage                   follow-vectors-altitude
-    status                  altitude
+    status              follow-heading-right-330
 )
 
-(p start-follow-vectors-turn-heading-150
+(p start-follow-vectors-turn-left-heading-150
     =goal>
     isa                 task
     task-object         atc
@@ -13645,25 +13631,220 @@
     =imaginal>
     isa                 clearance
     procedure           panpan-vectors
-    -heading            turn-right-heading-330
+    heading             turn-left-heading-150
+==>
+    =imaginal>
+    =goal>
+    status              follow-heading-left-150
+)
+
+(p start-follow-vectors-turn-right-heading-150
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              nil
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-150
+==>
+    =imaginal>
+    =goal>
+    status              follow-heading-right-150
+)
+
+; Each step reads the reported selected heading, turns the knob by one degree,
+; waits for the motor action to finish, and looks at the PFD heading again.
+(p follow-vectors-heading-right-330-step
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-right-330
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-330
     ?manual>
     state               free
+!bind! =current (read_input heading_sel)
+!bind! =continue (heading-not-at-target =current 330)
+!bind! =next (heading-step-right =current)
 ==>
     =imaginal>
     +manual>
-        isa                 customized-manual-action
-        name                agent-set-int
-        preparation-duration 1.000
-        initiation-duration  1.000
-        execution-duration   5.000
-        finish-duration      0.050
-        para-1               heading_sel
-        para-2               150
-        para-3               nil
-        para-4               nil
+    isa                 customized-manual-action
+    name                agent-set-int
+    preparation-duration 0.150
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              heading_sel
+    para-2              =next
+    para-3              nil
+    para-4              nil
     =goal>
-    stage                   follow-vectors-altitude
-    status                  altitude
+    stage               follow-vectors-heading-recheck
+)
+
+(p follow-vectors-heading-left-150-step
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-left-150
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-left-heading-150
+    ?manual>
+    state               free
+!bind! =current (read_input heading_sel)
+!bind! =continue (heading-not-at-target =current 150)
+!bind! =next (heading-step-left =current)
+==>
+    =imaginal>
+    +manual>
+    isa                 customized-manual-action
+    name                agent-set-int
+    preparation-duration 0.150
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              heading_sel
+    para-2              =next
+    para-3              nil
+    para-4              nil
+    =goal>
+    stage               follow-vectors-heading-recheck
+)
+
+(p follow-vectors-heading-right-150-step
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-right-150
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-150
+    ?manual>
+    state               free
+!bind! =current (read_input heading_sel)
+!bind! =continue (heading-not-at-target =current 150)
+!bind! =next (heading-step-right =current)
+==>
+    =imaginal>
+    +manual>
+    isa                 customized-manual-action
+    name                agent-set-int
+    preparation-duration 0.150
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              heading_sel
+    para-2              =next
+    para-3              nil
+    para-4              nil
+    =goal>
+    stage               follow-vectors-heading-recheck
+)
+
+(p follow-vectors-heading-recheck-display
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               follow-vectors-heading-recheck
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    ?manual>
+    state               free
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1200
+    screen-y            800
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p follow-vectors-heading-right-330-complete
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-right-330
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-330
+!bind! =current (read_input heading_sel)
+!bind! =complete (heading-at-target =current 330)
+==>
+    =imaginal>
+    =goal>
+    stage               follow-vectors-altitude
+    status              altitude
+)
+
+(p follow-vectors-heading-left-150-complete
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-left-150
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-left-heading-150
+!bind! =current (read_input heading_sel)
+!bind! =complete (heading-at-target =current 150)
+==>
+    =imaginal>
+    =goal>
+    stage               follow-vectors-altitude
+    status              altitude
+)
+
+(p follow-vectors-heading-right-150-complete
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              follow-heading-right-150
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    heading             turn-right-heading-150
+!bind! =current (read_input heading_sel)
+!bind! =complete (heading-at-target =current 150)
+==>
+    =imaginal>
+    =goal>
+    stage               follow-vectors-altitude
+    status              altitude
 )
 
 (p follow-vectors-alt-attend-pfd-ap-altitude
@@ -13677,6 +13858,7 @@
     =imaginal>
     isa                 clearance
     procedure           panpan-vectors
+    altitude            descend-to-3000-feet
     ?visual>
     state               free
 ==>
@@ -13684,12 +13866,12 @@
     +visual-location>
     isa                 visual-location
     screen-x            1350
-    screen-y            810
+    screen-y            680
     =goal>
     stage               visual-encode-aircraft-component
 )
 
-(p follow-vector-descend-and-maintain-3000-ft
+(p follow-vector-altitude-step-toward-3000-ft
     =goal>
     isa                 task
     task-object         atc
@@ -13700,23 +13882,73 @@
     =imaginal>
     isa                 clearance
     procedure           panpan-vectors
+    altitude            descend-to-3000-feet
     ?manual>
     state               free
+!bind! =current (read_input alt_sel)
+!bind! =continue (altitude-not-at-target =current 3000)
+!bind! =next (altitude-step-toward =current 3000)
 ==>
+    =imaginal>
     +manual>
         isa                 customized-manual-action
         name                agent-set-int
-        preparation-duration 1.000
-        initiation-duration  1.000
-        execution-duration   5.000
+        preparation-duration 0.150
+        initiation-duration  0.050
+        execution-duration   0.050
         finish-duration      0.050
         para-1               alt_sel
-        para-2               3000
+        para-2               =next
         para-3               nil
         para-4               nil
     =goal>
-    phase                   check-task-on-tars
-    stage                   1
+    stage                   follow-vectors-altitude-recheck
+)
+
+(p follow-vector-altitude-recheck-display
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               follow-vectors-altitude-recheck
+    status              altitude
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    altitude            descend-to-3000-feet
+    ?manual>
+    state               free
+    ?visual>
+    state               free
+==>
+    =imaginal>
+    +visual-location>
+    isa                 visual-location
+    screen-x            1350
+    screen-y            680
+    =goal>
+    stage               visual-encode-aircraft-component
+)
+
+(p follow-vector-altitude-3000-ft-complete
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               form-representation-aircraft-component
+    status              altitude
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    altitude            descend-to-3000-feet
+!bind! =current (read_input alt_sel)
+!bind! =complete (altitude-at-target =current 3000)
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;; end of READBACK PANPAN VECTORS ;;;;;;;;;;;;;;;;;;;;;
