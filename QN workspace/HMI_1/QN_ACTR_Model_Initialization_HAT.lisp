@@ -974,9 +974,9 @@
     )
     (w-cpoly isa word value c-poly category callsign)
     (w-montreal-tower isa word value montreal-tower category sender)
-    (w-zero-niner-zero-at-four isa word value wind-zero-niner-zero-at-four equivalent wind-090-degrees-at-4-kt category wind)
-    (w-one-niner-zero-at-four isa word value  wind-one-niner-zero-at-four  equivalent wind-190-degrees-at-4-kt category wind)
-    (w-two-niner-zero-at-four isa word value  wind-two-niner-zero-at-four  equivalent wind-290-degrees-at-4-kt category wind)
+    (w-zero-niner-zero-at-four isa word value wind-zero-niner-zero-at-four equivalent wind-090-degrees-at-04-knots category wind)
+    (w-one-niner-zero-at-four isa word value  wind-one-niner-zero-at-four  equivalent wind-190-degrees-at-04-knots category wind)
+    (w-two-niner-zero-at-four isa word value  wind-two-niner-zero-at-four  equivalent wind-290-degrees-at-04-knots category wind)
     (w-zero-six-left isa word value runway-zero-six-left category runway)
     (w-zero-six-right isa word value runway-zero-six-right category runway)
     (w-two-four-right isa word value runway-two-four-right category runway)
@@ -1226,6 +1226,251 @@
 )
 (spp tars-sound-encoded :u 1000)
 
+(p tars-check-encoded-sound
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
+   =aural>
+    isa             sound
+    location        tars
+    content         check
+   ?imaginal>
+    state           free
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           attend-aoi
+    stage           1
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-check-encoded-sound :u 2000)
+
+(p tars-airspeed-is-alive-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     airspeed-is-alive
+   ?imaginal>
+       state                    free
+==>
+      +temporal>
+       isa                      clear
+      =goal>
+       phase                    =return_phase
+       stage                    =return_stage
+       tars-speech-return-phase nil
+       tars-speech-return-stage nil
+)
+(spp tars-airspeed-is-alive-encoded-sound :u 2000)
+
+(p tars-seventy-knots-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     seventy-knots
+   ?imaginal>
+       state                    free
+==>
+      +temporal>
+       isa                      clear
+      =goal>
+       phase                    =return_phase
+       stage                    =return_stage
+       tars-speech-return-phase nil
+       tars-speech-return-stage nil
+)
+(spp tars-seventy-knots-encoded-sound :u 2000)
+
+(p tars-v1-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     v1
+   ?imaginal>
+       state                    free
+==>
+        +temporal>
+            isa                      clear
+        =goal>
+            phase                    =return_phase
+            stage                    =return_stage
+            tars-speech-return-phase nil
+            tars-speech-return-stage nil
+)
+(spp tars-v1-encoded-sound :u 2000)
+
+(p tars-rotate-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     rotate
+   ?imaginal>
+       state                    free
+==>
+        +temporal>
+            isa                      clear
+        =goal>
+            phase                    =return_phase
+            stage                    =return_stage
+            tars-speech-return-phase nil
+            tars-speech-return-stage nil
+)
+(spp tars-rotate-encoded-sound :u 2000)
+
+(p tars-climb-to-1500-aim-for-120-knots-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     climb-to-1500-aim-for-120-knots
+   ?imaginal>
+       state                    free
+==>
+        +temporal>
+            isa                      clear
+        =goal>
+            phase                    =return_phase
+            stage                    =return_stage
+            tars-speech-return-phase nil
+            tars-speech-return-stage nil
+)
+(spp tars-climb-to-1500-aim-for-120-knots-encoded-sound :u 2000)
+
+(p tars-flight-director-on-takeoff-mode-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     flight-director-on-takeoff-mode
+   ?imaginal>
+       state                    free
+==>
+        +temporal>
+            isa                      clear
+        =goal>
+            phase                    =return_phase
+            stage                    =return_stage
+            tars-speech-return-phase nil
+            tars-speech-return-stage nil
+)
+(spp tars-flight-director-on-takeoff-mode-encoded-sound :u 2000)
+
+(p tars-flight-director-set-encoded-sound
+   =goal>
+    isa                         task
+    phase                       listening-to-tars
+    stage                       encoding
+    tars-speech-return-phase    =return_phase
+    tars-speech-return-stage    =return_stage
+   =aural>
+    isa                         sound
+    location                    tars
+    content                     flight-director-set
+   ?imaginal>
+       state                    free
+==>
+        +temporal>
+            isa                      clear
+        =goal>
+            phase                    =return_phase
+            stage                    =return_stage
+            tars-speech-return-phase nil
+            tars-speech-return-stage nil
+)
+(spp tars-flight-director-set-encoded-sound :u 2000)
+
+
+(p tars-ready-to-trim-rudder-right-encoded-sound
+   =goal>
+        isa                         task
+        phase                       listening-to-tars
+        stage                       encoding
+        tars-speech-return-phase    =return_phase
+        tars-speech-return-stage    =return_stage
+   =aural>
+        isa                         sound
+        location                    tars
+        content                     ready-to-trim-rudder-for-right-engine-failure-please-approve-or-deny
+   ?imaginal>
+       state                    free
+==>
+    +temporal>
+        isa                      clear
+    +goal>
+        isa                     task
+        task-object             rudder
+        task-value              trim
+        phase                   perform-task
+        stage                   1
+        human-role              supporter
+        autonomy-role           performer
+)
+(spp tars-ready-to-trim-rudder-right-encoded-sound :u 2000)
+
+(p tars-ready-to-trim-rudder-left-encoded-sound
+   =goal>
+        isa                         task
+        phase                       listening-to-tars
+        stage                       encoding
+        tars-speech-return-phase    =return_phase
+        tars-speech-return-stage    =return_stage
+   =aural>
+        isa                         sound
+        location                    tars
+        content                     ready-to-trim-rudder-for-left-engine-failure-please-approve-or-deny
+   ?imaginal>
+       state                    free
+==>
+    +temporal>
+        isa                      clear
+    +goal>
+        isa                     task
+        task-object             rudder
+        task-value              trim
+        phase                   perform-task
+        stage                   1
+        human-role              supporter
+        autonomy-role           performer
+)
+(spp tars-ready-to-trim-rudder-left-encoded-sound :u 2000)
+
 ; This AOI return state no longer needs the completed task chunk in imaginal.
 ; Other speech reactions should only replace imaginal when their return state
 ; can also tolerate that replacement.
@@ -1317,6 +1562,65 @@
 )
 (spp detected-next-tars-word :u 2000)
 
+; The ATC chunk may finish encoding while TARS owns the aural buffer. In
+; that case encode-sound has no input left when the TARS silence timer ends.
+(p tars-speech-ended-restart-interrupted-atc-sound
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase =return_phase
+    tars-speech-return-stage encode-sound
+   =temporal>
+    isa             time
+    ticks           16
+   ?aural>
+    buffer          empty
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           =return_phase
+    stage           1
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-restart-interrupted-atc-sound :u 2000)
+
+; The EICAS worker has its own goal, but ATC encoding can replace its
+; imaginal situation. Restore the caller's idle stage and rescan EICAS.
+(p tars-speech-ended-restart-interrupted-eicas
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase waiting-for-eicas
+    tars-speech-return-stage encode-sound
+   =goal-2>
+    isa             task
+    task-object     eicas
+   =temporal>
+    isa             time
+    ticks           16
+   ?aural>
+    buffer          empty
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           waiting-for-eicas
+    stage           idle
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+   =goal-2>
+    phase           read-eicas
+    stage           1
+)
+(spp tars-speech-ended-restart-interrupted-eicas :u 3000)
+
 (p tars-speech-ended-resume-task
    =goal>
     isa             task
@@ -1324,9 +1628,10 @@
     stage           waiting
     tars-speech-return-phase =return_phase
     tars-speech-return-stage =return_stage
+    - tars-speech-return-stage encode-sound
    =temporal>
     isa             time
-    ticks           36
+    ticks           16
 ==>
    +temporal>
     isa             clear
@@ -1349,7 +1654,7 @@
     tars-speech-return-stage waiting
    =temporal>
     isa             time
-    ticks           36
+    ticks           16
 ==>
    +temporal>
     isa             clear
@@ -1370,7 +1675,7 @@
     tars-speech-return-stage await-atc-callsign
    =temporal>
     isa             time
-    ticks           36
+    ticks           16
 ==>
    +temporal>
     isa             time
@@ -1390,6 +1695,7 @@
    =aural-location>
     isa             audio-event
     location        atc
+    id              =event
    ?aural>
      state          free
    ?retrieval>
@@ -1398,7 +1704,7 @@
      state          free
    ==>
    +aural>
-     event          =aural-location
+     event          =event
    =goal>
     stage           encode-sound
 )
@@ -1733,6 +2039,51 @@
     pitch       =value_pitch ; is getting the value from imaginal buffer
 )
 
+; ATC sound encoding can replace a partial PFD situation in imaginal while
+; goal-2 is midway through its scan. Rebuild the situation from pitch and
+; restore the caller's expected stage after the sound chunk is cleared.
+(p restart-pfd-after-imaginal-replaced-by-sound
+   =goal>
+    isa         task
+    phase       waiting-for-situation
+    stage       1
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       read-pfd
+   ?imaginal>
+    buffer      empty
+    state       free
+==>
+   =goal>
+    stage       pfd
+   =goal-2>
+    stage       initialize
+)
+(spp restart-pfd-after-imaginal-replaced-by-sound :u 2000)
+
+; The same loss can happen after the final PFD component has been encoded.
+(p restart-completed-pfd-after-imaginal-replaced-by-sound
+   =goal>
+    isa         task
+    phase       waiting-for-situation
+    stage       1
+   =goal-2>
+    isa         task
+    task-object pfd
+    phase       situation-complete
+   ?imaginal>
+    buffer      empty
+    state       free
+==>
+   =goal>
+    stage       pfd
+   =goal-2>
+    phase       read-pfd
+    stage       initialize
+)
+(spp restart-completed-pfd-after-imaginal-replaced-by-sound :u 2000)
+
 (p visually-attend-pfd-roll
    =goal-2>
     isa		    task
@@ -1906,61 +2257,63 @@
 
 (p pfd-start-opportunistic-rudder-trim-positive-slip
    =goal-2>
-    isa         task
-    task-object pfd
-    phase       read-pfd
-    stage       check-opportunistic-rudder-trim
+    isa             task
+    task-object     pfd
+    phase           read-pfd
+    stage           check-opportunistic-rudder-trim
+    -trim-attempts  tars
    =imaginal>
-    isa         aviate-situation
-    >altitude   4500
-    >slip       3
+    isa             aviate-situation
+    >altitude       4500
+    >slip           3
    ?imaginal>
-    state       free
+    state           free
 ==>
    =imaginal>
    =goal-2>
-    stage       pfd-trim-read-position
-    trim-attempts 0
+    stage           pfd-trim-read-position
+    trim-attempts   0
 )
 
 (p pfd-start-opportunistic-rudder-trim-negative-slip
    =goal-2>
-    isa         task
-    task-object pfd
-    phase       read-pfd
-    stage       check-opportunistic-rudder-trim
+    isa             task
+    task-object     pfd
+    phase           read-pfd
+    stage           check-opportunistic-rudder-trim
+    -trim-attempts  tars
    =imaginal>
-    isa         aviate-situation
-    >altitude   4500
-    <slip       -3
+    isa             aviate-situation
+    >altitude       4500
+    <slip           -3
    ?imaginal>
-    state       free
+    state           free
 ==>
    =imaginal>
    =goal-2>
-    stage       pfd-trim-read-position
-    trim-attempts 0
+    stage           pfd-trim-read-position
+    trim-attempts   0
 )
 
 (p pfd-trim-read-position
    =goal-2>
-    isa         task
-    task-object pfd
-    phase       read-pfd
-    stage       pfd-trim-read-position
+    isa             task
+    task-object     pfd
+    phase           read-pfd
+    stage           pfd-trim-read-position
    ?imaginal>
-    state       free
+    state           free
 !bind! =trim (read_input trim_rudder)
 ==>
    =goal-2>
-    stage       pfd-trim-evaluate
-    trim-position =trim
+    stage           pfd-trim-evaluate
+    trim-position   =trim
 )
 
 ; Positive slip uses the same left trim pulse as the procedural rudder task.
 (p pfd-trim-positive-slip
    =goal-2>
-    isa           task
+    isa             task
     task-object   pfd
     phase         read-pfd
     stage         pfd-trim-evaluate
@@ -2451,6 +2804,29 @@
     cas         clear ; is getting the value from imaginal buffer
     cas-status  no-alert
 )
+
+; ATC encoding can replace the completed EICAS situation in imaginal. Once
+; that sound has been cleared, restart the scan instead of leaving goal-2
+; complete with no situation for finish-idle-eicas-check to inspect.
+(p restart-eicas-after-imaginal-replaced-by-sound
+   =goal>
+    isa         task
+    phase       waiting-for-eicas
+   =goal-2>
+    isa         task
+    task-object eicas
+    phase       eicas-complete
+   ?imaginal>
+    buffer      empty
+    state       free
+==>
+   =goal>
+    stage       idle
+   =goal-2>
+    phase       read-eicas
+    stage       1
+)
+(spp restart-eicas-after-imaginal-replaced-by-sound :u 2000)
 
 (p visually-attend-eicas-n1-percent
    =goal-2>
@@ -3457,6 +3833,50 @@
     !output! (task-value =value_val) ; debug
     !output! (crosscheck =value_crosscheck) ; debug
 )
+
+; An ATC detection can finish after a TARS event has replaced the detected
+; location. If the TARS sound was encoded as generic audio, discard that
+; representation and return to the completed TARS input handoff.
+(p resume-completed-tars-input-after-encoded-tars-sound
+   =goal>
+    isa             task
+    phase           waiting-for-tars-input
+    stage           sound-encoded
+   =goal-2>
+    isa             task
+    task-object     tars-reader
+    phase           tars-input-complete
+   =imaginal>
+    isa             sound
+    location        tars
+   ?imaginal>
+    state           free
+==>
+   -imaginal>
+   =goal>
+    stage           input
+)
+(spp resume-completed-tars-input-after-encoded-tars-sound :u 2000)
+
+; If the captured event really was ATC, generic sound processing leaves the
+; caller at stage 1. The completed reader still needs stage input to hand off.
+(p resume-completed-tars-input-after-atc-sound
+   =goal>
+    isa             task
+    phase           waiting-for-tars-input
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     tars-reader
+    phase           tars-input-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           input
+)
+(spp resume-completed-tars-input-after-atc-sound :u 2000)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; end of BLOCK READ TARS INPUT IN INTERACTION PANEL ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -4223,6 +4643,25 @@
 )
 (spp t-i-flaps-status-correspond-to-tars-input-not-set-and-no-crosscheck :reward 4)
 
+(p t-i-flaps-status-is-deployed-tars-input-not-available
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage		        verify-tars-input
+     task-object	    flaps
+     task-value         set-for-takeoff
+     -tars-input         flap-handle-is-currently-set-to-takeoff-position
+    =imaginal>
+     isa		        aircraft-component
+     component-name		flaps
+     component-status   0.5			; non-0.5 means TARS was reliable
+==>
+    =imaginal>
+    =goal>
+     stage              action
+)
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;; PERFORM ACTION IF NEEDED ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (p flaps-take-action		;FLAPS are not set for takeoff
    =goal>
@@ -4333,19 +4772,19 @@
 )
 (spp t-i-pitot-heat-tars-input-is-off :u 1000); higher than default of value-pair not found
 
-(p t-i-no-tars-input-on-pitot-heat
+(p t-i-no-recognized-tars-input-pitot-heat
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    pitot-static-switch
      task-value         pitot-static
-    tars-input          nil
 ==>
     =goal>
     stage               2
+    tars-input         nil
 )
-(spp t-i-no-tars-input-on-pitot-heat :u 1000); higher than default of value-pair not found
+(spp t-i-no-recognized-tars-input-pitot-heat :u 500); higher than default of value-pair not found lower than know other
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LOOK AT THE PITOT STATIC SWITCH ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -4621,7 +5060,7 @@
      phase		check-task-on-tars
     stage       1
 )
-(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 1000); higher than default of value-pair not found
+(spp t-i-engine-anti-ice-is-already-on-according-to-tars :u 1500); higher than default of value-pair not found
 
 (p engine-anti-ice-no-tars-recommendation
     =goal>
@@ -4630,7 +5069,6 @@
      stage              1
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         nil
     ?imaginal>
     state               free
 ==>
@@ -4639,23 +5077,6 @@
     stage               1
 )
 (spp engine-anti-ice-no-tars-recommendation :u 1000); higher than default of value-pair not found
-
-(p engine-anti-ice-n-a-tars-input
-    =goal>
-     isa		        task
-     phase		        perform-task
-     stage              1
-     task-object	    engine-anti-ice-switches
-     task-value         as-required
-     tars-input         n-a
-    ?imaginal>
-    state               free
-==>
-    =goal>
-    phase               retrieve-atis
-    stage               1
-)
-(spp engine-anti-ice-n-a-tars-input :u 1000); higher than default of value-pair not found
 
 (p retrieve-last-atis-temperature
     =goal>
@@ -4727,7 +5148,6 @@
      stage              2
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         nil
     =imaginal>
      isa		        atis-information
      temperature	    five
@@ -4744,7 +5164,6 @@
      stage              2
      task-object	    engine-anti-ice-switches
      task-value         as-required
-     tars-input         nil
     =imaginal>
      isa		        atis-information
      - temperature	    five
@@ -6388,11 +6807,11 @@
 !bind! =value_speed (read_input wind_speed)
 ==>
    =goal>
+    stage                 input-winds-on-tars-interface
    +imaginal>
     isa                   current-wind
     wind-direction        =value_dir         ; assumed ATIS wind direction
     wind-speed            =value_speed           ; assumed ATIS wind speed
-    stage                 input-winds-on-tars-interface
 )
 
 (p input-wind-dir-on-tars-interface
@@ -6443,6 +6862,7 @@
         ?manual>
         state               free
 ==>
+    =imaginal>
     +manual>
         isa                     customized-manual-action
         name                    agent-set-int
@@ -6455,7 +6875,8 @@
         para-3
         para-4
     =goal>
-        stage                   check-winds-popup
+        phase                   check-winds-popup
+        stage                   1
 )
 
 ;;;;;;;;;;;; CHECK WINDS POPUP ;;;;;;;;;;;;;
@@ -6538,9 +6959,8 @@
 	state		free
 !bind! =value (read_input tars_input)		; hard coded way to get the TARS input
 ==>
-   =imaginal>
-	tars-input  =value
    =goal>
+	tars-input  =value
 	phase		check-task-on-tars
 	stage       1
 )
@@ -8600,6 +9020,62 @@
 )
 (spp start-airspeed-check-v2-visually-attend-pfd :u 1000)
 
+(p start-airspeed-check-v2-tars-input-trim-rudder-left
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       1
+    tars-input  ready-to-trim-rudder-for-left-engine-failure-please-approve-or-deny
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-bool
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  task_approve
+        para-2                  true
+        para-3
+        para-4
+    =goal>
+        phase                   check-task-on-tars
+        stage                   1
+)
+(spp start-airspeed-check-v2-tars-input-trim-rudder-left :u 2000)
+
+(p start-airspeed-check-v2-tars-input-trim-rudder-right
+    =goal>
+    isa         task
+    task-object airspeed
+    task-value  check-v2
+    phase       perform-task
+    stage       1
+    tars-input  ready-to-trim-rudder-for-right-engine-failure-please-approve-or-deny
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-bool
+        preparation-duration    0.000
+        initiation-duration     0.000
+        execution-duration      0.000
+        finish-duration         0.000
+        para-1                  task_approve
+        para-2                  true
+        para-3
+        para-4
+    =goal>
+    stage   2
+    trim-attempts               tars
+)
+(spp start-airspeed-check-v2-tars-input-trim-rudder-right :u 2000)
+
 (p has-airspeed-value-attempt-retrieval-v2
     =goal>
     isa         task
@@ -8734,17 +9210,46 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;; RUDDER - TRIM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p start-rudder-trim-visually-attend-eicas
+(p start-rudder-trim-human-is-not-performer
     =goal>
     isa         task
     task-object rudder
     task-value  trim
-    -status     trimmed
+    phase       perform-task
     stage       1
+    -human-role performer
+    ?manual>
+    state       free
+==>
+    +manual>
+        isa                     customized-manual-action
+        name                    agent-set-impulsion
+        preparation-duration    1.000
+        initiation-duration     0.500
+        execution-duration      0.500
+        finish-duration         1.000
+        para-1                  task_approve
+        para-2                  nil
+        para-3                  nil
+        para-4                  nil
+    =goal>
+    stage                       3
+    trim-attempts               tars
+)
+(spp start-rudder-trim-human-is-not-performer :u 2000)
+
+(p start-rudder-trim-visually-attend-eicas
+    =goal>
+    isa             task
+    task-object     rudder
+    task-value      trim
+    -status         checked
+    -trim-attempts  tars
+    stage           1
     ?visual>
-    state       free
+    state           free
     ?imaginal>
-    state       free
+    state           free
 ==>
     +imaginal>
     isa                     eicas-situation
@@ -8897,6 +9402,7 @@
     task-value          trim
     stage               3
     status              =failed-engine-side
+    -trim-attempts      tars
     =imaginal>
     isa                 aircraft-component
     component-name      slip
@@ -8929,6 +9435,7 @@
     task-object         rudder
     task-value          trim
     stage               3
+    -trim-attempts      tars
     status              =failed-engine-side
     =imaginal>
     isa                 aircraft-component
@@ -8973,6 +9480,23 @@
     status              trimmed
     stage               1
 )
+
+(p engine-failed-tars-manages-trim
+    =goal>
+    isa                 task
+    task-object         rudder
+    task-value          trim
+    phase               perform-task
+    autonomy-role       performer
+    trim-attempts       tars
+    -status             checked
+    stage               3
+==>
+    =goal>
+    phase               check-task-on-tars
+    status              trimmed
+    stage               1
+)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;; end of RUDDER - TRIM ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -8988,6 +9512,7 @@
     stage       1
     task-object autopilot
     task-value  set-spd-mode
+    human-role  performer
     ?imaginal>
     state       free
     ?visual>
@@ -9000,13 +9525,46 @@
 )
 (spp start-autopilot-set-spd-mode-attend-pfd :u 1000)
 
+(p autopilot-set-spd-human-not-performer-no-crosscheck
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               1
+    task-object         autopilot
+    task-value          set-spd-mode
+    -human-role         performer
+    -crosscheck         yes
+==>
+    =goal>
+    phase                   attend-aoi
+    stage                   1
+)
+
+(p autopilot-set-spd-human-not-performer-crosscheck
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               1
+    task-object         autopilot
+    task-value          set-spd-mode
+    -human-role         performer
+    crosscheck          yes
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+
 (p visually-attend-autopilot-spd-mode
     =goal>
-    isa         task
-    phase       perform-task
-    stage       2
-    task-object autopilot
-    task-value  set-spd-mode
+    isa             task
+    phase           perform-task
+    stage           2
+    task-object     autopilot
+    task-value      set-spd-mode
     =imaginal>
     isa         aviate-situation
     ?visual>
@@ -9038,14 +9596,16 @@
     stage               3
 )
 
-(p autopilot-is-spd-mode-human-performer
+(p autopilot-is-spd-mode-tars-performer
     =goal>
     isa                 task
     phase               perform-task
     stage               3
     task-object         autopilot
     task-value          set-spd-mode
-    human-role          performer
+    autonomy-role       performer
+    -human-role         performer
+    crosscheck          yes
     =imaginal>
     isa                 aircraft-component
     component-name      spd-mode
@@ -9056,15 +9616,40 @@
     =goal>
     stage               4
 )
+(:spp autopilot-is-spd-mode-tars-performer :reward -4);it was useless to check tars
+
+(p autopilot-is-not-spd-mode-tars-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-spd-mode
+    autonomy-role       performer
+    -human-role         performer
+    crosscheck          yes
+    =imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    -component-status   2
+    ?manual>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+(:spp autopilot-is-not-spd-mode-tars-performer :reward 1);it was useful to check tars
 
 (p autopilot-is-not-spd-mode-human-performer
     =goal>
     isa                 task
     phase               perform-task
     stage               3
-    task-object autopilot
-    task-value  set-spd-mode
-    human-role performer
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
     =imaginal>
     isa                 aircraft-component
     component-name      spd-mode
@@ -9087,6 +9672,7 @@
     stage                   1
 )
 
+
 (p visually-attend-autopilot-selected-airspeed
     =goal>
     isa                 task
@@ -9094,7 +9680,6 @@
     stage               4
     task-object         autopilot
     task-value          set-spd-mode
-    human-role          performer
     ?visual>
     state               free
 ==>
@@ -9114,7 +9699,6 @@
     stage               form-representation-aircraft-component
     task-object         autopilot
     task-value          set-spd-mode
-    human-role          performer
     status              autopilot-airspeed
     ?imaginal>
     state               free
@@ -9134,7 +9718,6 @@
     stage               5
     task-object         autopilot
     task-value          set-spd-mode
-    human-role          performer
     =imaginal>
     isa                 airspeed-v2
     -autopilot-airspeed nil
@@ -9149,7 +9732,7 @@
     stage               6
 )
 
-(p autopilot-spd-mode-too-low
+(p autopilot-spd-mode-too-low-actuate
     =goal>
     isa                     task
     phase                   perform-task
@@ -9181,7 +9764,7 @@
     stage                   4
 )
 
-(p autopilot-spd-mode-too-high
+(p autopilot-spd-mode-too-high-actuate
     =goal>
     isa                     task
     phase                   perform-task
@@ -9220,7 +9803,6 @@
     stage                   6
     task-object             autopilot
     task-value              set-spd-mode
-    human-role              performer
     =retrieval>
     isa                     airspeed-v2
     -airspeed               nil
@@ -9234,24 +9816,45 @@
     stage                   1
 )
 
-(p autopilot-set-spd-human-not-performer
+; A supporter observes TARS's speed setting but does not actuate the selector.
+(p autopilot-spd-mode-outside-v2-tars-performer
     =goal>
-    isa                 task
-    phase               perform-task
-    stage               3
-    task-object         autopilot
-    task-value          set-spd-mode
-    -human-role         performer
+    isa                     task
+    phase                   perform-task
+    stage                   6
+    task-object             autopilot
+    task-value              set-spd-mode
+    -human-role             performer
+    autonomy-role           performer
     =imaginal>
-    isa                 aircraft-component
-    component-name      spd-mode
-    ?manual>
-    state       free
+    isa                     airspeed-v2
+    <autopilot-airspeed     116
 ==>
     =goal>
-    phase                   attend-aoi
-    stage                   1
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
 )
+
+(p autopilot-spd-mode-above-v2-tars-performer
+    =goal>
+    isa                     task
+    phase                   perform-task
+    stage                   6
+    task-object             autopilot
+    task-value              set-spd-mode
+    -human-role             performer
+    autonomy-role           performer
+    =imaginal>
+    isa                     airspeed-v2
+    >autopilot-airspeed     124
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;; end of AUTOPILOT - SET SPD MODE;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -9267,6 +9870,7 @@
     stage       1
     task-object autopilot
     task-value  set-hdg-mode
+    human-role  performer
     ?imaginal>
     state       free
     ?visual>
@@ -9278,6 +9882,39 @@
     situation-return-stage  2
 )
 (spp start-autopilot-set-hdg-mode-attend-pfd :u 1000)
+
+(p autopilot-set-hdg-human-not-performer-no-crosscheck
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               1
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    -crosscheck         yes
+==>
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+
+(p autopilot-set-hdg-human-not-performer-crosscheck
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               1
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    crosscheck          yes
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
+)
 
 (p visually-attend-autopilot-hdg-mode
     =goal>
@@ -9315,6 +9952,46 @@
     component-status    =value
     =goal>
     stage               3
+)
+
+(p autopilot-is-hdg-mode-tars-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    autonomy-role       performer
+    crosscheck          yes
+    =imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    component-status    2
+==>
+    =goal>
+    stage               4
+)
+
+(p autopilot-is-not-hdg-mode-tars-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    autonomy-role       performer
+    crosscheck          yes
+    =imaginal>
+    isa                 aircraft-component
+    component-name      hdg-mode
+    -component-status   2
+==>
+    =goal>
+    phase                   request-pfd-situation
+    situation-return-phase  perform-task
+    situation-return-stage  2
 )
 
 (p autopilot-is-hdg-mode-human-performer
@@ -9373,7 +10050,6 @@
     stage               4
     task-object         autopilot
     task-value          set-hdg-mode
-    human-role          performer
     ?visual>
     state               free
 ==>
@@ -9393,7 +10069,6 @@
     stage               form-representation-aircraft-component
     task-object         autopilot
     task-value          set-hdg-mode
-    human-role          performer
     status              autopilot-hdg
     ?imaginal>
     state               free
@@ -9414,7 +10089,6 @@
     stage               5
     task-object         autopilot
     task-value          set-hdg-mode
-    human-role          performer
     =imaginal>
     isa                 aircraft-component
     component-name      autopilot-hdg
@@ -9498,6 +10172,62 @@
     stage               1
 )
 
+(p autopilot-hdg-mode-off-course-tars-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               6
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    autonomy-role       performer
+    =retrieval>
+    isa                 runway
+    current             t
+    runway-hdg          =value
+    =imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    -component-status   =value
+==>
+    +manual>
+       isa         customized-manual-action
+       name        agent-set-int
+       preparation-duration 0.000
+       initiation-duration  0.000
+       execution-duration   0.020
+       finish-duration      0.000
+       para-1               heading_sel
+       para-2               =value
+       para-3               nil
+       para-4               nil
+    =goal>
+   stage                form-representation-aircraft-component
+)
+
+(p autopilot-hdg-mode-on-course-tars-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               6
+    task-object         autopilot
+    task-value          set-hdg-mode
+    -human-role         performer
+    autonomy-role       performer
+    =retrieval>
+    isa                 runway
+    current             t
+    runway-hdg          =value
+    =imaginal>
+    isa                 aircraft-component
+    component-name      autopilot-hdg
+    component-status    =value
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
 (p autopilot-set-hdg-human-not-performer
     =goal>
     isa                 task
@@ -9506,6 +10236,7 @@
     task-object         autopilot
     task-value          set-hdg-mode
     -human-role         performer
+    -crosscheck         yes
     =imaginal>
     isa                 aircraft-component
     component-name      hdg-mode
@@ -9670,9 +10401,20 @@
     ?manual>
     state       free
 ==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-impulsion
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               task_approve
+        para-2               nil
+        para-3               nil
+        para-4               nil
     =goal>
-    phase               attend-aoi
-    stage               1
+    phase                   check-task-on-tars
+    stage                   1
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;; end of AUTOPILOT - ENGAGE ;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -14002,6 +14744,7 @@
 	stage		3
 )
 ;; form task item representation in imaginal buffer
+
 (p check-3-form-task-object-item-representation
    =goal>
 	isa		    task
