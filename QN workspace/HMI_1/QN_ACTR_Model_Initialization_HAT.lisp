@@ -731,6 +731,8 @@
     situation-return-stage
     tars-speech-return-phase
     tars-speech-return-stage
+    atc-speech-return-phase
+    atc-speech-return-stage
     atc-callsign-wait-ticks
     atc-callsign-wait-started
     received-vector-heading
@@ -1467,6 +1469,83 @@
 )
 (spp tars-sound-encoded-set-the-heading-and-altitude-following-vectors :u 2000)
 
+; A CHECK callout can refer to the preceding TARS item while the pilot is
+; still working through both engine anti-ice switches.
+(p tars-check-encoded-during-engine-anti-ice
+   =goal>
+    isa                       task
+    task-object               engine-anti-ice-switches
+    phase                     listening-to-tars
+    stage                     encoding
+    tars-speech-return-phase  =return_phase
+    tars-speech-return-stage  =return_stage
+   =aural>
+    isa                       sound
+    location                  tars
+    content                   check
+==>
+   -aural>
+   -aural-location>
+   +temporal>
+    isa                       clear
+   =goal>
+    phase                     =return_phase
+    stage                     =return_stage
+    tars-speech-return-phase  nil
+    tars-speech-return-stage  nil
+)
+(spp tars-check-encoded-during-engine-anti-ice :u 3000)
+
+; CHECK may arrive while the next TARS task is still being read. Continue
+; from the interrupted reader step instead of restarting AoI selection.
+(p tars-check-encoded-during-task-reading
+   =goal>
+    isa                       task
+    phase                     listening-to-tars
+    stage                     encoding
+    tars-speech-return-phase  reading-tars-interface
+    tars-speech-return-stage  =return_stage
+   =aural>
+    isa                       sound
+    location                  tars
+    content                   check
+==>
+   -aural>
+   -aural-location>
+   +temporal>
+    isa                       clear
+   =goal>
+    phase                     reading-tars-interface
+    stage                     =return_stage
+    tars-speech-return-phase  nil
+    tars-speech-return-stage  nil
+)
+(spp tars-check-encoded-during-task-reading :u 3000)
+
+(p tars-check-encoded-during-allocation-reading
+   =goal>
+    isa                       task
+    phase                     listening-to-tars
+    stage                     encoding
+    tars-speech-return-phase  check-allocation
+    tars-speech-return-stage  =return_stage
+   =aural>
+    isa                       sound
+    location                  tars
+    content                   check
+==>
+   -aural>
+   -aural-location>
+   +temporal>
+    isa                       clear
+   =goal>
+    phase                     check-allocation
+    stage                     =return_stage
+    tars-speech-return-phase  nil
+    tars-speech-return-stage  nil
+)
+(spp tars-check-encoded-during-allocation-reading :u 3000)
+
 (p tars-check-encoded-sound
    =goal>
     isa             task
@@ -1931,6 +2010,35 @@
 )
 (spp tars-speech-ended-restart-interrupted-atc-sound :u 2000)
 
+; TARS may displace an ATC word being encoded during the anti-ice task.
+; Return to the saved anti-ice step when that ATC word is no longer available.
+(p tars-speech-ended-resume-interrupted-anti-ice-atc-sound
+   =goal>
+    isa                       task
+    task-object               engine-anti-ice-switches
+    phase                     listening-to-tars
+    stage                     waiting
+    tars-speech-return-stage  encode-sound
+    atc-speech-return-phase   =return_phase
+    atc-speech-return-stage   =return_stage
+   =temporal>
+    isa                       time
+    ticks                     16
+   ?aural>
+    buffer                    empty
+==>
+   +temporal>
+    isa                       clear
+   =goal>
+    phase                     =return_phase
+    stage                     =return_stage
+    tars-speech-return-phase  nil
+    tars-speech-return-stage  nil
+    atc-speech-return-phase   nil
+    atc-speech-return-stage   nil
+)
+(spp tars-speech-ended-resume-interrupted-anti-ice-atc-sound :u 3000)
+
 (p tars-speech-ended-resume-task
    =goal>
     isa             task
@@ -2180,6 +2288,29 @@
 )
 (spp tars-speech-ended-restart-panpan-altitude-vector-wait :u 2000)
 
+(p detected-atc-sound-during-engine-anti-ice
+   =goal>
+    isa                       task
+    task-object               engine-anti-ice-switches
+    phase                     =return_phase
+    -phase                    listening-to-tars
+    stage                     =return_stage
+   =aural-location>
+    isa                       audio-event
+    location                  atc
+    id                        =event
+   ?aural>
+    state                     free
+==>
+   +aural>
+    event                     =event
+   =goal>
+    stage                     encode-sound
+    atc-speech-return-phase   =return_phase
+    atc-speech-return-stage   =return_stage
+)
+(spp detected-atc-sound-during-engine-anti-ice :u 2000)
+
 (p detected-sound
    =goal>
     isa             task
@@ -2277,6 +2408,29 @@
 )
 (spp sound-from-self-resume-task :u 100) ; need to be higher to capture
 ;(spp sound-from-self-resume-task :fixed-utility t)
+
+(p encode-atc-sound-and-resume-engine-anti-ice
+   =goal>
+    isa                       task
+    task-object               engine-anti-ice-switches
+    stage                     encode-sound
+    atc-speech-return-phase   =return_phase
+    atc-speech-return-stage   =return_stage
+   =aural>
+    isa                       sound
+    location                  atc
+    content                   =content
+==>
+   !output! (=content)
+   -aural>
+   -aural-location>
+   =goal>
+    phase                     =return_phase
+    stage                     =return_stage
+    atc-speech-return-phase   nil
+    atc-speech-return-stage   nil
+)
+(spp encode-atc-sound-and-resume-engine-anti-ice :u 2000)
 
 (p encode-sound
    ?imaginal>
@@ -4640,6 +4794,58 @@
     stage           1
 )
 
+; Re-reading the same unfinished anti-ice task after an interruption must
+; resume the switch checks instead of leaving the goal at interface stage 6.
+(p resume-unfinished-engine-anti-ice-from-interface
+   =goal>
+    isa             task
+    phase           reading-tars-interface
+    stage           6
+    task-object     engine-anti-ice-switches
+    task-value      as-required
+    -status         checked
+    -status         wait-teammate
+   =imaginal>
+    isa             task
+    task-object     engine-anti-ice-switches
+    task-value      as-required
+==>
+   =imaginal>
+   =goal>
+    phase           perform-task
+    stage           1
+)
+(spp resume-unfinished-engine-anti-ice-from-interface :u 2000)
+
+; The same unfinished task may be read again after a sound interruption.
+; Re-read its allocation and TARS input, including for windshield anti-ice.
+(p resume-unfinished-task-from-interface
+   =goal>
+    isa             task
+    phase           reading-tars-interface
+    stage           6
+    task-object     =value_obj
+    task-value      =value_val
+    -status         checked
+    -status         wait-teammate
+   =imaginal>
+    isa             task
+    task-object     =value_obj
+    task-value      =value_val
+    -task-value     waiting
+==>
+   =imaginal>
+   =goal>
+    phase           check-allocation
+    stage           1
+    human-role      nil
+    autonomy-role   nil
+    crosscheck      nil
+    tars-input      nil
+    status          nil
+)
+(spp resume-unfinished-task-from-interface :u 1000)
+
 ;; ELSE IF NOT TASK WAITING AND THE TASK REPRESENTATION FORMED IS DIFFERENT FROM GOAL
 ;; THEN PROCEED TO NEXT STEPS TO READ TASK ALLOCATION INFORMATION
 ; visually attend to current task human role on TARS interface
@@ -4832,7 +5038,6 @@
      situation-return-phase perform-task
      situation-return-stage 1
 )
-(spp t-i-x-7-decide-crosscheck :u 1000) ; FOR TESTING ONLY
 
 (p t-i-x-7-no-crosscheck
     =goal>
@@ -4847,7 +5052,7 @@
      situation-return-phase perform-task
      situation-return-stage 1
 )
-;(spp x-7-no-crosscheck :reward 2) ;
+(spp t-i-x-7-no-crosscheck :u 1000) ;;FOR TESTING PURPOSES ONLY
 
 (p t-i-tars-n-a-allocation-go-to-perform-task
     =goal>
@@ -8173,7 +8378,7 @@
     state               free
 ==>
     =goal>
-    stage               4
+    stage               5
     +imaginal>
     isa                 aircraft-component
     component-name      selected-altitude
@@ -8277,11 +8482,30 @@
      state             error
 ==>
     =goal>
-    stage               4
+    stage               5
     +imaginal>
     isa                 aircraft-component
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
+)
+
+(p takeoff-clearance-not-retrieved-no-tars-input
+    =goal>
+     isa                task
+     phase              perform-task
+     stage              3
+     task-object        select-altitude
+     task-value         preset-as-cleared
+     tars-input         nil
+    ?retrieval>
+     state              error
+==>
+    =goal>
+     stage              5
+    +imaginal>
+     isa                aircraft-component
+     component-name     selected-altitude
+     desired-status     5000 ; scenario assumes cleared altitude is 5000 feet
 )
 
 
@@ -8302,7 +8526,7 @@
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
    =goal>
-    stage              4
+    stage              5
 )
 
 (p t-i-takeoff-clearance-retrieved-successfully-and-tars-input-available
@@ -8374,7 +8598,7 @@
     =goal>
      isa		        task
      phase		        perform-task
-     stage              4
+     stage              5
      task-object	    select-altitude
      task-value         preset-as-cleared
     =imaginal>
@@ -10444,6 +10668,7 @@
     phase       perform-task
     stage       1
     -human-role performer
+    autonomy-role performer
     ?manual>
     state       free
 ==>
@@ -10463,6 +10688,24 @@
     trim-attempts               tars
 )
 (spp start-rudder-trim-human-is-not-performer :u 2000)
+
+; The airspeed check can lead directly to rudder trim without a new task
+; allocation. If TARS is not the performer, the pilot must perform the trim.
+(p start-rudder-trim-not-assigned-to-tars
+    =goal>
+    isa           task
+    task-object   rudder
+    task-value    trim
+    phase         perform-task
+    stage         1
+    -human-role   performer
+    -autonomy-role performer
+==>
+    =goal>
+    human-role    performer
+    trim-attempts nil
+)
+(spp start-rudder-trim-not-assigned-to-tars :u 2000)
 
 (p start-rudder-trim-visually-attend-eicas
     =goal>
@@ -10693,7 +10936,7 @@
     >component-status   -1
 ==>
     =goal>
-    phase               attend-aoi
+    phase               check-task-on-tars
     status              trimmed
     stage               1
 )
@@ -10834,6 +11077,25 @@
     stage               4
 )
 (:spp autopilot-is-spd-mode-tars-performer :reward -4);it was useless to check tars
+
+(p autopilot-is-spd-mode-human-performer
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               3
+    task-object         autopilot
+    task-value          set-spd-mode
+    human-role          performer
+    =imaginal>
+    isa                 aircraft-component
+    component-name      spd-mode
+    component-status    2
+    ?manual>
+    state               free
+==>
+    =goal>
+    stage                   4
+)
 
 (p autopilot-is-not-spd-mode-tars-performer
     =goal>
@@ -12297,6 +12559,8 @@
 )
 (spp start-atc-contact-mayday :u 1000)
 
+; TARS owns the radio contact after approval. Resume AoI scanning so ATC
+; speech is handled by the normal bottom-up audio path when it arrives.
 (p atc-contact-mayday-autonomy-performer-approve
     =goal>
     isa                 task
@@ -12307,8 +12571,6 @@
     status              nil
     -human-role         performer
     autonomy-role       performer
-    ?imaginal>
-    state               free
     ?manual>
     state               free
 ==>
@@ -12323,15 +12585,10 @@
         para-2              true
         para-3              nil
         para-4              nil
-    +imaginal>
-    isa                 emergency-communication
-    type                mayday
-    +temporal>
-    isa                 time
-    ticks               0
     =goal>
-    stage               await-atc-callsign
-    status              atc-awaiting-callsign
+    phase               attend-aoi
+    stage               1
+    status              wait-teammate
     atc-callsign-wait-ticks 0
     atc-callsign-wait-started nil
 )
