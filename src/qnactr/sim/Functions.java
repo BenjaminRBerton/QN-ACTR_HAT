@@ -1002,6 +1002,22 @@ public class Functions {
 		}
 
 	}
+
+	/** Return the oldest event at a location that is still audible and unattended. */
+	public String AudioModuleFun__Find_Unattended_Event(String location){
+		AudioModuleFun__Update_Audicon_Decay();
+		for (Chunk audicon : sim.vars.audioDisplay.Audicon){
+			if (!location.equals(ChunkFun__Get_Chunk_Slot_Value(audicon, "location"))) continue;
+			String eventName = ChunkFun__Get_Chunk_Slot_Value(audicon, "event");
+			Chunk event = (Chunk) sim.vars.centralParametersModule.Chunks.get(eventName);
+			if (event != null && "nil".equals(ChunkFun__Get_Chunk_Slot_Value(event, ":attended"))) return eventName;
+		}
+		return "nil";
+	}
+
+	public String AudioModuleFun__Find_Unattended_Atc_Event(){
+		return AudioModuleFun__Find_Unattended_Event("atc");
+	}
 	
 	public  int AudioModuleFun__Find_The_Audicon_ID_By_Chunk_Name(String the_chunk_name){
 		
@@ -5145,6 +5161,22 @@ return return_string;
 	          return timeStr;
 
 	        }			
+	        case "find-unattended-atc-audio-event":
+	        {
+	          if (content_list.size() != 0) {
+	            System.out.println("Error! LispFun__Evaluate_A_List find-unattended-atc-audio-event takes no parameters: " + input_string);
+	            return null;
+	          }
+	          return AudioModuleFun__Find_Unattended_Atc_Event();
+	        }
+	        case "find-unattended-tars-audio-event":
+	        {
+	          if (content_list.size() != 0) {
+	            System.out.println("Error! LispFun__Evaluate_A_List find-unattended-tars-audio-event takes no parameters: " + input_string);
+	            return null;
+	          }
+	          return AudioModuleFun__Find_Unattended_Event("tars");
+	        }
 	        
 	        case "unity-tangtang-get-enemy-distance":
 	        {
@@ -5610,6 +5642,7 @@ return return_string;
 	        //the following functions apply to 2 and only 2 numbers
 	        case "+": 
 	        case "-": 
+	        case "atc-callsign-budget-expired":
 	        case "*": 
 	        case "/": 
 	        case "=":
@@ -5715,6 +5748,12 @@ return return_string;
 	                return null;
 	              }
 	              return_string = Double.toString( Double.parseDouble (para_1) + Double.parseDouble (para_2) );
+	              break;
+	            }
+	            case "atc-callsign-budget-expired": {
+	              if (!sim.funs.ProgramUtilitiesFun__Is_String_Double(para_1) ||
+	                  !sim.funs.ProgramUtilitiesFun__Is_String_Double(para_2)) return null;
+              return_string = Double.parseDouble(para_1) + Double.parseDouble(para_2) >= 40.0 ? "t" : "nil";
 	              break;
 	            }
 	            case "-": {
@@ -15887,12 +15926,34 @@ return return_string;
 	          //Use exclusive OR ^ to combine normal and NOT test, bool  is_NOT_test . 
 	          boolean is_slot_matched = is_NOT_test; //so that the match_result below is default to false;
 	          switch (buffer_name.toLowerCase()){ //ToDo: here add more test cases according to ACT-R module/buffer state tests.
+	            case "goal":
+	            case "goal-2":
+	            case "goal-3":
+	            case "goal-4":
+	            case "goal-5":{
+	              switch (slot_key.toLowerCase() + "_" + slot_value.toLowerCase()){
+	                case "buffer_empty":
+	                  is_slot_matched = sim.funs.ProgramUtilitiesFun__Is_Buffer_Empty(buffer_name);
+	                  break;
+	                case "buffer_full":
+	                  is_slot_matched = !sim.funs.ProgramUtilitiesFun__Is_Buffer_Empty(buffer_name);
+	                  break;
+	                default:
+	                  System.out.println("ProductionModuleFun__Match_A_Rule_Test. ?" + buffer_name + "> has undefined test case: " + slot_key + "_" + slot_value);
+	                  return false;
+	              }
+	              break;
+	            }
 	            case "aural":{ //modifed from visual, since they are similar
 	              switch (slot_key.toLowerCase() + "_" + slot_value.toLowerCase()){
 	                case "state_free":{
 	                  //here is the different part for each module
 	                  is_slot_matched = (sim.vars.audioModule.State_Free == true);
 	                  //
+	                  break;
+	                }
+	                case "state_error":{
+	                  is_slot_matched = (sim.vars.audioModule.State_Error == true);
 	                  break;
 	                }
 	                case "buffer_empty":{

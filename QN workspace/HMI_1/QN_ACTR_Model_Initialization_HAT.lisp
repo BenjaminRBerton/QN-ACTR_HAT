@@ -724,10 +724,18 @@
     tars-input
     crosscheck
     imaginal-pointer
+    eicas-e1-n1
+    eicas-e2-n1
+    eicas-failure-side
     situation-return-phase
     situation-return-stage
     tars-speech-return-phase
     tars-speech-return-stage
+    atc-callsign-wait-ticks
+    atc-callsign-wait-started
+    received-vector-heading
+    received-vector-altitude
+    vector-target
 )
 
 ; To call a situation worker from a procedural task, set the goal's phase to
@@ -988,6 +996,10 @@
     (w-direct-agmeb-then-omeki isa word value proceed-direct-agmeb-then-omeki category navigation)
     (w-on-one-one-eight-decimal-niner isa word value departure-on-one-one-eight-decimal-niner category frequency)
     (w-good-flight isa word value good-flight category ending)
+    (w-vector-heading-right-330 isa word value turn-right-heading-330 equivalent 330 category heading)
+    (w-vector-heading-left-150 isa word value turn-left-heading-150 equivalent 150 category heading)
+    (w-vector-heading-right-150 isa word value turn-right-heading-150 equivalent 150 category heading)
+    (w-vector-altitude-3000 isa word value descend-to-3000-feet equivalent 3000 category altitude)
 )
 
 (goal-focus start-task)
@@ -1187,6 +1199,7 @@
     isa             task
     phase           =return_phase
     - phase         listening-to-tars
+    - task-object   immediate-action-item
     stage           =return_stage
    =aural-location>
     isa             audio-event
@@ -1204,6 +1217,128 @@
     stage           encoding
 )
 (spp detected-tars-sound :u 1000)
+
+; Approval precedes TARS's outbound emergency transmission. Begin the ATC
+; reply budget after that first transmission, not while TARS is still sending.
+(p detected-first-tars-sound-during-atc-callsign-wait
+   =goal>
+    isa             task
+    task-object     atc
+    phase           perform-task
+    stage           await-atc-callsign
+    status          atc-awaiting-callsign
+    atc-callsign-wait-started nil
+   =aural-location>
+    isa             audio-event
+    location        tars
+    id              =event
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =event
+   =goal>
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started t
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+    phase           listening-to-tars
+    stage           encoding
+)
+(spp detected-first-tars-sound-during-atc-callsign-wait :u 2500)
+
+; Preserve the elapsed callsign wait while TARS uses the shared temporal
+; buffer. Otherwise every TARS word gives the ATC wait a fresh interval.
+(p detected-tars-sound-during-atc-callsign-wait
+   =goal>
+    isa             task
+    task-object     atc
+    phase           perform-task
+    stage           await-atc-callsign
+    status          atc-awaiting-callsign
+    atc-callsign-wait-started t
+    atc-callsign-wait-ticks =prior
+   =aural-location>
+    isa             audio-event
+    location        tars
+    id              =event
+   =temporal>
+    isa             time
+    ticks           =current
+   ?aural>
+    state           free
+   !bind! =elapsed (+ =prior =current)
+==>
+   +aural>
+    event           =event
+   =goal>
+    atc-callsign-wait-ticks =elapsed
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+    phase           listening-to-tars
+    stage           encoding
+)
+(spp detected-tars-sound-during-atc-callsign-wait :u 2000)
+
+; If TARS arrives after an ATC word has been requested, resume the bounded
+; callsign wait rather than returning to the contact task's initial stage.
+(p detected-tars-sound-during-atc-callsign-encoding
+   =goal>
+    isa             task
+    task-object     atc
+    phase           perform-task
+    stage           encode-sound
+    status          atc-awaiting-callsign
+    atc-callsign-wait-started t
+    atc-callsign-wait-ticks =prior
+   =aural-location>
+    isa             audio-event
+    location        tars
+    id              =event
+   =temporal>
+    isa             time
+    ticks           =current
+   ?aural>
+    state           free
+   !bind! =elapsed (+ =prior =current)
+==>
+   +aural>
+    event           =event
+   =goal>
+    atc-callsign-wait-ticks =elapsed
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+    phase           listening-to-tars
+    stage           encoding
+)
+(spp detected-tars-sound-during-atc-callsign-encoding :u 1500)
+
+(p detected-first-tars-sound-during-atc-callsign-encoding
+   =goal>
+    isa             task
+    task-object     atc
+    phase           perform-task
+    stage           encode-sound
+    status          atc-awaiting-callsign
+    atc-callsign-wait-started nil
+   =aural-location>
+    isa             audio-event
+    location        tars
+    id              =event
+   ?aural>
+    state           free
+==>
+   +aural>
+    event           =event
+   =goal>
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started t
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+    phase           listening-to-tars
+    stage           encoding
+)
+(spp detected-first-tars-sound-during-atc-callsign-encoding :u 1500)
 
 (p tars-sound-encoded
    =goal>
@@ -1225,6 +1360,112 @@
     stage           waiting
 )
 (spp tars-sound-encoded :u 1000)
+
+; TARS performed the PanPan transmission after approval. Trigger the same
+; ATC vectors response that the human speech path requests after speaking.
+(p tars-panpan-call-encoded-request-vectors
+   =goal>
+    isa             task
+    task-object     atc
+    task-value      announce-panpan-and-request-vector
+    phase           listening-to-tars
+    stage           encoding
+    status          wait-teammate
+    tars-speech-return-phase attend-aoi
+    tars-speech-return-stage 1
+    atc-callsign-wait-started nil
+   =aural>
+    isa             sound
+    location        tars
+    content         =content
+   ?manual>
+    state           free
+==>
+   !output! (=content)
+   -aural>
+   -aural-location>
+   +manual>
+    isa                 customized-manual-action
+    name                agent-set-int
+    preparation-duration 0.000
+    initiation-duration  0.000
+    execution-duration   0.000
+    finish-duration      0.000
+    para-1              request_vectors
+    para-2              5
+    para-3              nil
+    para-4              nil
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    stage           waiting
+    atc-callsign-wait-started t
+)
+(spp tars-panpan-call-encoded-request-vectors :u 2000)
+
+; The pilot supports this ATC task. Approve TARS's vectors proposal when
+; heard, then continue scanning AoIs while later speech arrives bottom-up.
+(p tars-vectors-proposal-approve-as-supporter
+   =goal>
+    isa             task
+    task-object     atc
+    -human-role     performer
+    phase           listening-to-tars
+    stage           encoding
+   =aural>
+    isa             sound
+    location        tars
+    content         do-you-want-me-to-set-the-heading-and-altitude-following-atc-vectors?
+   ?manual>
+    state           free
+==>
+   -aural>
+   -aural-location>
+   +manual>
+    isa                 customized-manual-action
+    name                agent-set-bool
+    preparation-duration 0.050
+    initiation-duration  0.050
+    execution-duration   0.050
+    finish-duration      0.050
+    para-1              task_approve
+    para-2              true
+    para-3              nil
+    para-4              nil
+   +temporal>
+    isa             clear
+   =goal>
+    phase           attend-aoi
+    stage           1
+    status          wait-teammate
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-vectors-proposal-approve-as-supporter :u 3000)
+
+(p tars-sound-encoded-set-the-heading-and-altitude-following-vectors
+    =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
+    =aural>
+    isa             sound
+    location        tars
+    content         do-you-want-me-to-set-the-heading-and-altitude-following-atc-vectors?
+    ?imaginal>
+    state           free
+==>
+   =goal>
+   isa              task
+   phase            attending-aoi
+   stage            1
+   status           tars-input-vectors
+   +imaginal>
+   isa              aoi
+   name             "CURRENT_TASK_OBJECT"
+)
+(spp tars-sound-encoded-set-the-heading-and-altitude-following-vectors :u 2000)
 
 (p tars-check-encoded-sound
    =goal>
@@ -1343,6 +1584,79 @@
             tars-speech-return-stage nil
 )
 (spp tars-rotate-encoded-sound :u 2000)
+
+(p tars-positive-rate-gear-up-encoded-sound
+    =goal>
+     isa                         task
+     phase                       listening-to-tars
+     stage                       encoding
+     tars-speech-return-phase    =return_phase
+     tars-speech-return-stage    =return_stage
+    =aural>
+     isa                         sound
+     location                    tars
+     content                     positive-rate-gear-up
+    ?imaginal>
+         state                    free
+==>
+            +temporal>
+                isa                      clear
+            =goal>
+                phase                    =return_phase
+                stage                    =return_stage
+                tars-speech-return-phase nil
+                tars-speech-return-stage nil
+)
+(spp tars-positive-rate-gear-up-encoded-sound :u 2000)
+
+(p tars-800-feet-i-am-arming-autopilot-flc-mode-to-v2-120-knots-encoded-sound
+    =goal>
+     isa                         task
+     phase                       listening-to-tars
+     stage                       encoding
+     tars-speech-return-phase    =return_phase
+     tars-speech-return-stage    =return_stage
+    =aural>
+     isa                         sound
+     location                    tars
+     content                     800-feet-i-am-arming-autopilot-flc-mode-to-v2-120-knots
+    ?imaginal>
+         state                    free
+==>
+    +temporal>
+        isa                      clear
+    =goal>
+        phase                    =return_phase
+        stage                    =return_stage
+        tars-speech-return-phase nil
+        tars-speech-return-stage nil
+)
+(spp tars-800-feet-i-am-arming-autopilot-flc-mode-to-v2-120-knots-encoded-sound :u 2000)
+
+(p tars-speed-mode-armed-encoded-sound
+    =goal>
+     isa                         task
+     phase                       listening-to-tars
+     stage                       encoding
+     tars-speech-return-phase    =return_phase
+     tars-speech-return-stage    =return_stage
+    =aural>
+     isa                         sound
+     location                    tars
+     content                     speed-mode-armed
+    ?imaginal>
+         state                    free
+==>
+    +temporal>
+        isa                      clear
+    =goal>
+        phase                    =return_phase
+        stage                    =return_stage
+        tars-speech-return-phase nil
+        tars-speech-return-stage nil
+)
+(spp tars-speed-mode-armed-encoded-sound :u 2000)
+
 
 (p tars-climb-to-1500-aim-for-120-knots-encoded-sound
    =goal>
@@ -1502,6 +1816,36 @@
 )
 (spp tars-sound-encoded-will-not-announce-airspeeds-during-takeoff :u 2000)
 
+(p tars-sound-encoded-will-announce-airspeeds-during-takeoff
+    =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           encoding
+    tars-speech-return-phase attend-aoi
+    tars-speech-return-stage 1
+    =aural>
+    isa             sound
+    location        tars
+    content         ready-for-takeoff-i-will-announce-airspeed's-alive-70-knots-v1-and-rotate
+    ?imaginal>
+    state           free
+==>
+    +imaginal>
+    isa                 tars-status
+    tars-component-name takeoff-callouts
+    status              will-announce-airspeeds-during-takeoff
+    -aural>
+    -aural-location>
+    +temporal>
+    isa             time
+    ticks           0
+    =goal>
+    stage           waiting
+)
+(spp tars-sound-encoded-will-announce-airspeeds-during-takeoff :u 2000)
+
+
+
 ; Clearing the completed imaginal representation harvests it into DM before
 ; the interrupted AOI scan resumes.
 (p harvest-tars-speech-status
@@ -1587,40 +1931,6 @@
 )
 (spp tars-speech-ended-restart-interrupted-atc-sound :u 2000)
 
-; The EICAS worker has its own goal, but ATC encoding can replace its
-; imaginal situation. Restore the caller's idle stage and rescan EICAS.
-(p tars-speech-ended-restart-interrupted-eicas
-   =goal>
-    isa             task
-    phase           listening-to-tars
-    stage           waiting
-    tars-speech-return-phase waiting-for-eicas
-    tars-speech-return-stage encode-sound
-   =goal-2>
-    isa             task
-    task-object     eicas
-   =temporal>
-    isa             time
-    ticks           16
-   ?aural>
-    buffer          empty
-   ?imaginal>
-    buffer          empty
-    state           free
-==>
-   +temporal>
-    isa             clear
-   =goal>
-    phase           waiting-for-eicas
-    stage           idle
-    tars-speech-return-phase nil
-    tars-speech-return-stage nil
-   =goal-2>
-    phase           read-eicas
-    stage           1
-)
-(spp tars-speech-ended-restart-interrupted-eicas :u 3000)
-
 (p tars-speech-ended-resume-task
    =goal>
     isa             task
@@ -1666,6 +1976,63 @@
 )
 (spp tars-speech-ended-restart-atc-message-timer :u 2000)
 
+; A TARS word may overwrite an ATC aural-location. Revisit an unattended ATC
+; audicon while it is still available before returning to the callsign wait.
+(p tars-speech-ended-recover-atc-callsign-audio
+   =goal>
+    isa             task
+    task-object     atc
+    phase           listening-to-tars
+    stage           waiting
+    status          atc-awaiting-callsign
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+   =temporal>
+    isa             time
+    ticks           16
+   ?aural>
+    state           free
+   !bind! =event (find-unattended-atc-audio-event)
+   !eval! (find-unattended-atc-audio-event)
+==>
+   +aural>
+    event           =event
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    phase           perform-task
+    stage           encode-sound
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-recover-atc-callsign-audio :u 3000)
+
+; The 40-tick timer has already been exhausted. TARS may still speak while
+; ATC is pending; return to the callsign wait without starting another timer.
+(p tars-speech-ended-resume-exhausted-atc-callsign-wait
+   =goal>
+    isa             task
+    phase           listening-to-tars
+    stage           waiting
+    status          atc-awaiting-callsign
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage await-atc-callsign
+    atc-callsign-wait-ticks 40
+   =temporal>
+    isa             time
+    ticks           16
+==>
+   +temporal>
+    isa             clear
+   =goal>
+    phase           perform-task
+    stage           await-atc-callsign
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-resume-exhausted-atc-callsign-wait :u 2500)
+
 (p tars-speech-ended-restart-atc-callsign-timer
    =goal>
     isa             task
@@ -1673,6 +2040,7 @@
     stage           waiting
     tars-speech-return-phase perform-task
     tars-speech-return-stage await-atc-callsign
+    atc-callsign-wait-ticks =elapsed
    =temporal>
     isa             time
     ticks           16
@@ -1688,10 +2056,138 @@
 )
 (spp tars-speech-ended-restart-atc-callsign-timer :u 2000)
 
+; TARS speech uses the temporal buffer, so restart the flap polling interval
+; when an interrupted autonomy wait resumes.
+(p tars-speech-ended-restart-flaps-retraction-timer
+   =goal>
+    isa             task
+    task-object     flap-handle
+    task-value      up
+    phase           listening-to-tars
+    stage           waiting
+    tars-speech-return-phase perform-task
+    tars-speech-return-stage waiting-for-flaps-retraction
+   =temporal>
+    isa             time
+    ticks           16
+==>
+   +temporal>
+    isa             time
+    ticks           0
+   =goal>
+    phase           perform-task
+    stage           waiting-for-flaps-retraction
+    tars-speech-return-phase nil
+    tars-speech-return-stage nil
+)
+(spp tars-speech-ended-restart-flaps-retraction-timer :u 2000)
+
+; TARS announcements can interrupt either selector check. Restart the polling
+; clock on return, as for the flaps retraction check.
+(p tars-speech-ended-restart-panpan-heading-poll
+   =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       listening-to-tars
+    stage                       waiting
+    tars-speech-return-phase    perform-task
+    tars-speech-return-stage    waiting-for-heading-selection
+   =temporal>
+    isa                         time
+    ticks                       16
+==>
+   +temporal>
+    isa                         time
+    ticks                       0
+   =goal>
+    phase                       perform-task
+    stage                       waiting-for-heading-selection
+    tars-speech-return-phase    nil
+    tars-speech-return-stage    nil
+)
+(spp tars-speech-ended-restart-panpan-heading-poll :u 2000)
+
+(p tars-speech-ended-restart-panpan-heading-vector-wait
+   =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       listening-to-tars
+    stage                       waiting
+    tars-speech-return-phase    perform-task
+    tars-speech-return-stage    waiting-for-heading-vector
+   =temporal>
+    isa                         time
+    ticks                       16
+==>
+   +temporal>
+    isa                         time
+    ticks                       0
+   =goal>
+    phase                       perform-task
+    stage                       waiting-for-heading-vector
+    tars-speech-return-phase    nil
+    tars-speech-return-stage    nil
+)
+(spp tars-speech-ended-restart-panpan-heading-vector-wait :u 2000)
+
+(p tars-speech-ended-restart-panpan-altitude-poll
+   =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       listening-to-tars
+    stage                       waiting
+    tars-speech-return-phase    perform-task
+    tars-speech-return-stage    waiting-for-altitude-selection
+   =temporal>
+    isa                         time
+    ticks                       16
+==>
+   +temporal>
+    isa                         time
+    ticks                       0
+   =goal>
+    phase                       perform-task
+    stage                       waiting-for-altitude-selection
+    tars-speech-return-phase    nil
+    tars-speech-return-stage    nil
+)
+(spp tars-speech-ended-restart-panpan-altitude-poll :u 2000)
+
+(p tars-speech-ended-restart-panpan-altitude-vector-wait
+   =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       listening-to-tars
+    stage                       waiting
+    tars-speech-return-phase    perform-task
+    tars-speech-return-stage    waiting-for-altitude-vector
+   =temporal>
+    isa                         time
+    ticks                       16
+==>
+   +temporal>
+    isa                         time
+    ticks                       0
+   =goal>
+    phase                       perform-task
+    stage                       waiting-for-altitude-vector
+    tars-speech-return-phase    nil
+    tars-speech-return-stage    nil
+)
+(spp tars-speech-ended-restart-panpan-altitude-vector-wait :u 2000)
+
 (p detected-sound
    =goal>
     isa             task
     - phase         listening-to-tars
+    - status        atc-awaiting-callsign
+    - task-object   immediate-action-item
+   ?goal-2>
+    buffer          empty
    =aural-location>
     isa             audio-event
     location        atc
@@ -1721,6 +2217,7 @@
    =aural-location>
     isa             audio-event
     location        atc
+    id              =event
    ?aural>
     state           free
    ?retrieval>
@@ -1729,7 +2226,7 @@
     state           free
 ==>
    +aural>
-    event           =aural-location
+    event           =event
    +temporal>
     isa             clear
    =goal>
@@ -1745,11 +2242,11 @@
     task-object     takeoff-clearance
     task-value      confirm
     phase           perform-task
-    human-role      performer
     stage           waiting
    =aural-location>
     isa             audio-event
     location        atc
+    id              =event
    ?aural>
     state           free
    ?retrieval>
@@ -1758,7 +2255,7 @@
     state           free
 ==>
    +aural>
-    event           =aural-location
+    event           =event
    +temporal>
     isa             clear
    =goal>
@@ -1832,6 +2329,76 @@
     =goal>
      stage       1
 )
+
+; The supporter hears the vectors while TARS owns the radio readback. Keep
+; ATC's words on the goal so the later selector tasks can retrieve targets.
+(p retain-received-vector-heading-right-330
+   =goal>
+    isa                         task
+    task-object                 atc
+    task-value                  readback
+    stage                       sound-encoded
+   =imaginal>
+    isa                         sound
+    location                    atc
+    content                     turn-right-heading-330
+==>
+   =goal>
+    received-vector-heading     turn-right-heading-330
+    stage                       1
+)
+(spp retain-received-vector-heading-right-330 :u 2000)
+
+(p retain-received-vector-heading-left-150
+   =goal>
+    isa                         task
+    task-object                 atc
+    task-value                  readback
+    stage                       sound-encoded
+   =imaginal>
+    isa                         sound
+    location                    atc
+    content                     turn-left-heading-150
+==>
+   =goal>
+    received-vector-heading     turn-left-heading-150
+    stage                       1
+)
+(spp retain-received-vector-heading-left-150 :u 2000)
+
+(p retain-received-vector-heading-right-150
+   =goal>
+    isa                         task
+    task-object                 atc
+    task-value                  readback
+    stage                       sound-encoded
+   =imaginal>
+    isa                         sound
+    location                    atc
+    content                     turn-right-heading-150
+==>
+   =goal>
+    received-vector-heading     turn-right-heading-150
+    stage                       1
+)
+(spp retain-received-vector-heading-right-150 :u 2000)
+
+(p retain-received-vector-altitude-3000
+   =goal>
+    isa                         task
+    task-object                 atc
+    task-value                  readback
+    stage                       sound-encoded
+   =imaginal>
+    isa                         sound
+    location                    atc
+    content                     descend-to-3000-feet
+==>
+   =goal>
+    received-vector-altitude    descend-to-3000-feet
+    stage                       1
+)
+(spp retain-received-vector-altitude-3000 :u 2000)
 
 (p sound-encoded-from-atc-not-in-atc-task
    =goal>
@@ -2061,28 +2628,6 @@
     stage       initialize
 )
 (spp restart-pfd-after-imaginal-replaced-by-sound :u 2000)
-
-; The same loss can happen after the final PFD component has been encoded.
-(p restart-completed-pfd-after-imaginal-replaced-by-sound
-   =goal>
-    isa         task
-    phase       waiting-for-situation
-    stage       1
-   =goal-2>
-    isa         task
-    task-object pfd
-    phase       situation-complete
-   ?imaginal>
-    buffer      empty
-    state       free
-==>
-   =goal>
-    stage       pfd
-   =goal-2>
-    phase       read-pfd
-    stage       initialize
-)
-(spp restart-completed-pfd-after-imaginal-replaced-by-sound :u 2000)
 
 (p visually-attend-pfd-roll
    =goal-2>
@@ -2805,29 +3350,6 @@
     cas-status  no-alert
 )
 
-; ATC encoding can replace the completed EICAS situation in imaginal. Once
-; that sound has been cleared, restart the scan instead of leaving goal-2
-; complete with no situation for finish-idle-eicas-check to inspect.
-(p restart-eicas-after-imaginal-replaced-by-sound
-   =goal>
-    isa         task
-    phase       waiting-for-eicas
-   =goal-2>
-    isa         task
-    task-object eicas
-    phase       eicas-complete
-   ?imaginal>
-    buffer      empty
-    state       free
-==>
-   =goal>
-    stage       idle
-   =goal-2>
-    phase       read-eicas
-    stage       1
-)
-(spp restart-eicas-after-imaginal-replaced-by-sound :u 2000)
-
 (p visually-attend-eicas-n1-percent
    =goal-2>
     isa		    task
@@ -2911,6 +3433,115 @@
     e1-n1  =value_n1_percent ; is getting the value from imaginal buffer
     e2-n1  =value ; is getting the value from agent.eicas_n2_percent
     =goal-2>
+    phase       classify-eicas-failure
+    stage       1
+    eicas-e1-n1 =value_n1_percent
+    eicas-e2-n1 =value
+)
+
+; Harvest the completed EICAS reading, then form and harvest the corresponding
+; failure representation before returning the EICAS reading to its caller.
+(p eicas-classify-left-engine-failure
+   =goal-2>
+    task-object eicas
+    phase       classify-eicas-failure
+   =imaginal>
+    isa         eicas-situation
+    <e1-n1      30
+    >e2-n1      80
+   ?imaginal>
+    state       free
+==>
+   +imaginal>
+    isa         failure-situation
+    has-failure t
+    engine-side left
+   =goal-2>
+    phase       harvest-eicas-failure
+    eicas-failure-side left
+)
+(spp eicas-classify-left-engine-failure :u 1000)
+
+(p eicas-classify-right-engine-failure
+   =goal-2>
+    task-object eicas
+    phase       classify-eicas-failure
+   =imaginal>
+    isa         eicas-situation
+    >e1-n1      80
+    <e2-n1      30
+   ?imaginal>
+    state       free
+==>
+   +imaginal>
+    isa         failure-situation
+    has-failure t
+    engine-side right
+   =goal-2>
+    phase       harvest-eicas-failure
+    eicas-failure-side right
+)
+(spp eicas-classify-right-engine-failure :u 1000)
+
+(p eicas-classify-no-engine-failure
+   =goal-2>
+    task-object eicas
+    phase       classify-eicas-failure
+   =imaginal>
+    isa         eicas-situation
+    >e1-n1      80
+    >e2-n1      80
+   ?imaginal>
+    state       free
+==>
+   +imaginal>
+    isa         failure-situation
+    has-failure nil
+    engine-side nil
+   =goal-2>
+    phase       harvest-eicas-failure
+    eicas-failure-side nil
+)
+(spp eicas-classify-no-engine-failure :u 1000)
+
+; Intermediate N1 readings do not establish a failed side.
+(p eicas-classify-undetermined-engine-failure
+   =goal-2>
+    task-object eicas
+    phase       classify-eicas-failure
+   =imaginal>
+    isa         eicas-situation
+   ?imaginal>
+    state       free
+==>
+   +imaginal>
+    isa         failure-situation
+    has-failure nil
+    engine-side nil
+   =goal-2>
+    phase       harvest-eicas-failure
+    eicas-failure-side nil
+)
+(spp eicas-classify-undetermined-engine-failure :u 0)
+
+(p eicas-harvest-failure-and-restore-situation
+   =goal-2>
+    task-object eicas
+    phase       harvest-eicas-failure
+    eicas-e1-n1 =e1
+    eicas-e2-n1 =e2
+   =imaginal>
+    isa         failure-situation
+   ?imaginal>
+    state       free
+==>
+   +imaginal>
+    isa         eicas-situation
+    cas         clear
+    cas-status  no-alert
+    e1-n1       =e1
+    e2-n1       =e2
+   =goal-2>
     phase       eicas-complete
     stage       1
 )
@@ -3085,6 +3716,543 @@
    -goal-2>
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Recall a completed situation harvested by an intervening imaginal request.
+; Exact current display values exclude older scans with different contents.
+
+(p recall-pfd-situation-after-imaginal-loss
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     pfd
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           free
+   !bind! =v0 (read_input pitch)
+   !bind! =v1 (read_input roll)
+   !bind! =v2 (read_input slip)
+   !bind! =v3 (read_input altitude)
+   !bind! =v4 (read_input airspeed)
+   !bind! =v5 (read_input vertical_speed)
+==>
+   +retrieval>
+    isa             aviate-situation
+    pitch                       =v0
+    roll                        =v1
+    slip                        =v2
+    altitude                    =v3
+    airspeed                    =v4
+    vertical-speed              =v5
+   =goal-2>
+    phase           recalling-situation
+)
+(spp recall-pfd-situation-after-imaginal-loss :u 3000)
+
+(p restore-recalled-pfd-situation
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     pfd
+    phase           recalling-situation
+   =retrieval>
+    isa             aviate-situation
+    pitch                       =v0
+    roll                        =v1
+    slip                        =v2
+    altitude                    =v3
+    airspeed                    =v4
+    vertical-speed              =v5
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +imaginal>
+    isa             aviate-situation
+    pitch                       =v0
+    roll                        =v1
+    slip                        =v2
+    altitude                    =v3
+    airspeed                    =v4
+    vertical-speed              =v5
+   =goal>
+    stage           pfd
+   =goal-2>
+    phase           situation-complete
+    stage           1
+)
+(spp restore-recalled-pfd-situation :u 3000)
+
+(p rescan-pfd-after-recall-failure
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     pfd
+    phase           recalling-situation
+   ?retrieval>
+    state           error
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           pfd
+   =goal-2>
+    phase           read-pfd
+    stage           initialize
+)
+(spp rescan-pfd-after-recall-failure :u 3000)
+
+(p recall-nd-situation-after-imaginal-loss
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     nd
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           free
+   !bind! =v0 (read_input lateral_deviation)
+   !bind! =v1 (read_input heading_deviation)
+==>
+   +retrieval>
+    isa             navigate-situation
+    lateral-deviation           =v0
+    heading-deviation           =v1
+   =goal-2>
+    phase           recalling-situation
+)
+(spp recall-nd-situation-after-imaginal-loss :u 3000)
+
+(p restore-recalled-nd-situation
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     nd
+    phase           recalling-situation
+   =retrieval>
+    isa             navigate-situation
+    lateral-deviation           =v0
+    heading-deviation           =v1
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +imaginal>
+    isa             navigate-situation
+    lateral-deviation           =v0
+    heading-deviation           =v1
+   =goal>
+    stage           nd
+   =goal-2>
+    phase           situation-complete
+    stage           1
+)
+(spp restore-recalled-nd-situation :u 3000)
+
+(p rescan-nd-after-recall-failure
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     nd
+    phase           recalling-situation
+   ?retrieval>
+    state           error
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           nd
+   =goal-2>
+    phase           read-nd
+    stage           initialize
+)
+(spp rescan-nd-after-recall-failure :u 3000)
+
+(p recall-eicas-situation-after-imaginal-loss
+   =goal>
+    isa             task
+    phase           waiting-for-eicas
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     eicas
+    phase           eicas-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           free
+   !bind! =v0 (read_input e1_n1)
+   !bind! =v1 (read_input e2_n1)
+==>
+   +retrieval>
+    isa             eicas-situation
+    cas                         clear
+    cas-status                  no-alert
+    e1-n1                       =v0
+    e2-n1                       =v1
+   =goal-2>
+    phase           recalling-situation
+)
+(spp recall-eicas-situation-after-imaginal-loss :u 3000)
+
+(p restore-recalled-eicas-situation
+   =goal>
+    isa             task
+    phase           waiting-for-eicas
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     eicas
+    phase           recalling-situation
+   =retrieval>
+    isa             eicas-situation
+    cas                         clear
+    cas-status                  no-alert
+    e1-n1                       =v0
+    e2-n1                       =v1
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +imaginal>
+    isa             eicas-situation
+    cas                         clear
+    cas-status                  no-alert
+    e1-n1                       =v0
+    e2-n1                       =v1
+   =goal>
+    stage           idle
+   =goal-2>
+    phase           eicas-complete
+    stage           1
+)
+(spp restore-recalled-eicas-situation :u 3000)
+
+(p rescan-eicas-after-recall-failure
+   =goal>
+    isa             task
+    phase           waiting-for-eicas
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     eicas
+    phase           recalling-situation
+   ?retrieval>
+    state           error
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           idle
+   =goal-2>
+    phase           read-eicas
+    stage           1
+)
+(spp rescan-eicas-after-recall-failure :u 3000)
+
+(p recall-central-console-situation-after-imaginal-loss
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     central-console
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           free
+   !bind! =v0 (read_input l_throttle)
+   !bind! =v1 (read_input r_throttle)
+==>
+   +retrieval>
+    isa             throttle-situation
+    left-throttle-position      =v0
+    right-throttle-position     =v1
+   =goal-2>
+    phase           recalling-situation
+)
+(spp recall-central-console-situation-after-imaginal-loss :u 3000)
+
+(p restore-recalled-central-console-situation
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     central-console
+    phase           recalling-situation
+   =retrieval>
+    isa             throttle-situation
+    left-throttle-position      =v0
+    right-throttle-position     =v1
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +imaginal>
+    isa             throttle-situation
+    left-throttle-position      =v0
+    right-throttle-position     =v1
+   =goal>
+    stage           central-console
+   =goal-2>
+    phase           situation-complete
+    stage           1
+)
+(spp restore-recalled-central-console-situation :u 3000)
+
+(p rescan-central-console-after-recall-failure
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     central-console
+    phase           recalling-situation
+   ?retrieval>
+    state           error
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           central-console
+   =goal-2>
+    phase           read-central-console
+    stage           initialize
+)
+(spp rescan-central-console-after-recall-failure :u 3000)
+
+(p recall-outside-window-situation-after-imaginal-loss
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     outside-window
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           free
+   !bind! =v0 (read_input runway_centerline_deviation)
+   !bind! =v1 (read_input heading_deviation)
+   !bind! =v2 (read_input birds)
+==>
+   +retrieval>
+    isa             outside-world-situation
+    runway-centerline-deviation =v0
+    heading-deviation           =v1
+    birds                       =v2
+   =goal-2>
+    phase           recalling-situation
+)
+(spp recall-outside-window-situation-after-imaginal-loss :u 3000)
+
+(p restore-recalled-outside-window-situation
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     outside-window
+    phase           recalling-situation
+   =retrieval>
+    isa             outside-world-situation
+    runway-centerline-deviation =v0
+    heading-deviation           =v1
+    birds                       =v2
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   +imaginal>
+    isa             outside-world-situation
+    runway-centerline-deviation =v0
+    heading-deviation           =v1
+    birds                       =v2
+   =goal>
+    stage           outside-window
+   =goal-2>
+    phase           situation-complete
+    stage           1
+)
+(spp restore-recalled-outside-window-situation :u 3000)
+
+(p rescan-outside-window-after-recall-failure
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     outside-window
+    phase           recalling-situation
+   ?retrieval>
+    state           error
+   ?imaginal>
+    buffer          empty
+    state           free
+==>
+   =goal>
+    stage           outside-window
+   =goal-2>
+    phase           read-outside-window
+    stage           initialize
+)
+(spp rescan-outside-window-after-recall-failure :u 3000)
+
+
+; A prior unrelated retrieval error cannot supply a situation chunk.
+
+(p rescan-pfd-when-retrieval-unavailable
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     pfd
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           error
+==>
+   =goal>
+    stage           pfd
+   =goal-2>
+    phase           read-pfd
+    stage           initialize
+)
+(spp rescan-pfd-when-retrieval-unavailable :u 3000)
+
+(p rescan-nd-when-retrieval-unavailable
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     nd
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           error
+==>
+   =goal>
+    stage           nd
+   =goal-2>
+    phase           read-nd
+    stage           initialize
+)
+(spp rescan-nd-when-retrieval-unavailable :u 3000)
+
+(p rescan-eicas-when-retrieval-unavailable
+   =goal>
+    isa             task
+    phase           waiting-for-eicas
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     eicas
+    phase           eicas-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           error
+==>
+   =goal>
+    stage           idle
+   =goal-2>
+    phase           read-eicas
+    stage           1
+)
+(spp rescan-eicas-when-retrieval-unavailable :u 3000)
+
+(p rescan-central-console-when-retrieval-unavailable
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     central-console
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           error
+==>
+   =goal>
+    stage           central-console
+   =goal-2>
+    phase           read-central-console
+    stage           initialize
+)
+(spp rescan-central-console-when-retrieval-unavailable :u 3000)
+
+(p rescan-outside-window-when-retrieval-unavailable
+   =goal>
+    isa             task
+    phase           waiting-for-situation
+    stage           1
+   =goal-2>
+    isa             task
+    task-object     outside-window
+    phase           situation-complete
+   ?imaginal>
+    buffer          empty
+    state           free
+   ?retrieval>
+    state           error
+==>
+   =goal>
+    stage           outside-window
+   =goal-2>
+    phase           read-outside-window
+    stage           initialize
+)
+(spp rescan-outside-window-when-retrieval-unavailable :u 3000)
+
 ; end of AoI Central Console - construct throttle situation;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -3915,6 +5083,7 @@
     task-value      confirm
 	phase		    perform-task
     stage           1
+    human-role      nil
     =imaginal>
     - procedure     takeoff; hasn't started encoding takeoff clearance yet
     - callsign      c-poly
@@ -4044,7 +5213,6 @@
     isa             task
     task-object     takeoff-clearance
     task-value      confirm
-    human-role      performer
     stage           encode-sound
     =aural>
      isa            sound
@@ -4199,7 +5367,7 @@
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;; SWITCH ALLOCATION FOR READBACK ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-allocation-to-takeoff-clearance-readback-by-tars
+(p t-i-allocation-to-takeoff-clearance-listen-with-tars
     =goal>
     isa             task
     task-object     takeoff-clearance
@@ -4207,13 +5375,34 @@
     phase           perform-task
     stage           1
     - human-role    performer
+    autonomy-role   performer
 ==>
     =goal>
-    phase           attend-aoi ; wait for next task because TARS will perform the readback
-    stage           1
-    status          wait-teammate
+    stage           start-timing
 )
-(spp t-i-allocation-to-takeoff-clearance-readback-by-tars :u 1000) ; high utility to prioritize this production
+(spp t-i-allocation-to-takeoff-clearance-listen-with-tars :u 1000)
+
+; TARS performs the radio readback. The pilot may have missed a clearance word
+; while listening to overlapping TARS speech, so do not require every field.
+(p t-i-takeoff-clearance-readback-by-tars-after-listening
+    =goal>
+    isa             task
+    task-object     takeoff-clearance
+    task-value      confirm
+    phase           perform-task
+    stage           end-detected
+    -human-role     performer
+    autonomy-role   performer
+    =imaginal>
+    isa             clearance
+    procedure       takeoff
+==>
+    =imaginal>
+    =goal>
+    phase           check-task-on-tars
+    stage           1
+    status          nil
+)
 
 (p t-i-allocation-to-takeoff-clearance-readback-by-pilot
     =goal>
@@ -6730,7 +7919,6 @@
      stage              compare
      task-object	    winds
      task-value         check
-     autonomy-role      supporter
      tars-input         =value_tars_input
     =retrieval>
      isa                word
@@ -6971,13 +8159,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Select Altitude - PRESET AS CLEARED Task ;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(p t-i-selected-altitude-as-cleared-tars-input-trusted
+(p t-i-selected-altitude-as-cleared-human-performer-tars-input-trusted
     =goal>
      isa		        task
      phase		        perform-task
      stage              1
      task-object	    select-altitude
      task-value         preset-as-cleared
+     human-role         performer
      crosscheck         no
      tars-input         cleared-to-altitude-5000-ft-from-atc
     ?imaginal>
@@ -6990,8 +8179,45 @@
     component-name      selected-altitude
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
-(spp t-i-selected-altitude-as-cleared-tars-input-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
-(spp t-i-selected-altitude-as-cleared-tars-input-trusted :u 1000); higher than default of value-pair not found
+(spp t-i-selected-altitude-as-cleared-human-performer-tars-input-trusted :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-selected-altitude-as-cleared-human-performer-tars-input-trusted :u 1000); higher than default of value-pair not found
+
+(p t-i-selected-altitude-as-cleared-autonomy-performer-no-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     autonomy-role      performer
+     crosscheck         no
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+(spp t-i-selected-altitude-as-cleared-autonomy-performer-no-crosscheck :reward 4); TARS has been trusted, no crosscheck ==> is reinforced
+(spp t-i-selected-altitude-as-cleared-autonomy-performer-no-crosscheck :u 1000); higher than default of value-pair not found
+
+(p t-i-selected-altitude-as-cleared-autonomy-performer-crosscheck
+    =goal>
+     isa		        task
+     phase		        perform-task
+     stage              1
+     task-object	    select-altitude
+     task-value         preset-as-cleared
+     autonomy-role      performer
+     crosscheck         yes
+    ?imaginal>
+    state               free
+==>
+    =goal>
+    stage               2
+)
+(spp t-i-selected-altitude-as-cleared-autonomy-performer-crosscheck :u 1000); higher than default of value-pair not found
+
 
 (p t-i-selected-altitude-as-cleared-tars-input-distrust
     =goal>
@@ -7034,6 +8260,7 @@
 ==>
     +retrieval>
     isa                clearance
+    -altitude           nil
     =goal>
     stage              3
 )
@@ -7057,6 +8284,7 @@
     desired-status      5000 ; assuming cleared altitude is 5000 feet
 )
 
+
 (p takeoff-clearance-retrieved-no-tars-input
     =goal>
      isa		        task
@@ -7064,11 +8292,10 @@
      stage              3
      task-object	    select-altitude
      task-value         preset-as-cleared
+     tars-input         nil
     =retrieval>
      isa                clearance
      altitude           =cleared-altitude
-    =imaginal>
-    tars-input         nil
 ==>
    +imaginal>
     isa                 aircraft-component
@@ -7085,11 +8312,10 @@
      stage              3
      task-object	    select-altitude
      task-value         preset-as-cleared
+    - tars-input        nil
     =retrieval>
      isa                clearance
      altitude           =cleared-altitude
-    =imaginal>
-    - tars-input        nil
     ?retrieval>
      state           free
 ==>
@@ -7108,7 +8334,6 @@
      task-object	    select-altitude
      task-value         preset-as-cleared
      crosscheck         yes
-    =imaginal>
      tars-input         =value
     =retrieval>
      isa                word
@@ -7131,7 +8356,6 @@
      task-object	    select-altitude
      task-value         preset-as-cleared
      crosscheck         yes
-    =imaginal>
      tars-input         =value
     =retrieval>
      isa                word
@@ -9045,6 +10269,7 @@
     =goal>
         phase                   check-task-on-tars
         stage                   1
+        trim-attempts           tars
 )
 (spp start-airspeed-check-v2-tars-input-trim-rudder-left :u 2000)
 
@@ -9071,7 +10296,8 @@
         para-3
         para-4
     =goal>
-    stage   2
+    phase                       check-task-on-tars
+    stage                       1
     trim-attempts               tars
 )
 (spp start-airspeed-check-v2-tars-input-trim-rudder-right :u 2000)
@@ -9223,13 +10449,13 @@
 ==>
     +manual>
         isa                     customized-manual-action
-        name                    agent-set-impulsion
+        name                    agent-set-bool
         preparation-duration    1.000
         initiation-duration     0.500
         execution-duration      0.500
         finish-duration         1.000
         para-1                  task_approve
-        para-2                  nil
+        para-2                  true
         para-3                  nil
         para-4                  nil
     =goal>
@@ -9243,6 +10469,8 @@
     isa             task
     task-object     rudder
     task-value      trim
+    phase           perform-task
+    human-role      performer
     -status         checked
     -trim-attempts  tars
     stage           1
@@ -9277,6 +10505,7 @@
     isa                     task
     task-object             eicas
     phase                   eicas-complete
+    eicas-failure-side      =failure_side
     =imaginal>
     isa                     eicas-situation
     e1-n1                   =e1_n1
@@ -9287,6 +10516,7 @@
     =goal>
     phase                   perform-task
     stage                   verify-eicas-situation
+    status                  =failure_side
     =imaginal>
     -goal-2>
 )
@@ -9297,15 +10527,12 @@
     task-object rudder
     task-value  trim
     stage       verify-eicas-situation
+    status      left
     =imaginal>
     isa         eicas-situation
     <e1-n1      30
     >e2-n1      80
 ==>
-    +imaginal>
-    isa         failure-situation
-    has-failure t
-    engine-side left
     =goal>
     stage       2
 )
@@ -9316,15 +10543,12 @@
     task-object rudder
     task-value  trim
     stage       verify-eicas-situation
+    status      right
     =imaginal>
     isa         eicas-situation
     >e1-n1      80
     <e2-n1      30
 ==>
-    +imaginal>
-    isa         failure-situation
-    has-failure t
-    engine-side right
     =goal>
     stage       2
 )
@@ -9335,15 +10559,10 @@
     task-object rudder
     task-value  trim
     stage       verify-eicas-situation
+    status      nil
     =imaginal>
     isa         eicas-situation
-    >e1-n1      80
-    >e2-n1      80
 ==>
-    +imaginal>
-    isa         failure-situation
-    has-failure nil
-    engine-side nil
     =goal>
     phase       attend-aoi
     stage       1
@@ -9354,14 +10573,13 @@
     isa         task
     task-object rudder
     task-value  trim
+    phase       perform-task
     stage       2
-    =imaginal>
-    isa         failure-situation
-    has-failure t
+    -status     nil
+    -status     checked
     ?visual>
     state       free
 ==>
-    =imaginal>
     +visual-location>
     isa             visual-location
     screen-x        1260
@@ -9375,12 +10593,9 @@
     isa         task
     task-object rudder
     task-value  trim
+    phase       perform-task
     stage       form-representation-aircraft-component
-    =imaginal>
-    isa         failure-situation
-    has-failure t
-    -engine-side nil
-    engine-side =failed-engine-side
+    status      =failed-engine-side
     ?imaginal>
     state       free
 !bind! =value (read_input slip)
@@ -9391,7 +10606,6 @@
     component-status    =value
     =goal>
     stage               3
-    status              =failed-engine-side
 )
 
 
@@ -9400,6 +10614,7 @@
     isa                 task
     task-object         rudder
     task-value          trim
+    phase               perform-task
     stage               3
     status              =failed-engine-side
     -trim-attempts      tars
@@ -9434,6 +10649,7 @@
     isa                 task
     task-object         rudder
     task-value          trim
+    phase               perform-task
     stage               3
     -trim-attempts      tars
     status              =failed-engine-side
@@ -9468,6 +10684,7 @@
     isa                 task
     task-object         rudder
     task-value          trim
+    phase               perform-task
     stage               3
     =imaginal>
     isa                 aircraft-component
@@ -10364,6 +11581,7 @@
         para-4               nil
     =goal>
     phase                   check-task-on-tars
+    flying                  nil
     stage                   1
 )
 
@@ -10384,6 +11602,7 @@
 ==>
     =goal>
     phase                   check-task-on-tars
+    flying                  nil
     stage                   1
 )
 
@@ -10403,18 +11622,46 @@
 ==>
     +manual>
         isa         customized-manual-action
-        name        agent-set-impulsion
+        name        agent-set-bool
         preparation-duration 0.000
         initiation-duration  0.000
         execution-duration   0.020
         finish-duration      0.000
         para-1               task_approve
-        para-2               nil
+        para-2               true
+        para-3               nil
+        para-4               nil
+    =goal>
+    stage                   4
+    flying                  nil
+)
+
+(p autopilot-engaged-disconnect-human-autopilot
+    =goal>
+    isa                 task
+    phase               perform-task
+    stage               4
+    task-object         autopilot
+    task-value          engage
+    -human-role         performer
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa         customized-manual-action
+        name        agent-set-bool
+        preparation-duration 0.000
+        initiation-duration  0.000
+        execution-duration   0.020
+        finish-duration      0.000
+        para-1               autopilot_on_off
+        para-2               false
         para-3               nil
         para-4               nil
     =goal>
     phase                   check-task-on-tars
     stage                   1
+    flying                  nil
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;; end of AUTOPILOT - ENGAGE ;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -10944,12 +12191,28 @@
     stage               1
 )
 
+(p flaps-handle-up-no-crosscheck
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    -human-role         performer
+    crosscheck          no
+    phase               perform-task
+    stage               action
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+
 (p flaps-handle-up-wait-for-autonomy
     =goal>
     isa                 task
     task-object         flap-handle
     task-value          up
     -human-role         performer
+    crosscheck          yes
     phase               perform-task
     stage               action
     =imaginal>
@@ -10957,9 +12220,36 @@
     component-name      flaps
     -component-status   0
 ==>
+    +temporal>
+    isa                 time
+    ticks               0
     =goal>
-    phase               attend-aoi
-    stage               1
+    stage               waiting-for-flaps-retraction
+)
+
+(p flaps-handle-up-poll-after-50-ticks
+    =goal>
+    isa                 task
+    task-object         flap-handle
+    task-value          up
+    crosscheck          yes
+    phase               perform-task
+    stage               waiting-for-flaps-retraction
+    =temporal>
+    isa                 time
+    ticks               50
+    ?imaginal>
+    state               free
+!bind! =value (read_input flaps)
+==>
+    +temporal>
+    isa                 clear
+    +imaginal>
+    isa                 aircraft-component
+    component-name      flaps
+    component-status    =value
+    =goal>
+    stage               action
 )
 
 (p flaps-handle-up-already-retracted
@@ -11006,6 +12296,46 @@
     status              atc-building-emergency-call
 )
 (spp start-atc-contact-mayday :u 1000)
+
+(p atc-contact-mayday-autonomy-performer-approve
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               1
+    status              nil
+    -human-role         performer
+    autonomy-role       performer
+    ?imaginal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              task_approve
+        para-2              true
+        para-3              nil
+        para-4              nil
+    +imaginal>
+    isa                 emergency-communication
+    type                mayday
+    +temporal>
+    isa                 time
+    ticks               0
+    =goal>
+    stage               await-atc-callsign
+    status              atc-awaiting-callsign
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started nil
+)
+(spp atc-contact-mayday-autonomy-performer-approve :u 1000)
 
 ; Shared Mayday/PanPan contact path. The starter selects the communication
 ; type; these stages retain it while constructing the call. Speech and
@@ -11406,6 +12736,8 @@
     =goal>
     stage               await-atc-callsign
     status              atc-awaiting-callsign
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started t
 )
 
 (p atc-emergency-wait-for-autonomy
@@ -11416,6 +12748,7 @@
     stage               1
     status              nil
     -human-role         performer
+    -autonomy-role      performer
 ==>
     =goal>
     phase               attend-aoi
@@ -11444,15 +12777,120 @@
     =aural-location>
     isa                 audio-event
     location            atc
+    id                  =event
     ?aural>
     state               free
 ==>
     +aural>
-    event               =aural-location
+    event               =event
     =goal>
     stage               encode-sound
 )
 (spp atc-readback-detect-callsign-audio :u 2000)
+
+(p atc-readback-human-is-not-performer
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          readback
+    phase               perform-task
+    stage               1
+    -status             tars-input-vectors
+    -human-role         performer
+==>
+    =goal>
+    phase               attend-aoi
+    status              wait-teammate
+    stage               1
+)
+(spp atc-readback-human-is-not-performer :u 1000)
+
+(p atc-readback-tars-proposes-input-vectors-will-crosscheck
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          readback
+    phase               perform-task
+    stage               1
+    status              tars-input-vectors
+    -human-role         performer
+    crosscheck          yes
+==>
+    =goal>
+    stage               2
+)
+
+(p atc-readback-tars-proposes-input-vectors-will-not-crosscheck
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          readback
+    phase               perform-task
+    stage               1
+    status              tars-input-vectors
+    -human-role         performer
+    crosscheck          no
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              task_approve
+        para-2              true
+        para-3              nil
+        para-4              nil
+    =goal>
+    phase               attend-aoi
+    stage               1
+)
+
+
+
+; Stop the temporal timer at 40 accumulated ticks, but keep listening for
+; delayed ATC audio. The timer measures a listening interval, not the ATC
+; reply deadline; abandoning this state discards the scripted ATC clearance.
+(p atc-callsign-wait-timeout
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               await-atc-callsign
+    status              atc-awaiting-callsign
+    atc-callsign-wait-ticks =prior
+    =temporal>
+    isa                 time
+    ticks               =current
+    !eval! (atc-callsign-budget-expired =prior =current)
+==>
+    +temporal>
+    isa                 clear
+    =goal>
+    stage               await-atc-callsign
+    atc-callsign-wait-ticks 40
+)
+(spp atc-callsign-wait-timeout :u 1000)
+
+; An audicon can decay between selection and encoding. Keep the bounded
+; callsign wait active instead of leaving the goal at encode-sound.
+(p atc-callsign-audio-encoding-failed
+    =goal>
+    isa                 task
+    task-object         atc
+    phase               perform-task
+    stage               encode-sound
+    status              atc-awaiting-callsign
+    ?aural>
+    state               error
+==>
+    -aural>
+    =goal>
+    stage               await-atc-callsign
+)
 
 (p atc-readback-heard-own-callsign
     =goal>
@@ -11709,6 +13147,7 @@
     isa                 clear
     =goal>
     stage               start-timing
+    received-vector-heading turn-right-heading-330
 )
 (spp atc-readback-panpan-heard-heading-330 :u 1000)
 
@@ -11733,6 +13172,7 @@
     isa                 clear
     =goal>
     stage               start-timing
+    received-vector-heading turn-left-heading-150
 )
 (spp atc-readback-panpan-heard-left-heading-150 :u 1000)
 
@@ -11757,6 +13197,7 @@
     isa                 clear
     =goal>
     stage               start-timing
+    received-vector-heading turn-right-heading-150
 )
 (spp atc-readback-panpan-heard-right-heading-150 :u 1000)
 
@@ -11781,6 +13222,7 @@
     isa                 clear
     =goal>
     stage               start-timing
+    received-vector-altitude descend-to-3000-feet
 )
 (spp atc-readback-panpan-heard-altitude-3000 :u 1000)
 
@@ -11951,6 +13393,56 @@
     para-4              nil
     =goal>
     stage               atc-readback-callsign
+)
+
+; The pilot still encodes the ATC clearance when TARS performs the readback.
+; Skip only the pilot's PTT and vocal stages once the clearance is complete.
+(p atc-readback-mayday-tars-performer-after-silence
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          contact
+    phase               perform-task
+    stage               end-detected
+    status              atc-listening-clearance
+    -human-role         performer
+    autonomy-role       performer
+    =imaginal>
+    isa                 clearance
+    procedure           emergency-landing
+    -callsign           nil
+    -heading            nil
+    -runway             nil
+==>
+    =imaginal>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+    status              nil
+)
+
+(p atc-readback-panpan-tars-performer-after-silence
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               end-detected
+    status              atc-listening-clearance
+    -human-role         performer
+    autonomy-role       performer
+    =imaginal>
+    isa                 clearance
+    procedure           panpan-vectors
+    -callsign           nil
+    -heading            nil
+    -altitude           nil
+    -navigation         nil
+==>
+    =imaginal>
+    =goal>
+    stage               follow-vectors
+    status              nil
 )
 
 (p atc-readback-say-callsign
@@ -12639,6 +14131,32 @@
 )
 (spp start-chrono-attend-chrono-human-performer :u 1000)
 
+(p start-chrono-autonomy-performer
+    =goal>
+    isa             task
+    task-object     chrono
+    task-value      start
+    autonomy-role  performer
+    phase           perform-task
+    stage           1
+    ?visual>
+    state           free
+    ?imaginal>
+    state           free
+==>
+    =goal>
+    phase           attend-aoi
+    stage           1
+    status          checked
+    +imaginal>
+    isa             task
+    task-object     chrono
+    task-value      start
+    autonomy-role   performer
+    status          checked
+)
+(spp start-chrono-autonomy-performer :u 1000)
+
 (p launch-chrono-human-performer
     =goal>
     isa         task
@@ -12845,6 +14363,67 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;; IMMEDIATE ACTION ITEMS - CHECK DONE ;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ATC can overwrite a TARS aural-location while the checklist is active.
+; Attend the still-audible TARS event and return to the exact checklist stage.
+(p imm-act-items-recover-tars-sound
+    =goal>
+    isa             task
+    task-object     immediate-action-item
+    task-value      check-done
+    phase           =return_phase
+    -phase          listening-to-tars
+    stage           =return_stage
+    ?aural>
+    state           free
+    buffer          empty
+    !bind! =event (find-unattended-tars-audio-event)
+    !eval! (find-unattended-tars-audio-event)
+==>
+    +aural>
+    event           =event
+    =goal>
+    tars-speech-return-phase =return_phase
+    tars-speech-return-stage =return_stage
+    phase           listening-to-tars
+    stage           encoding
+)
+(spp imm-act-items-recover-tars-sound :u 2500)
+
+; ATC audio is monitored without changing the checklist stage or replacing
+; the partial immediate-action-item in imaginal memory.
+(p imm-act-items-attend-atc-sound
+    =goal>
+    isa             task
+    task-object     immediate-action-item
+    task-value      check-done
+    phase           perform-task
+    ?aural>
+    state           free
+    buffer          empty
+    !bind! =event (find-unattended-atc-audio-event)
+    !eval! (find-unattended-atc-audio-event)
+==>
+    +aural>
+    event           =event
+)
+(spp imm-act-items-attend-atc-sound :u 2000)
+
+(p imm-act-items-note-atc-sound
+    =goal>
+    isa             task
+    task-object     immediate-action-item
+    task-value      check-done
+    phase           perform-task
+    =aural>
+    isa             sound
+    location        atc
+    content         =content
+==>
+    !output!        (=content)
+    -aural>
+)
+(spp imm-act-items-note-atc-sound :u 2000)
+
 (p start-immediate-action-items-check-done-attend-item
     =goal>
     isa             task
@@ -13673,7 +15252,7 @@
     =imaginal>
     isa                 aircraft-component
     component-name      =value
-    component-status    2
+    -component-status   1
     ?manual>
     state               free
 ==>
@@ -13703,7 +15282,7 @@
     =imaginal>
     isa                 aircraft-component
     component-name      =value
-    -component-status   2
+    component-status    1
 ==>
     =goal>
     phase               check-task-on-tars
@@ -14223,6 +15802,41 @@
 )
 (spp start-atc-declare-panpan-request-vectors :u 1000)
 
+(p atc-contact-panpan-autonomy-performer-approve
+    =goal>
+    isa                 task
+    task-object         atc
+    task-value          announce-panpan-and-request-vector
+    phase               perform-task
+    stage               1
+    status              nil
+    -human-role         performer
+    autonomy-role       performer
+    ?imaginal>
+    state               free
+    ?manual>
+    state               free
+==>
+    +manual>
+        isa                 customized-manual-action
+        name                agent-set-bool
+        preparation-duration 0.050
+        initiation-duration  0.050
+        execution-duration   0.050
+        finish-duration      0.050
+        para-1              task_approve
+        para-2              true
+        para-3              nil
+        para-4              nil
+    =goal>
+    phase               attend-aoi
+    stage               1
+    status              wait-teammate
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started nil
+)
+(spp atc-contact-panpan-autonomy-performer-approve :u 1000)
+
 (p atc-declare-panpan-speak
     =goal>
     isa                 task
@@ -14281,6 +15895,8 @@
     =goal>
     stage               await-atc-callsign
     status              atc-awaiting-callsign
+    atc-callsign-wait-ticks 0
+    atc-callsign-wait-started t
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -14694,6 +16310,432 @@
 )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;; end of READBACK PANPAN VECTORS ;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;; PANPAN - heading set accordingly ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(p start-panpan-heading-set-accordingly-task-no-crosscheck
+    =goal>
+    isa                 task
+    task-object         heading
+    task-value          set-accordingly
+    phase               perform-task
+    autonomy-role       performer
+    stage               1
+    crosscheck          no
+==>
+    =goal>
+    phase               check-task-on-tars
+    stage               1
+)
+(spp start-panpan-heading-set-accordingly-task-no-crosscheck :u 1000)
+
+(p panpan-heading-crosscheck-retrieve-vector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       1
+    autonomy-role               performer
+    crosscheck                  yes
+    received-vector-heading     =instruction
+    -received-vector-heading    nil
+==>
+    +retrieval>
+    isa                         word
+    value                       =instruction
+    category                    heading
+    =goal>
+    stage                       retrieve-vector-heading
+)
+(spp panpan-heading-crosscheck-retrieve-vector :u 1000)
+
+(p panpan-heading-crosscheck-vector-retrieved
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       retrieve-vector-heading
+    =retrieval>
+    isa                         word
+    category                    heading
+    equivalent                  =target
+==>
+    =goal>
+    vector-target               =target
+    stage                       attend-heading-selector
+)
+
+(p panpan-heading-crosscheck-attend-selector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       attend-heading-selector
+    ?visual>
+    state                       free
+==>
+    +visual-location>
+    isa                         visual-location
+    screen-x                    1200
+    screen-y                    800
+    =goal>
+    stage                       visual-encode-aircraft-component
+)
+
+(p panpan-heading-crosscheck-read-selector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       form-representation-aircraft-component
+    vector-target               =target
+    ?imaginal>
+    state                       free
+    !bind! =current (read_input heading_sel)
+==>
+    +imaginal>
+    isa                         aircraft-component
+    component-name              selected-heading
+    component-status            =current
+    desired-status              =target
+    =goal>
+    stage                       compare-heading-selector
+)
+
+(p panpan-heading-crosscheck-selector-matches
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       compare-heading-selector
+    vector-target               =target
+    =imaginal>
+    isa                         aircraft-component
+    component-name              selected-heading
+    component-status            =target
+    desired-status              =target
+==>
+    !output! (heading-selector-crosscheck match =target)
+    =goal>
+    vector-target               nil
+    phase                       check-task-on-tars
+    stage                       1
+)
+
+(p panpan-heading-crosscheck-selector-differs
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       compare-heading-selector
+    vector-target               =target
+    =imaginal>
+    isa                         aircraft-component
+    component-name              selected-heading
+    -component-status           =target
+    desired-status              =target
+==>
+    +temporal>
+    isa                         time
+    ticks                       0
+    =goal>
+    stage                       waiting-for-heading-selection
+)
+
+(p panpan-heading-crosscheck-poll-selector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       waiting-for-heading-selection
+    vector-target               =target
+    =temporal>
+    isa                         time
+    ticks                       50
+    ?imaginal>
+    state                       free
+    !bind! =current (read_input heading_sel)
+==>
+    +temporal>
+    isa                         clear
+    +imaginal>
+    isa                         aircraft-component
+    component-name              selected-heading
+    component-status            =current
+    desired-status              =target
+    =goal>
+    stage                       compare-heading-selector
+)
+
+(p panpan-heading-crosscheck-await-vector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       1
+    autonomy-role               performer
+    crosscheck                  yes
+    received-vector-heading     nil
+==>
+    +temporal>
+    isa                         time
+    ticks                       0
+    =goal>
+    stage                       waiting-for-heading-vector
+)
+
+(p panpan-heading-crosscheck-vector-unavailable
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       retrieve-vector-heading
+    ?retrieval>
+    state                       error
+==>
+    +temporal>
+    isa                         time
+    ticks                       0
+    =goal>
+    stage                       waiting-for-heading-vector
+)
+
+(p panpan-heading-crosscheck-retry-vector
+    =goal>
+    isa                         task
+    task-object                 heading
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       waiting-for-heading-vector
+    =temporal>
+    isa                         time
+    ticks                       50
+==>
+    +temporal>
+    isa                         clear
+    =goal>
+    stage                       1
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; end of PANPAN - heading set accordingly ;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;; PANPAN - Altitude set accordingly ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(p start-panpan-altitude-set-accordingly-task-no-crosscheck
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    autonomy-role               performer
+    stage                       1
+    crosscheck                  no
+==>
+    =goal>
+    phase                       check-task-on-tars
+    stage                       1
+)
+(spp start-panpan-altitude-set-accordingly-task-no-crosscheck :u 1000)
+
+(p panpan-altitude-crosscheck-retrieve-vector
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       1
+    autonomy-role               performer
+    crosscheck                  yes
+    received-vector-altitude    =instruction
+    -received-vector-altitude   nil
+==>
+    +retrieval>
+    isa                         word
+    value                       =instruction
+    category                    altitude
+    =goal>
+    stage                       retrieve-vector-altitude
+)
+(spp panpan-altitude-crosscheck-retrieve-vector :u 1000)
+
+(p panpan-altitude-crosscheck-vector-retrieved
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       retrieve-vector-altitude
+    =retrieval>
+    isa                         word
+    category                    altitude
+    equivalent                  =target
+==>
+    =goal>
+    vector-target               =target
+    stage                       attend-altitude-selector
+)
+
+(p panpan-altitude-crosscheck-attend-selector
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       attend-altitude-selector
+    ?visual>
+    state                       free
+==>
+    +visual-location>
+    isa                         visual-location
+    screen-x                    1350
+    screen-y                    680
+    =goal>
+    stage                       visual-encode-aircraft-component
+)
+
+(p panpan-altitude-crosscheck-read-selector
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       form-representation-aircraft-component
+    vector-target               =target
+    ?imaginal>
+    state                       free
+    !bind! =current (read_input alt_sel)
+==>
+    +imaginal>
+    isa                         aircraft-component
+    component-name              selected-altitude
+    component-status            =current
+    desired-status              =target
+    =goal>
+    stage                       compare-altitude-selector
+)
+
+(p panpan-altitude-crosscheck-selector-matches
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       compare-altitude-selector
+    vector-target               =target
+    =imaginal>
+    isa                         aircraft-component
+    component-name              selected-altitude
+    component-status            =target
+    desired-status              =target
+==>
+    !output! (altitude-selector-crosscheck match =target)
+    =goal>
+    vector-target               nil
+    phase                       check-task-on-tars
+    stage                       1
+)
+
+(p panpan-altitude-crosscheck-selector-differs
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       compare-altitude-selector
+    vector-target               =target
+    =imaginal>
+    isa                         aircraft-component
+    component-name              selected-altitude
+    -component-status           =target
+    desired-status              =target
+==>
+    +temporal>
+    isa                         time
+    ticks                       0
+    =goal>
+    stage                       waiting-for-altitude-selection
+)
+
+(p panpan-altitude-crosscheck-poll-selector
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       waiting-for-altitude-selection
+    vector-target               =target
+    =temporal>
+    isa                         time
+    ticks                       50
+    ?imaginal>
+    state                       free
+    !bind! =current (read_input alt_sel)
+==>
+    +temporal>
+    isa                         clear
+    +imaginal>
+    isa                         aircraft-component
+    component-name              selected-altitude
+    component-status            =current
+    desired-status              =target
+    =goal>
+    stage                       compare-altitude-selector
+)
+
+; If the ATC altitude was not retained, let the teammate's completed task
+; stand. There is no reference value against which to check the selector.
+(p panpan-altitude-crosscheck-trust-teammate-without-vector
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       1
+    autonomy-role               performer
+    crosscheck                  yes
+    received-vector-altitude    nil
+==>
+    !output! (altitude-selector-crosscheck skipped no-remembered-vector trusting-teammate)
+    =goal>
+    phase                       check-task-on-tars
+    stage                       1
+)
+(spp panpan-altitude-crosscheck-trust-teammate-without-vector :u 2000)
+
+(p panpan-altitude-crosscheck-vector-unavailable
+    =goal>
+    isa                         task
+    task-object                 altitude
+    task-value                  set-accordingly
+    phase                       perform-task
+    stage                       retrieve-vector-altitude
+    ?retrieval>
+    state                       error
+==>
+    !output! (altitude-selector-crosscheck skipped vector-retrieval-failed trusting-teammate)
+    =goal>
+    phase                       check-task-on-tars
+    stage                       1
+)
+(spp panpan-altitude-crosscheck-vector-unavailable :u 2000)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; end of PANPAN - altitude set accordingly ;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
